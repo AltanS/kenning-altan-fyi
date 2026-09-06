@@ -129,7 +129,7 @@ function ResultRow({ hit, to }: { hit: SearchHit; to: LanguageCode }) {
         <Link
           to={`/entry/${hit.headwordId}?to=${to}`}
           lang={hit.languageCode}
-          className="font-mono text-lg font-semibold tracking-tight hover:text-brand-ink"
+          className="font-mono text-lg font-semibold tracking-tight hover:underline"
         >
           {hit.lemma}
         </Link>

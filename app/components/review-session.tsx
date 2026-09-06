@@ -140,7 +140,7 @@ export function ReviewSessionView({ cards, heading, backTo, backLabel }: ReviewS
         <Button type="button" onClick={onAgain}>
           {t('review.again')}
         </Button>
-        <Link to={backTo} className="text-sm text-brand-ink hover:underline">
+        <Link to={backTo} className="text-sm text-brand-ink underline underline-offset-4">
           {backLabel}
         </Link>
       </div>
@@ -158,7 +158,7 @@ export function ReviewSessionView({ cards, heading, backTo, backLabel }: ReviewS
         announcement={announcement}
         progress={t('review.progress', { done: session.retired.length, total: session.totalCards })}
       />
-      <Link to={backTo} className="text-center text-sm text-brand-ink hover:underline">
+      <Link to={backTo} className="text-center text-sm text-brand-ink underline underline-offset-4">
         {backLabel}
       </Link>
     </div>

@@ -90,7 +90,7 @@ function SensePanel({ sense, to }: { sense: EntrySense; to: LanguageCode }) {
                   // headword takes (M186/03). The glosses above deliberately do
                   // not: a gloss is a sentence describing a sense, not a term
                   // the reader is meant to read back, type or recognise.
-                  className="font-mono hover:text-brand-ink"
+                  className="font-mono hover:underline"
                 >
                   {translation.lemma}
                 </Link>{' '}

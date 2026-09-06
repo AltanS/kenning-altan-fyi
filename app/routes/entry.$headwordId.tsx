@@ -137,7 +137,7 @@ export default function EntryRoute({ loaderData }: Route.ComponentProps) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
         <EntryUnavailable />
-        <Link to="/" className="text-sm text-brand-ink hover:underline">
+        <Link to="/" className="text-sm text-brand-ink underline underline-offset-4">
           {t('entry.backToSearch')}
         </Link>
       </div>
@@ -252,7 +252,7 @@ export default function EntryRoute({ loaderData }: Route.ComponentProps) {
 
       <EntryNote headwordId={entry.headwordId} />
 
-      <Link to="/" className="text-sm text-brand-ink hover:underline">
+      <Link to="/" className="text-sm text-brand-ink underline underline-offset-4">
         {t('entry.backToSearch')}
       </Link>
     </div>

@@ -210,7 +210,7 @@ function ListRow({ list }: { list: { id: string; name: string; itemCount: number
         <Link
           to={`/lists/${list.id}`}
           aria-label={t('lists.openList', { name: list.name })}
-          className="min-w-0 flex-1 hover:text-brand-ink"
+          className="min-w-0 flex-1 hover:underline"
         >
           <span className="block text-sm font-medium">{list.name}</span>
           <span className="block truncate text-sm text-muted-foreground">

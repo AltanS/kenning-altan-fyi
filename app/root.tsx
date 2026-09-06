@@ -198,8 +198,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
             These hexes are the resolved `--background` values from `app.css`,
             light and dark, and must be updated together with that token: a
             raster meta tag cannot read a CSS custom property. */}
-        <meta name="theme-color" content="#fbf8f1" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#0f0d0a" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
         <Meta />
         <Links />
         <script

@@ -90,7 +90,7 @@ export default function DailyReviewRoute({ loaderData }: Route.ComponentProps) {
       <div className="surface-brand-soft mx-auto flex w-full max-w-md flex-col gap-2 rounded-xl border border-dashed p-6">
         <h2 className="font-display text-base font-semibold">{t('nudge.sessionEmptyTitle')}</h2>
         <p className="text-sm text-muted-foreground">{t('nudge.sessionEmptyBody')}</p>
-        <Link to="/lists" className="text-sm text-brand-ink hover:underline">
+        <Link to="/lists" className="text-sm text-brand-ink underline underline-offset-4">
           {t('nudge.toLists')}
         </Link>
       </div>

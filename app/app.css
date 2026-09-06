@@ -56,16 +56,15 @@
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 12px);
 
-  /* Shadows are tinted, not black. A neutral-black shadow on the warm cream
-     page reads as a grey smudge; hue 28 keeps the falloff in the same family
-     as the surfaces it falls on. Alpha does the work, the hue only stops it
-     going cold. */
-  --shadow-2xs: 0 1px 2px 0 hsl(28 40% 12% / 0.04);
-  --shadow-xs: 0 1px 2px 0 hsl(28 40% 12% / 0.05);
-  --shadow-sm: 0 1px 3px 0 hsl(28 40% 12% / 0.07), 0 1px 2px -1px hsl(28 40% 12% / 0.07);
-  --shadow-md: 0 4px 8px -2px hsl(28 40% 12% / 0.09), 0 2px 4px -2px hsl(28 40% 12% / 0.06);
-  --shadow-lg: 0 12px 20px -4px hsl(28 40% 12% / 0.11), 0 4px 8px -4px hsl(28 40% 12% / 0.07);
-  --shadow-xl: 0 20px 32px -8px hsl(28 40% 12% / 0.14), 0 8px 12px -6px hsl(28 40% 12% / 0.08);
+  /* Shadows are neutral black at low alpha. They were tinted hue 28 while the
+     surfaces were warm cream; on a pure white page a tinted shadow reads as a
+     stain. Alpha does all the work here. */
+  --shadow-2xs: 0 1px 2px 0 hsl(0 0% 8% / 0.04);
+  --shadow-xs: 0 1px 2px 0 hsl(0 0% 8% / 0.05);
+  --shadow-sm: 0 1px 3px 0 hsl(0 0% 8% / 0.07), 0 1px 2px -1px hsl(0 0% 8% / 0.07);
+  --shadow-md: 0 4px 8px -2px hsl(0 0% 8% / 0.09), 0 2px 4px -2px hsl(0 0% 8% / 0.06);
+  --shadow-lg: 0 12px 20px -4px hsl(0 0% 8% / 0.11), 0 4px 8px -4px hsl(0 0% 8% / 0.07);
+  --shadow-xl: 0 20px 32px -8px hsl(0 0% 8% / 0.14), 0 8px 12px -6px hsl(0 0% 8% / 0.08);
 
   --font-sans: 'Inter Variable', sans-serif;
   --font-mono: 'Victor Mono Variable', monospace;
@@ -82,19 +81,27 @@
   --color-popover: hsl(var(--popover));
   --color-popover-foreground: hsl(var(--popover-foreground));
 
-  /* The mark's own two hues, at full strength. Neither is a second primary:
-     they carry no text, no control and no state. Their only jobs are the mark
-     itself and the branded washes in `@layer components`, where the fill sits
-     at low alpha and contrast does not apply. `--brand-1` is the drawn amber,
-     `--brand-2` the drawn coral. See DESIGN.md section 2. */
-  /* The brand colour that carries TEXT. `--primary` is a fill and cannot do
-     this job: the amber measures 1.93:1 on white. Anything reading as brand
-     that is a glyph, a hairline or a 2px indicator takes this instead.
-     See DESIGN.md section 2. */
+  /* The colour that carries brand-weighted TEXT. `--primary` is a fill and
+     cannot do this job: the amber measures 1.93:1 on white.
+
+     UNDER THIS PALETTE IT IS NOT A COLOUR. Mono Amber puts every glyph,
+     hairline and 2px indicator on the ink itself, so `--brand-ink` resolves to
+     the same near-black as `--foreground` in light and the same near-white in
+     dark. IT IS STILL A SEPARATE TOKEN, and repointing it is how the brand
+     comes back into the text if this palette ever softens. Do not collapse it
+     into `--foreground`. See DESIGN.md section 2. */
   --color-brand-ink: hsl(var(--brand-ink));
 
+  /* The drawn amber at full strength, for the three washes in
+     `@layer components`. It is not a second primary: it carries no text, no
+     control and no state, and every wash puts it under 0.22 alpha, where
+     contrast does not apply.
+
+     THE MARK'S CORAL IS NO LONGER A TOKEN. It had one job, the middle stop of
+     `.surface-brand`, and the monochrome palette took that job away. The mark
+     still draws its coral card, as a literal in `kenning-mark.tsx`, because a
+     mark is artwork and never reads a UI token. See DESIGN.md section 2. */
   --color-brand-1: hsl(var(--brand-1));
-  --color-brand-2: hsl(var(--brand-2));
 
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
@@ -184,128 +191,113 @@
 
 @layer base {
   :root {
-    /* Warm light surface family. The surface hues sit between the mark's two
-       drawn hues, so the page, the cards, the hairlines and the brand are one
-       system rather than a warm accent dropped on cold grey.
+    /* MONO AMBER. Chosen by the operator on 2026-09-06 from a ten-palette
+       playground, after two warm palettes were rejected for reading brown.
 
-       These come from the Kenning mark, chosen 2026-09-05: the drawn amber is
-       `hsl(39 95% 54%)` and the drawn coral is `hsl(7 93% 62%)`.
+       Every surface, hairline and glyph is a pure neutral: saturation is
+       literally zero on all of them. The mark's amber is the only colour in
+       the interface, and it appears on exactly one thing, a filled control.
+       Everything a warm palette used to say with hue, this one says with
+       weight, spacing and a hairline.
 
-       `--primary` IS THE DRAWN AMBER, UNMODIFIED, AND IT TAKES DARK TEXT. Two
-       earlier attempts darkened it instead, to `hsl(32 90% 30%)` and then to
-       `hsl(18 95% 40%)`, so that white text could sit on it. Both cleared
-       4.5:1 and both read as brown, because darkening a 54%-lightness amber
-       far enough to carry white text is what brown IS. The constraint was
-       never the amber, it was the white text. Flip the text to a near-black
-       ink and the amber survives at full strength: `--primary-foreground`
-       measures 8.24:1 on it.
+       THE PAGE AND THE CARD ARE BOTH PURE WHITE. That is the palette, not an
+       oversight: cards separate by their border, never by their fill. The
+       greys below (`--secondary`, `--muted`, `--accent`, `--sidebar-*`) are
+       what carry hover, chrome and depth. Do not reintroduce a tinted page to
+       "lift" a card.
 
-       That flip costs one thing, and `--brand-ink` pays it. A fill can take
-       dark text, a glyph cannot: brand-coloured TEXT still needs 4.5:1 against
-       the page, and the amber gives 1.93:1. So brand text, brand hairlines and
-       the 2px active indicators use `--brand-ink`, a vermilion out of the
-       mark's coral rather than out of its amber. It measures 5.24:1 on the
-       card and 4.93:1 on the page, and 2.72:1 against the amber, so the two
-       never sit on top of each other. `--primary` fills, `--brand-ink` writes.
+       The amber takes DARK text, as it did before, because it is the drawn
+       amber untouched and white on it measures 1.93:1. `--primary-foreground`
+       on it measures 9.51:1.
 
-       The warm neutrals carry more saturation than a near-grey tint, for the
-       same reason the brand does: a washed-out warm grey reads as grey next to
-       a saturated mark.
-
-       Contrast, measured not assumed: `--foreground` is 17.46:1 on the card
-       and 16.42:1 on the page. `--muted-foreground` is 7.81:1 on the card. */
-    --background: 38 60% 96.5%;
-    --foreground: 24 24% 10%;
+       Contrast, measured not assumed: `--foreground` is 18.36:1 on the page,
+       `--muted-foreground` is 6.20:1, `--destructive` under white text is
+       6.26:1, `--success` 5.83:1 and `--warning` 5.96:1 as text. */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 24 24% 10%;
+    --card-foreground: 0 0% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 24 24% 10%;
+    --popover-foreground: 0 0% 8%;
     --primary: 39 95% 54%;
-    --primary-foreground: 28 65% 12%;
-    --brand-ink: 9 90% 43%;
+    --primary-foreground: 0 0% 8%;
+    --brand-ink: 0 0% 8%;
     --brand-1: 39 95% 54%;
-    --brand-2: 7 93% 62%;
-    --secondary: 36 55% 90%;
-    --secondary-foreground: 24 24% 15%;
-    --muted: 36 55% 90%;
-    --muted-foreground: 24 18% 32%;
-    --accent: 34 62% 86%;
-    --accent-foreground: 24 24% 15%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 12%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 38%;
+    --accent: 0 0% 93%;
+    --accent-foreground: 0 0% 12%;
     --destructive: 356 78% 42%;
     --destructive-foreground: 0 0% 100%;
     --success: 150 75% 26%;
     --warning: 40 96% 27%;
-    --border: 34 40% 80%;
-    --input: 34 40% 80%;
-    --ring: 9 90% 43%;
+    --border: 0 0% 86%;
+    --input: 0 0% 86%;
+    --ring: 0 0% 8%;
     --chart-1: 39 95% 54%;
-    --chart-2: 9 90% 50%;
-    --chart-3: 7 88% 58%;
-    --chart-4: 28 88% 44%;
-    --chart-5: 50 80% 42%;
-    --sidebar-background: 38 58% 96%;
-    --sidebar-foreground: 24 18% 28%;
+    --chart-2: 0 0% 45%;
+    --chart-3: 0 0% 68%;
+    --chart-4: 39 60% 72%;
+    --chart-5: 0 0% 25%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 30%;
     --sidebar-primary: 39 95% 54%;
-    --sidebar-primary-foreground: 28 65% 12%;
-    --sidebar-accent: 34 62% 86%;
-    --sidebar-accent-foreground: 24 24% 15%;
-    --sidebar-border: 34 40% 81%;
-    --sidebar-ring: 9 90% 43%;
+    --sidebar-primary-foreground: 0 0% 8%;
+    --sidebar-accent: 0 0% 93%;
+    --sidebar-accent-foreground: 0 0% 12%;
+    --sidebar-border: 0 0% 88%;
+    --sidebar-ring: 0 0% 8%;
   }
   .dark {
-    /* Warm near-black. Hue 30 with real chroma makes the dark theme read as a
-       deep brown-black rather than grey-black, and the greys around it share
-       the hue so the tint does not cancel out.
+    /* The same system inverted, and just as neutral: zero saturation on every
+       surface. `--card` sits four lightness points above `--background` so
+       cards keep reading as elevated, which is the same job the border does in
+       light mode.
 
-       `--card` sits 3.5 lightness points above `--background` so cards keep
-       reading as elevated. The brand is the drawn amber here too, lifted four
-       lightness points so it holds up against a near-black page, and it takes
-       the same dark ink: `--primary-foreground` measures 9.55:1 on it.
+       The amber lifts four points here and keeps its dark ink:
+       `--primary-foreground` measures 10.47:1 on it. `--brand-ink` inverts to
+       near-white, so brand-weighted text is the page's own ink on both themes.
 
-       `--brand-ink` inverts between the themes and that is not a mistake. On
-       the light page it has to be DARKER than the amber to carry text; on this
-       page it has to be LIGHTER. It is the same coral either way, at 70%
-       lightness instead of 43%, and it measures 7.79:1 on the card.
-
-       Contrast: `--foreground` is 16.99:1 on the card, `--muted-foreground`
-       is 9.04:1, `--primary` as a fill is 9.90:1. */
-    --background: 28 20% 5%;
-    --foreground: 38 16% 97%;
-    --card: 28 17% 8.5%;
-    --card-foreground: 38 16% 97%;
-    --popover: 28 17% 8.5%;
-    --popover-foreground: 38 16% 97%;
+       Contrast: `--foreground` is 17.19:1 on the card and 18.52:1 on the page,
+       `--muted-foreground` is 8.71:1, and the amber as a fill is 10.05:1. */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 97%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 97%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 97%;
     --primary: 39 95% 58%;
-    --primary-foreground: 28 70% 9%;
-    --brand-ink: 14 95% 70%;
+    --primary-foreground: 0 0% 6%;
+    --brand-ink: 0 0% 97%;
     --brand-1: 39 95% 60%;
-    --brand-2: 7 93% 66%;
-    --secondary: 28 14% 15%;
-    --secondary-foreground: 38 16% 97%;
-    --muted: 28 14% 15%;
-    --muted-foreground: 34 12% 71%;
-    --accent: 28 16% 18%;
-    --accent-foreground: 38 16% 97%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 97%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 0 0% 17%;
+    --accent-foreground: 0 0% 97%;
     --destructive: 356 85% 66%;
-    --destructive-foreground: 28 70% 9%;
+    --destructive-foreground: 0 0% 6%;
     --success: 150 64% 55%;
     --warning: 42 95% 58%;
-    --border: 28 14% 18%;
-    --input: 28 14% 18%;
-    --ring: 39 95% 58%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 0 0% 97%;
     --chart-1: 39 95% 58%;
-    --chart-2: 7 93% 66%;
-    --chart-3: 45 90% 62%;
-    --chart-4: 18 85% 62%;
-    --chart-5: 52 75% 57%;
-    --sidebar-background: 28 18% 7.5%;
-    --sidebar-foreground: 34 12% 88%;
+    --chart-2: 0 0% 62%;
+    --chart-3: 0 0% 40%;
+    --chart-4: 39 60% 45%;
+    --chart-5: 0 0% 82%;
+    --sidebar-background: 0 0% 6%;
+    --sidebar-foreground: 0 0% 72%;
     --sidebar-primary: 39 95% 58%;
-    --sidebar-primary-foreground: 28 70% 9%;
-    --sidebar-accent: 28 16% 16%;
-    --sidebar-accent-foreground: 38 16% 97%;
-    --sidebar-border: 28 14% 16%;
-    --sidebar-ring: 39 95% 58%;
+    --sidebar-primary-foreground: 0 0% 6%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 0 0% 97%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 0 0% 97%;
   }
 }
 
@@ -323,25 +315,25 @@
  * same warm family as the page.
  */
 :root {
-  --sidebar: hsl(38 58% 96%);
-  --sidebar-foreground: hsl(24 18% 28%);
+  --sidebar: hsl(0 0% 98%);
+  --sidebar-foreground: hsl(0 0% 30%);
   --sidebar-primary: hsl(39 95% 54%);
-  --sidebar-primary-foreground: hsl(28 65% 12%);
-  --sidebar-accent: hsl(34 62% 86%);
-  --sidebar-accent-foreground: hsl(24 24% 15%);
-  --sidebar-border: hsl(34 40% 81%);
-  --sidebar-ring: hsl(9 90% 43%);
+  --sidebar-primary-foreground: hsl(0 0% 8%);
+  --sidebar-accent: hsl(0 0% 93%);
+  --sidebar-accent-foreground: hsl(0 0% 12%);
+  --sidebar-border: hsl(0 0% 88%);
+  --sidebar-ring: hsl(0 0% 8%);
 }
 
 .dark {
-  --sidebar: hsl(28 18% 7.5%);
-  --sidebar-foreground: hsl(34 12% 88%);
+  --sidebar: hsl(0 0% 6%);
+  --sidebar-foreground: hsl(0 0% 72%);
   --sidebar-primary: hsl(39 95% 58%);
-  --sidebar-primary-foreground: hsl(28 70% 9%);
-  --sidebar-accent: hsl(28 16% 16%);
-  --sidebar-accent-foreground: hsl(38 16% 97%);
-  --sidebar-border: hsl(28 14% 16%);
-  --sidebar-ring: hsl(39 95% 58%);
+  --sidebar-primary-foreground: hsl(0 0% 6%);
+  --sidebar-accent: hsl(0 0% 15%);
+  --sidebar-accent-foreground: hsl(0 0% 97%);
+  --sidebar-border: hsl(0 0% 15%);
+  --sidebar-ring: hsl(0 0% 97%);
 }
 
 @theme inline {
@@ -377,14 +369,16 @@
      A flat fill reads as a muddy panel. A directional wash gives the card a
      light source. Exactly one per screen.
 
-     THE STOPS ARE THE MARK'S OWN TWO HUES, amber into coral. Alpha stays low,
-     so the card reads as tinted paper rather than as a coloured panel. */
+     THE WASH IS AMBER ONLY. It ran amber into the mark's coral until the
+     palette went monochrome, and a second hue in a wash is the one place a
+     mono theme leaks. Alpha stays low, so the card reads as tinted paper
+     rather than as a coloured panel. */
   .surface-brand {
     background-image: linear-gradient(
       140deg,
-      hsl(var(--brand-1) / 0.24) 0%,
-      hsl(var(--brand-2) / 0.14) 48%,
-      hsl(var(--brand-2) / 0.03) 100%
+      hsl(var(--brand-1) / 0.22) 0%,
+      hsl(var(--brand-1) / 0.08) 48%,
+      hsl(var(--brand-1) / 0.02) 100%
     );
   }
 

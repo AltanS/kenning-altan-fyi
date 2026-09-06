@@ -1,7 +1,7 @@
 # kenning.altan.fyi Design Language
 
-This product has its own look. A warm-tinted neutral scale on every surface, the
-mark's own amber and coral as the brand, a display grotesque for the chrome, and monospaced
+This product has its own look. A pure neutral scale on every surface, the
+mark's amber on the controls and nowhere else, a display grotesque for the chrome, and monospaced
 headwords. The chrome means the surrounding browser frame and UI shell. The
 visual feel is a quiet study tool: clean, text-forward, and unhurried. It is
 neither a playful consumer app nor a dense dashboard.
@@ -9,10 +9,11 @@ neither a playful consumer app nor a dense dashboard.
 The palette has moved twice, and the reason matters more than the values. It
 was teal and a display serif until M186, both copied from openplate
 (`openplate/DESIGN.md`), a sibling product. It became "Open blue" in M186, the
-operator's own choice. It became warm on 2026-09-05, and this time the palette
-was NOT chosen in the abstract: it was read off the Kenning brand mark, a stack
-of rounded cards drawn in amber and coral. The mark came first and the tokens
-follow it, which is why the corner radius moved in the same edit. Do not read a
+operator's own choice. It became warm on 2026-09-05, read off the
+Kenning brand mark, a stack of rounded cards drawn in amber and coral. It became
+monochrome on 2026-09-06, when two attempts at a warm brand colour both read as
+brown and the operator chose "Mono Amber" from a ten-palette playground. The
+mark still came first: its amber is the one colour that survived. Do not read a
 token value or a font name back out of openplate, and do not repaint a token
 without asking what it does to the mark.
 
@@ -41,8 +42,8 @@ build.
 
 ## 1. Principles
 
-1. **Neutrals carry the chrome, the mark's amber carries the brand.** Most
-   elements use neutral colors. Reserve the brand for elements that need user focus: the
+1. **Neutrals carry everything, the amber carries the action.** Almost every
+   element is a pure neutral. Reserve the amber for elements that need user focus: the
    primary button, the active nav item, the focus ring, links, and the single
    hero card on a screen where one exists. Not every screen has one: the
    translator surface in section 3 deliberately has no brand wash at all.
@@ -73,81 +74,82 @@ build.
 ## 2. Color tokens
 
 Semantic tokens live in `app/app.css` as HSL triplets, following shadcn
-convention. Every surface and hairline border carries the brand's own warm hue
-at low saturation. The chrome, the page, and the cards form a single warm
-system instead of a warm accent placed on cold grey. The values below are the
+convention. Every surface and hairline border is a pure neutral: zero
+saturation, no tint in either direction. The one colour in the interface is the
+mark's amber, and it appears only on filled controls. The values below are the
 ones in `app/app.css`. Change them in one place and copy them here in the same
 edit: a token table that drifts from the stylesheet is worse than no table.
 
 | Token                  | Light           | Dark            | Usage                         |
 | ---------------------- | --------------- | --------------- | ----------------------------- |
-| `--background`         | `38 60% 96.5%` cream | `28 20% 5%` warm black | page              |
-| `--foreground`         | `24 24% 10%`    | `38 16% 97%`    | text                          |
-| `--card`               | white           | `28 17% 8.5%`   | card surfaces                 |
-| `--muted`              | `36 55% 90%`    | `28 14% 15%`    | hover surfaces, subdued fills |
-| `--accent`             | `34 62% 86%`    | `28 16% 18%`    | hover surfaces, subdued fills |
-| `--muted-foreground`   | `24 18% 32%`    | `34 12% 71%`    | secondary text                |
-| `--border` / `--input` | `34 40% 80%`    | `28 14% 18%`    | hairlines                     |
+| `--background`         | `0 0% 100%`     | `0 0% 4%`       | page                          |
+| `--foreground`         | `0 0% 8%`       | `0 0% 97%`      | text                          |
+| `--card`               | `0 0% 100%`     | `0 0% 8%`       | card surfaces                 |
+| `--muted`              | `0 0% 96%`      | `0 0% 14%`      | hover surfaces, subdued fills |
+| `--accent`             | `0 0% 93%`      | `0 0% 17%`      | hover surfaces, subdued fills |
+| `--muted-foreground`   | `0 0% 38%`      | `0 0% 70%`      | secondary text                |
+| `--border` / `--input` | `0 0% 86%`      | `0 0% 18%`      | hairlines                     |
 | `--primary`            | `39 95% 54%`    | `39 95% 58%`    | filled controls only          |
-| `--primary-foreground` | `28 65% 12%`    | `28 70% 9%`     | dark ink ON primary           |
-| `--brand-ink`          | `9 90% 43%`     | `14 95% 70%`    | brand text, hairlines, indicators |
-| `--brand-1`            | `39 95% 54%`    | `39 95% 60%`    | the mark's amber, wash stops  |
-| `--brand-2`            | `7 93% 62%`     | `7 93% 66%`     | the mark's coral, wash stops  |
+| `--primary-foreground` | `0 0% 8%`       | `0 0% 6%`       | dark ink ON primary           |
+| `--brand-ink`          | `0 0% 8%`       | `0 0% 97%`      | brand text, hairlines, indicators |
+| `--brand-1`            | `39 95% 54%`    | `39 95% 60%`    | the amber washes              |
 | `--destructive`        | `356 78% 42%`   | `356 85% 66%`   | delete, disconnect            |
 | `--success`            | `150 75% 26%`   | `150 64% 55%`   | confirmed state               |
 | `--warning`            | `40 96% 27%`    | `42 95% 58%`    | caution state                 |
-| `--ring`               | same as `--brand-ink` | same as `--primary` | focus rings         |
+| `--ring`               | `0 0% 8%`       | `0 0% 97%`      | focus rings                   |
 
-`--card` stays pure white in light mode so cards stand out from the cream page.
+**The page and the card are both pure white, and that is the palette.** Cards
+separate by their border, never by their fill. The greys (`--muted`, `--accent`,
+`--secondary`, the `--sidebar-*` set) carry hover, chrome and depth. Never
+reintroduce a tinted page to "lift" a card.
 
-**The drawn amber IS `--primary`, and it takes dark text.** The mark is drawn
-in `hsl(39 95% 54%)` amber and `hsl(7 93% 62%)` coral. That amber measures
-**1.93:1** on white, so `--primary` was twice the amber darkened until white
-text could sit on it: `hsl(32 90% 30%)` on 2026-09-05, then `hsl(18 95% 40%)`
-on 2026-09-06. Both cleared 4.5:1. Both read as brown, and the operator
-rejected both on sight.
+**Mono Amber, chosen 2026-09-06.** The operator picked this from a ten-palette
+playground built on one real screen. Two warm palettes were rejected before it,
+and the history is kept here because it explains the shape of the tokens.
 
-**The constraint was never the amber, it was the white text.** Darkening a
-54%-lightness amber far enough to carry white IS what brown is, so no amount of
-hue-tuning was going to save it. Flip the text instead: `--primary` is now the
-drawn amber untouched, and `--primary-foreground` is a near-black warm ink that
-measures **8.24:1** on it in light and **9.55:1** in dark. Buttons are the
-colour of the logo.
+**Saturation is literally zero on every surface, hairline and glyph.** The
+mark's amber is the only colour in the interface, and it lands on exactly one
+kind of thing: a filled control. Everything a warm palette said with hue, this
+one says with weight, spacing and a hairline.
 
-**That flip costs one thing, and `--brand-ink` pays it.** A fill can take dark
-text, a glyph cannot: brand-coloured TEXT still owes 4.5:1 against the page, and
-the amber gives 1.93:1. So the brand splits in two by JOB, not by decoration:
+**Why the two warm palettes failed.** The mark is drawn in `hsl(39 95% 54%)`
+amber and `hsl(7 93% 62%)` coral. That amber measures **1.93:1** on white, so
+`--primary` was twice the amber darkened until white text could sit on it:
+`hsl(32 90% 30%)`, then `hsl(18 95% 40%)`. Both cleared 4.5:1 and both read as
+brown. Darkening a 54%-lightness amber that far IS brown. The constraint was
+never the amber, it was the white text.
 
-- **`--primary` fills.** Buttons, selected chips, the text selection highlight,
-  and every `bg-primary/<alpha>` wash.
-- **`--brand-ink` writes.** Every `text-primary` in the app became
-  `text-brand-ink`: links, section labels, active nav labels, chip text. It also
-  carries brand hairlines (`border-brand-ink/20`), focus rings, and the 2px
-  active-tab indicator, because a 2px amber bar on a cream page is invisible.
+**So the text flips, and that survives into this palette.** `--primary` is the
+drawn amber untouched and it takes a near-black `--primary-foreground`, which
+measures **9.51:1** on it in light and **10.47:1** in dark. Buttons are the
+colour of the logo. Never put white text on `--primary`.
 
-`--brand-ink` is a vermilion drawn out of the mark's CORAL rather than its
-amber, `hsl(9 90% 43%)`, measuring **5.24:1** on the card and **4.93:1** on the
-page. Against the amber it measures 2.72:1, which is the point: the two are far
-enough apart that they never sit on top of each other, and the pairing is the
-mark's own pairing.
+**`--brand-ink` is not a colour here, and it is still a token.** A fill can take
+dark text; a glyph cannot. Brand-weighted TEXT owes 4.5:1 to the page and the
+amber gives 1.93:1, so under this palette every brand glyph, hairline, focus
+ring and 2px indicator resolves to the page's own ink: `0 0% 8%` light,
+`0 0% 97%` dark. Keep the token separate from `--foreground`. Repointing it is
+how brand colour returns to the text if this palette ever softens, and
+collapsing the two would make that a find-and-replace across 30 call sites.
 
-`--brand-ink` inverts between the themes and that is not a bug. On the light
-page it must be darker than the amber to carry text; on the dark page it must be
-lighter. Same coral, 43% lightness light and 70% dark, 7.79:1 on the dark card.
+**Colour is never a link's only cue, because here there is no colour to spare.**
+A link that was `text-brand-ink hover:underline` is invisible as a link under
+this palette. Every such link is underlined at rest. Hover states that only
+changed the text colour now change the underline instead. Any NEW link follows
+the same rule: underline at rest, or a shape the reader can see without hue.
 
-The warm neutrals carry more saturation than a near-grey tint, for the same
-reason the brand does: a washed-out warm grey reads as grey beside a saturated
-mark. Muted, accent and border sit between 40 and 62% saturation. The page is
-`#fbf8f1`.
+**The mark's coral is no longer a token.** `--brand-2` had one job, the middle
+stop of `.surface-brand`, and a monochrome palette has no room for a second hue
+in a wash. The three washes are amber only. The mark still draws its coral card
+as a literal in `kenning-mark.tsx`, because a mark is artwork and never reads a
+UI token, so the logo is unchanged.
 
-The other measured values, so nobody has to re-derive them: `--foreground` is
-17.46:1 on the card and 16.42:1 on the page. `--muted-foreground` is 7.81:1 on
-the card. In dark mode `--foreground` is 16.99:1 and `--muted-foreground` is
-9.04:1.
+**Shadows are neutral black.** They were tinted hue 28 while the surfaces were
+warm cream. On a pure white page a tinted shadow reads as a stain.
 
-**Never put text directly on `--primary` except `--primary-foreground`, and
-never use `--primary` for a glyph, a hairline or a rule.** Those are the two
-ways to reintroduce the 1.93:1 failure this split exists to prevent.
+The measured values, so nobody re-derives them: `--foreground` is 18.36:1 on the
+light page, `--muted-foreground` 6.20:1. In dark, `--foreground` is 17.19:1 on
+the card, `--muted-foreground` 8.71:1, and the amber as a fill 10.05:1.
 
 **The three state tokens, and the one honest weakness in them.** `--destructive`,
 `--success` and `--warning` are the only status colours. `--success` and
@@ -158,44 +160,36 @@ when the palette went warm. Soft fills are alpha over the token
 text: success 5.83:1 light and 9.65:1 dark, warning 5.96:1 and 10.62:1,
 destructive 6.26:1 and 5.68:1.
 
-`--destructive` moved to hue 356, a crimson, and stays there. It has to hold its
-distance from `--brand-ink`, which is a vermilion two hues away from it but far
-lighter in use, and from the amber `--primary`. A delete button is amber-free
-and crimson-filled; a primary button is amber. They cannot be confused. Dark `--destructive` was `0 70% 45%` before 2026-09-05 and
+`--destructive`, `--success` and `--warning` are the ONLY saturated colours in
+the app besides the amber. In a monochrome interface that makes them carry more
+weight than they did, which is correct: a state is exactly what should interrupt
+a neutral page. Dark `--destructive` was `0 70% 45%` before 2026-09-05 and
 measured **3.08:1** on the dark card, below the 4.5:1 floor. That was a live
 accessibility failure and it stays fixed.
 
-**`--warning` sits close to `--primary`, and that is unavoidable.** The brand is
-the mark's amber, and amber is what caution looks like: an amber fill and a
-warning fill are near-identical.
-There is no warm hue left that reads as "caution" and not as "brand". So the
-rule is not a colour rule: **a warning state must always carry its icon, and
+**`--warning` sits close to `--primary`, and this palette makes that worse, not
+better.** The brand IS amber and amber is what caution looks like. There is no
+warm hue left that reads as "caution" and not as "brand". So the rule is not a
+colour rule: **a warning state must always carry its icon, and
 colour is never its only signal.** That is WCAG 1.4.1 regardless, and here it is
 also the thing that makes the state legible at all. Never ship a warning that is
 distinguished by hue alone, and never put a `--warning` fill next to a
 `--primary` one.
 
-**`--brand-1` and `--brand-2` are not second primaries.** They are the mark's
-own amber and coral at full strength, and they have exactly two jobs: the mark,
-and the stops of the three washes below. `--brand-1` and `--primary` hold the
-same value today and are still separate tokens: one is artwork, the other is a
-control surface, and a future control-contrast fix must not repaint the mark. They carry no text, no control, no
-state and no meaning, which is why full strength is safe: every wash puts them
-under 0.26 alpha, where contrast does not apply. `--brand-2` is deliberately NOT
-wired to `--destructive`: a coral that means "delete" on one screen and "brand"
-on another teaches the reader nothing, and the crimson destructive stays crimson
-so the two can never be confused.
+**`--brand-1` is not a second primary.** It is the drawn amber at full strength
+and it has one job: the stops of the three washes below. It carries no text, no
+control, no state and no meaning, which is why full strength is safe: every wash
+puts it under 0.22 alpha, where contrast does not apply. `--brand-1` and
+`--primary` hold the same value today and are still separate tokens. One is a
+wash, the other is a control surface, and a future control-contrast fix must not
+repaint the washes with it.
 
-**Brand discipline.** Neutrals use a warm tint across the whole app. Limit
-saturated brand surfaces strictly. Only three utilities in `app.css` apply one.
-Each uses an `hsl(var(--brand-1) / ...)` or `hsl(var(--brand-2) / ...)`
-gradient, never a raw literal value. They read from the drawn hues rather than
-from `--primary`, because `--primary` is contrast-constrained and a
-contrast-constrained value dulls a wash that has no contrast to satisfy:
+**Brand discipline.** Every neutral in the app is untinted. Limit saturated
+brand surfaces strictly. Only three utilities in `app.css` apply one.
+Each uses an `hsl(var(--brand-1) / ...)` gradient, never a raw literal value:
 
 - `.surface-brand` styles the ONE hero card on a screen. Use it once per screen,
-  never twice. It runs amber into coral, so the hero carries both of the mark's
-  hues and nothing else in the app has to.
+  never twice. It is amber at three alphas, so it reads as tinted paper.
 - `.surface-brand-soft` styles empty-state panels, paired with `border-dashed`.
 - `.brand-glow` styles backdrops behind hero elements only.
 
@@ -222,7 +216,7 @@ treatments:
 **The PWA colours are a hand-kept copy.** `public/manifest.webmanifest` and the
 two `theme-color` meta tags in `app/root.tsx` carry resolved hex values, because
 neither a manifest nor a meta tag can read a CSS custom property. They are the
-light and dark `--background` values, `#fbf8f1` and `#0f0d0a`. Change them in
+light and dark `--background` values, `#ffffff` and `#0a0a0a`. Change them in
 the same edit as the token or the browser chrome drifts from the page. This is
 not hypothetical: the meta tag held `#057a78`, an openplate teal, straight
 through the M186 blue repalette and was only caught when this palette landed.
@@ -351,15 +345,14 @@ container and shadow, and render simple rows on the page.
   a step and it stops moving.
 - Shadows: Use `shadow-sm` at rest, `hover:shadow-md` on interactive cards, and
   `shadow-lg` on overlays. Never apply heavier shadows to elements at rest.
-- **Shadows are warm-tinted, not black.** The `--shadow-*` scale is redefined in
-  `@theme` over `hsl(28 40% 12%)` rather than Tailwind's neutral black. A pure
-  black falloff on a cream page reads as a grey smudge sitting on top of the
-  surface rather than as the surface lifting off it. Alpha still does all the
-  work; the hue only stops the shadow going cold. Use the `shadow-*` utilities
-  as normal, they pick this up for free. Never write a raw `box-shadow`.
+- **Shadows are neutral black at low alpha.** The `--shadow-*` scale is
+  redefined in `@theme` over `hsl(0 0% 8%)`. It was tinted `hsl(28 40% 12%)`
+  while the surfaces were warm cream; on a pure white page a tinted shadow reads
+  as a stain. Alpha does all the work. Use the `shadow-*` utilities as normal,
+  they pick this up for free. Never write a raw `box-shadow`.
 - Interactive-card hover recipe: Apply `transition-all duration-200
-  hover:shadow-md hover:border-primary/40`. Omit `dark:` prefixes because
-  `primary` colors adapt to the active theme automatically.
+  hover:shadow-md hover:border-brand-ink/40`. Omit `dark:` prefixes because the
+  tokens adapt to the active theme automatically.
 - Page container: Use `mx-auto max-w-3xl px-4 sm:px-6`. The translator surface
   is narrower still at `max-w-2xl`, see section 3. Keep the single-column layout
   narrow. Full-width translation text is hard to read.

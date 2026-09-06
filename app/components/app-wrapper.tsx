@@ -193,7 +193,7 @@ function AccountSlot() {
   }
 
   return (
-    <Link to="/account" className="flex max-w-32 items-center gap-1 text-sm hover:text-brand-ink">
+    <Link to="/account" className="flex max-w-32 items-center gap-1 text-sm hover:underline">
       <span className="sr-only">{t('account.title')}</span>
       <span className="truncate font-mono text-xs">{email}</span>
     </Link>
