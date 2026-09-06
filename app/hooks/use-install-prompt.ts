@@ -10,17 +10,26 @@ import { reportError } from '#app/lib/report-error';
  * whether this browser can install the app.
  *
  * NOTHING TOUCHES `window` AT MODULE SCOPE, AND THE FIRST ANSWER IS ALWAYS
- * `unavailable`. That is the whole point of the hook rather than a function
+ * `pending`. That is the whole point of the hook rather than a function
  * called during render. Reading `navigator` or `matchMedia` while rendering
  * gives the server one answer and the browser another; React keeps the server's
  * markup and never repairs the difference, so the reader is left with a control
  * that can never do anything. Here the server renders nothing, the effect runs
  * after mount, and the offer appears only once it is real.
+ *
+ * FOUR STATES, NOT THREE. Chromium's own `beforeinstallprompt` is not the only
+ * way to install: iOS, Firefox and Samsung Internet never fire it, and even a
+ * Chromium browser can fire it before this hook's `useEffect` runs (see the
+ * capture script in `root.tsx`). `unavailable` used to mean both of those
+ * cases AND "nothing to see here", which meant most of the app's readers found
+ * no install control anywhere. `manual` replaces it: it always has a written
+ * set of steps, so the card is never empty.
  */
 export type InstallOffer =
-  | { kind: 'unavailable' }
-  | { kind: 'manual' }
-  | { kind: 'ready'; install: () => void };
+  | { kind: 'pending' }
+  | { kind: 'installed' }
+  | { kind: 'ready'; install: () => void }
+  | { kind: 'manual'; platform: 'ios' | 'android' | 'desktop' };
 
 /**
  * The install prompt Chromium browsers hand the page, as the members used here.
@@ -45,18 +54,27 @@ interface BeforeInstallPromptEvent {
  * type above with no assertion at the call site. Narrowing a plain `Event` with
  * `in` checks would not do it: `in` produces an intersection that still is not
  * this interface, so the narrowing would end in the cast it was meant to avoid.
+ *
+ * `Window.__installPromptEvent` is the other half of the same declaration: the
+ * inline script in `root.tsx`'s `<head>` writes it before React exists, and
+ * this is what lets the hook below read it back with no assertion either.
  */
 declare global {
   interface WindowEventMap {
     beforeinstallprompt: BeforeInstallPromptEvent;
   }
+
+  interface Window {
+    __installPromptEvent: BeforeInstallPromptEvent | null;
+  }
 }
 
 /** The internal state, which holds the event the public offer only spends. */
 type InstallState =
-  | { kind: 'unavailable' }
-  | { kind: 'manual' }
-  | { kind: 'ready'; event: BeforeInstallPromptEvent };
+  | { kind: 'pending' }
+  | { kind: 'installed' }
+  | { kind: 'ready'; event: BeforeInstallPromptEvent }
+  | { kind: 'manual'; platform: 'ios' | 'android' | 'desktop' };
 
 /**
  * Whether the app is already running as an installed app.
@@ -100,40 +118,68 @@ function isIosDevice(nav: Navigator): boolean {
 }
 
 /**
+ * The written-steps platform for a browser with no `beforeinstallprompt` in
+ * hand, iOS included. `manual` never means "cannot be installed", only "this
+ * hook has no button to offer"; the steps are what make that still a real
+ * offer instead of an empty card.
+ */
+function manualPlatform(nav: Navigator): 'ios' | 'android' | 'desktop' {
+  if (isIosDevice(nav)) return 'ios';
+  if (/Android/.test(nav.userAgent)) return 'android';
+  return 'desktop';
+}
+
+/**
  * What this device can be offered right now.
  *
- * `unavailable` covers a browser with no installation support, an app already
- * installed, the server render, and the moment after an install finishes.
- * `manual` is iOS, where the only honest offer is the sentence about the Share
- * menu. `ready` carries a live prompt event and is the only state with anything
- * to click.
+ * `pending` is the server render and the instant before the effect below has
+ * run; nothing renders for it. `installed` covers an app already running
+ * standalone and the moment an install finishes. `ready` carries a live prompt
+ * event, captured either by this hook's own listener or, more often, by the
+ * head script in `root.tsx` before hydration ever started. `manual` is every
+ * other case, iOS included, and always carries the written steps for its
+ * platform: there is no state past `pending` that renders nothing.
  *
- * @returns The current offer. Never `ready` before mount.
+ * @returns The current offer. Never `ready` or `manual` before mount.
  */
 export function useInstallPrompt(): InstallOffer {
-  const [state, setState] = useState<InstallState>({ kind: 'unavailable' });
+  const [state, setState] = useState<InstallState>({ kind: 'pending' });
 
   useEffect(() => {
     // Already installed: there is nothing to offer, and no listener is worth
     // holding, because neither event can fire in an installed app.
-    if (isInstalled()) return;
-
-    if (isIosDevice(globalThis.navigator)) {
-      setState({ kind: 'manual' });
+    if (isInstalled()) {
+      setState({ kind: 'installed' });
       return;
     }
 
+    const platform = manualPlatform(globalThis.navigator);
+
+    // The head script in `root.tsx` may already hold a captured event: it
+    // runs before hydration, so a `beforeinstallprompt` that fired between
+    // `load` and this effect is not lost. Absent that, the honest first offer
+    // is the written steps for this platform, never an empty card.
+    const captured = globalThis.window.__installPromptEvent;
+    setState(captured ? { kind: 'ready', event: captured } : { kind: 'manual', platform });
+
     // The default is the browser's own mini-infobar. Preventing it is what
-    // moves the moment into the app, where the reader chose to look.
+    // moves the moment into the app, where the reader chose to look. This
+    // listener stays mounted even after a `manual` start, because a later
+    // firing (a browser that decided only after more engagement) must still
+    // upgrade the card from steps to a button.
     const onPrompt = (event: BeforeInstallPromptEvent): void => {
       event.preventDefault();
+      globalThis.window.__installPromptEvent = event;
       setState({ kind: 'ready', event });
     };
 
     // The offer has done its job. Chromium fires this whether the install came
     // from our button or from the browser's own menu, so it is the one signal
     // that covers both.
-    const onInstalled = (): void => setState({ kind: 'unavailable' });
+    const onInstalled = (): void => {
+      globalThis.window.__installPromptEvent = null;
+      setState({ kind: 'installed' });
+    };
 
     globalThis.addEventListener('beforeinstallprompt', onPrompt);
     globalThis.addEventListener('appinstalled', onInstalled);
@@ -143,14 +189,18 @@ export function useInstallPrompt(): InstallOffer {
     };
   }, []);
 
-  if (state.kind === 'unavailable') return { kind: 'unavailable' };
-  if (state.kind === 'manual') return { kind: 'manual' };
+  if (state.kind === 'pending') return { kind: 'pending' };
+  if (state.kind === 'installed') return { kind: 'installed' };
+  if (state.kind === 'manual') return { kind: 'manual', platform: state.platform };
 
   const { event } = state;
   return {
     kind: 'ready',
     install: () => {
-      void runInstallPrompt(event, () => setState({ kind: 'unavailable' }));
+      void runInstallPrompt(event, () => {
+        globalThis.window.__installPromptEvent = null;
+        setState({ kind: 'manual', platform: manualPlatform(globalThis.navigator) });
+      });
     },
   };
 }
@@ -163,10 +213,14 @@ export function useInstallPrompt(): InstallOffer {
  * after the reader answers: the dialog is modal in practice, but a withdrawn
  * button cannot be clicked twice by any route, including a keyboard repeat.
  *
- * A DISMISSAL IS NOT AN ERROR AND NOTHING IS SAID ABOUT IT. Chromium fires
- * `beforeinstallprompt` again on a later visit, and the listener is still
- * mounted, so the offer comes back on its own. Nagging a reader who just said
- * no is the one thing this must not do.
+ * SPENDING THE EVENT MOVES THE STATE TO `manual`, NOT AWAY ENTIRELY. Chromium
+ * fires `beforeinstallprompt` again on a later visit and the listener is
+ * still mounted, so a `ready` offer can return on its own; until then the card
+ * must still show the written steps rather than nothing, the same as any other
+ * browser with no live event in hand.
+ *
+ * A DISMISSAL IS NOT AN ERROR AND NOTHING IS SAID ABOUT IT. Nagging a reader
+ * who just said no is the one thing this must not do.
  *
  * @param event - the prompt event to spend.
  * @param discard - withdraws the offer, called before the dialog opens.

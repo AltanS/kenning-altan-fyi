@@ -173,7 +173,10 @@
     "installTitle": "App installieren",
     "installBody": "Installiere die App auf diesem Gerät. Sie öffnet sich dann über den Startbildschirm und startet ohne Browserleiste.",
     "installAction": "Installieren",
-    "installIosStep": "Auf iPhone und iPad öffnest du im Browser das Teilen-Menü und wählst „Zum Home-Bildschirm“."
+    "installStepsIos": "Öffne das Teilen-Menü im Browser und wähle „Zum Home-Bildschirm“.",
+    "installStepsAndroid": "Öffne das Browsermenü und wähle „App installieren“ oder „Zum Startbildschirm hinzufügen“.",
+    "installStepsDesktop": "Öffne das Browsermenü und wähle „Installieren“. Manche Browser zeigen ein Installationssymbol in der Adressleiste.",
+    "installedNote": "Die App ist auf diesem Gerät installiert. Öffne sie über deinen Startbildschirm."
   },
   "account": {
     "metaTitle": "Konto",

@@ -173,7 +173,10 @@
     "installTitle": "Install the app",
     "installBody": "Install the app on this device. It then opens from your home screen and starts without the browser bar.",
     "installAction": "Install",
-    "installIosStep": "On iPhone and iPad, open the Share menu in the browser and choose \"Add to Home Screen\"."
+    "installStepsIos": "Open the Share menu in the browser, then choose \"Add to Home Screen\".",
+    "installStepsAndroid": "Open the browser menu, then choose \"Install app\" or \"Add to Home screen\".",
+    "installStepsDesktop": "Open the browser menu, then choose \"Install\". Some browsers show an install icon in the address bar.",
+    "installedNote": "The app is installed on this device. Open it from your home screen."
   },
   "account": {
     "metaTitle": "Account",

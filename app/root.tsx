@@ -235,6 +235,41 @@ export function Layout({ children }: { children: React.ReactNode }) {
             `,
           }}
         />
+        {/* Captures `beforeinstallprompt` before hydration.
+
+            VERIFIED ON THIS APP: Chromium fires the event at roughly 760ms
+            after page load, which is AFTER `load` itself. `useInstallPrompt`
+            (`app/hooks/use-install-prompt.ts`) attaches its own listener in a
+            `useEffect`, which cannot run before React has mounted. On a slow
+            device hydration finishes later than 760ms, so a listener that only
+            lives inside that hook loses the event for the entire visit, and
+            the settings card would have nothing to offer even though the
+            browser did.
+
+            This script has no such race: it runs the moment this tag is
+            parsed, long before React exists. It stores the event on `window`
+            so `useInstallPrompt` can pick up whatever already arrived, and it
+            still calls `preventDefault()` here for the same reason the hook
+            used to: it suppresses the browser's own mini-infobar so the
+            install moment stays inside the app. `appinstalled` clears the
+            stored event so a later mount does not offer an install that
+            already happened. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                window.__installPromptEvent = null;
+                window.addEventListener('beforeinstallprompt', function(event) {
+                  event.preventDefault();
+                  window.__installPromptEvent = event;
+                });
+                window.addEventListener('appinstalled', function() {
+                  window.__installPromptEvent = null;
+                });
+              })();
+            `,
+          }}
+        />
         {/* First-visit language detection.
             The server can only read a cookie, so a visitor who has never been
             here is served the default language no matter what their browser
