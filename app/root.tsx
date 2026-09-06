@@ -197,7 +197,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* Brand-tints the browser chrome on mobile and in the installed app.
             These hexes are the resolved `--background` values from `app.css`,
             light and dark, and must be updated together with that token: a
-            raster meta tag cannot read a CSS custom property. */}
+            raster meta tag cannot read a CSS custom property. This media-
+            scoped pair is only the pre-script fallback, painted before
+            `applyTheme` below runs. It follows the OPERATING SYSTEM's colour
+            scheme, not the app's own theme, so `applyTheme` immediately
+            overwrites both tags' `content` with the resolved APP theme and
+            drops their `media` attribute, so the OS preference can never
+            override the app's choice again (e.g. a dark app theme on a light
+            OS). The hexes must stay in sync in three places: `--background`
+            in app.css, the two tags below, and the `color` variable inside
+            `applyTheme`. */}
         <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
         <Meta />
@@ -210,6 +219,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   var theme = localStorage.getItem('theme');
                   var isDark = theme === 'dark' || (!theme || theme === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches;
                   document.documentElement.classList.toggle('dark', isDark);
+                  var color = isDark ? '#0a0a0a' : '#ffffff';
+                  var metas = document.querySelectorAll('meta[name="theme-color"]');
+                  for (var i = 0; i < metas.length; i++) {
+                    metas[i].setAttribute('content', color);
+                    metas[i].removeAttribute('media');
+                  }
                 }
                 applyTheme();
                 window.__applyTheme = applyTheme;
