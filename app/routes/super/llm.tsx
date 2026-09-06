@@ -207,7 +207,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 const CARD_CLASS = 'rounded-lg border bg-card p-4 shadow-sm';
-const SECTION_LABEL_CLASS = 'text-[11px] font-semibold uppercase tracking-[0.11em] text-primary';
+const SECTION_LABEL_CLASS = 'text-[11px] font-semibold uppercase tracking-[0.11em] text-brand-ink';
 const CONTROL_CLASS =
   'h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
@@ -326,7 +326,7 @@ export default function SuperLlm({ loaderData, actionData }: Route.ComponentProp
           )}
 
           {actionData?.switchedTo !== undefined && actionData.switchedTo !== null && (
-            <p className="rounded-md bg-primary/10 p-3 text-sm text-primary">
+            <p className="rounded-md bg-primary/10 p-3 text-sm text-brand-ink">
               {`Active model updated to ${actionData.switchedTo}.`}
             </p>
           )}

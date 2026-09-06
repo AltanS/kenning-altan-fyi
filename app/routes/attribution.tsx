@@ -113,7 +113,7 @@ function SourceCardView({ source }: { source: SourceCard }) {
         <Field label={t('attribution.licenceLabel')}>
           {licenceUrl === undefined && source.licence}
           {licenceUrl !== undefined && (
-            <a href={licenceUrl} rel="noreferrer" target="_blank" className="text-primary underline-offset-2 hover:underline">
+            <a href={licenceUrl} rel="noreferrer" target="_blank" className="text-brand-ink underline-offset-2 hover:underline">
               {source.licence}
             </a>
           )}
@@ -121,7 +121,7 @@ function SourceCardView({ source }: { source: SourceCard }) {
         <Field label={t('attribution.attributionLabel')}>{source.attribution}</Field>
         {source.url !== null && (
           <Field label={t('attribution.urlLabel')}>
-            <a href={source.url} rel="noreferrer" target="_blank" className="text-primary underline-offset-2 hover:underline">
+            <a href={source.url} rel="noreferrer" target="_blank" className="text-brand-ink underline-offset-2 hover:underline">
               {source.url}
             </a>
           </Field>

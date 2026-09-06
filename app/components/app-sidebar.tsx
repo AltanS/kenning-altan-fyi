@@ -266,7 +266,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       {/* The same brand-tinted hairline the app header closes with. At md and
           up the two rules sit at the same height and meet in the middle of the
           screen, so an untinted one here would show as a colour break. */}
-      <SidebarHeader className="h-16 border-b border-primary/20 px-0">
+      <SidebarHeader className="h-16 border-b border-brand-ink/20 px-0">
         <div className="flex h-full items-center">
           <Logo />
         </div>

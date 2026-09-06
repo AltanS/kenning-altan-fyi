@@ -75,7 +75,7 @@ export function SavedWordRow({ term, answer, from, to, href, ariaLabel, trailing
   return (
     <li className="border-b last:border-b-0">
       <div className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-primary/5">
-        <Link to={href} aria-label={ariaLabel} className="min-w-0 flex-1 hover:text-primary">
+        <Link to={href} aria-label={ariaLabel} className="min-w-0 flex-1 hover:text-brand-ink">
           {/* The word and the answer as ONE line, so the arrow between them is
               part of a translated sentence rather than a glyph this file
               invented. The pair sits under it, quieter, because it answers a

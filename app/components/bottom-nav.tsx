@@ -41,7 +41,7 @@ function FlatTab({ tab }: { tab: NavigationItem }) {
         cn(
           'relative flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors',
           isActive ?
-            'bg-primary/5 text-primary after:absolute after:inset-x-5 after:top-0 after:h-0.5 after:rounded-full after:bg-primary after:content-[""]'
+            'bg-primary/5 text-brand-ink after:absolute after:inset-x-5 after:top-0 after:h-0.5 after:rounded-full after:bg-brand-ink after:content-[""]'
           : 'text-muted-foreground hover:text-foreground',
         )
       }

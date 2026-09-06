@@ -43,7 +43,7 @@ function ProgressBar() {
 function drawerItemClasses(isActive: boolean): string {
   return cn(
     'flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors',
-    isActive ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted',
+    isActive ? 'bg-primary/10 text-brand-ink' : 'text-foreground hover:bg-muted',
   );
 }
 
@@ -193,7 +193,7 @@ function AccountSlot() {
   }
 
   return (
-    <Link to="/account" className="flex max-w-32 items-center gap-1 text-sm hover:text-primary">
+    <Link to="/account" className="flex max-w-32 items-center gap-1 text-sm hover:text-brand-ink">
       <span className="sr-only">{t('account.title')}</span>
       <span className="truncate font-mono text-xs">{email}</span>
     </Link>
@@ -278,10 +278,10 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
       <ProgressBar />
       {/* The chrome sits on `bg-card`, not `bg-background`, so the header is a
           treated surface rather than the same fill as the page under it.
-          `border-primary/20` tints the closing hairline the way the active tab
+          `border-brand-ink/20` tints the closing hairline the way the active tab
           is tinted, and `AppSidebar`'s header carries the same value so the two
           rules read as one line across the chrome at md and up. */}
-      <header className="flex min-h-16 shrink-0 items-center gap-2 border-b border-primary/20 bg-card">
+      <header className="flex min-h-16 shrink-0 items-center gap-2 border-b border-brand-ink/20 bg-card">
         <div className="flex w-full items-center gap-2.5 px-4">
           {/* Desktop only. Below md the drawer trigger beside it opens the same
               list, and two triggers for one sheet is one too many. */}
@@ -296,7 +296,7 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
                   page title below names the screen for assistive tech. */}
               <span
                 aria-hidden="true"
-                className="font-display text-xs font-semibold leading-none text-primary md:hidden"
+                className="font-display text-xs font-semibold leading-none text-brand-ink md:hidden"
               >
                 {APP_NAME}
               </span>

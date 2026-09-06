@@ -70,7 +70,7 @@ const POLL_INTERVAL_MS = 3000;
 const POLL_LIMIT = 20;
 
 /** The house recipe for a label above a block, DESIGN.md section 2. */
-const SECTION_LABEL = 'text-[11px] font-semibold uppercase tracking-[0.11em] text-primary';
+const SECTION_LABEL = 'text-[11px] font-semibold uppercase tracking-[0.11em] text-brand-ink';
 
 /**
  * What a refused trigger says, per guard, as a table rather than a comparison
@@ -157,7 +157,7 @@ function SenseNotes({ sense, from, to }: { sense: EnrichmentPanelSense; from: La
       <Labelled label={t('enrichment.translationLabel')}>
         <ul className="mt-1 flex flex-wrap gap-2">
           {output.translation.map((word) => (
-            <li key={word} lang={to} className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-xs text-primary">
+            <li key={word} lang={to} className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-xs text-brand-ink">
               {word}
             </li>
           ))}

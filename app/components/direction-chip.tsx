@@ -63,7 +63,7 @@ export function DirectionChip({ direction, query, flipTo, className }: Direction
         aria-label={t('search.flipDirection')}
         aria-describedby={labelId}
         className={cn(
-          'inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary transition-colors hover:bg-primary/20',
+          'inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-ink transition-colors hover:bg-primary/20',
           className,
         )}
       >

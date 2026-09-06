@@ -57,7 +57,7 @@ function SensePanel({ sense, to }: { sense: EntrySense; to: LanguageCode }) {
     <div className="flex flex-col gap-4">
       {sense.glosses.length > 0 && (
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.11em] text-primary">{t('entry.glossesLabel')}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.11em] text-brand-ink">{t('entry.glossesLabel')}</p>
           <ul className="mt-1 space-y-1">
             {sense.glosses.map((gloss) => (
               <li key={`${gloss.sourceSlug}:${gloss.languageCode}:${gloss.gloss}`} className="text-sm">
@@ -73,7 +73,7 @@ function SensePanel({ sense, to }: { sense: EntrySense; to: LanguageCode }) {
         </div>
       )}
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.11em] text-primary">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.11em] text-brand-ink">
           {t('entry.translationsLabel')}
         </p>
         {sense.translations.length === 0 && (
@@ -90,7 +90,7 @@ function SensePanel({ sense, to }: { sense: EntrySense; to: LanguageCode }) {
                   // headword takes (M186/03). The glosses above deliberately do
                   // not: a gloss is a sentence describing a sense, not a term
                   // the reader is meant to read back, type or recognise.
-                  className="font-mono hover:text-primary"
+                  className="font-mono hover:text-brand-ink"
                 >
                   {translation.lemma}
                 </Link>{' '}
@@ -159,7 +159,7 @@ export function SenseTabs({ senses, to, selectedSenseId, onSelectSense }: SenseT
               onClick={() => onSelectSense(sense.senseId)}
               className={cn(
                 'rounded-full px-2 py-0.5 text-xs transition-colors',
-                isSelected ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary hover:bg-primary/20',
+                isSelected ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-brand-ink hover:bg-primary/20',
               )}
             >
               {senseLabel(sense, i18n.language, t('entry.sensesLabel'))}

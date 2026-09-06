@@ -60,7 +60,7 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
         range_end: 'day-range-end',
         selected:
           '[&>button]:bg-primary [&>button]:text-primary-foreground [&>button]:hover:bg-primary [&>button]:hover:text-primary-foreground [&>button]:focus:bg-primary [&>button]:focus:text-primary-foreground',
-        today: '[&>button]:ring-2 [&>button]:ring-primary/50 [&>button]:font-semibold',
+        today: '[&>button]:ring-2 [&>button]:ring-brand-ink/50 [&>button]:font-semibold',
         outside: 'text-muted-foreground opacity-50',
         disabled: 'text-muted-foreground opacity-40 line-through',
         hidden: 'invisible',

@@ -83,7 +83,7 @@ export function EntryNote({ headwordId }: EntryNoteProps) {
 
   return (
     <section className="rounded-lg border bg-card p-4">
-      <Label htmlFor={fieldId} className="text-[11px] font-semibold uppercase tracking-[0.11em] text-primary">
+      <Label htmlFor={fieldId} className="text-[11px] font-semibold uppercase tracking-[0.11em] text-brand-ink">
         {t('entry.noteLabel')}
       </Label>
       <textarea

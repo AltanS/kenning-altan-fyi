@@ -115,7 +115,7 @@ function ResultRow({ hit, to }: { hit: SearchHit; to: LanguageCode }) {
   const examples = hit.examples.slice(0, ROW_EXAMPLE_LIMIT);
 
   return (
-    <li className="rounded-lg border bg-card p-4 shadow-sm transition-all duration-200 hover:border-primary/40 hover:shadow-md">
+    <li className="rounded-lg border bg-card p-4 shadow-sm transition-all duration-200 hover:border-brand-ink/40 hover:shadow-md">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         {/* The lemma is the link, not the whole card: the row also carries
             source links, and an anchor inside an anchor is invalid HTML.
@@ -129,7 +129,7 @@ function ResultRow({ hit, to }: { hit: SearchHit; to: LanguageCode }) {
         <Link
           to={`/entry/${hit.headwordId}?to=${to}`}
           lang={hit.languageCode}
-          className="font-mono text-lg font-semibold tracking-tight hover:text-primary"
+          className="font-mono text-lg font-semibold tracking-tight hover:text-brand-ink"
         >
           {hit.lemma}
         </Link>
@@ -145,7 +145,7 @@ function ResultRow({ hit, to }: { hit: SearchHit; to: LanguageCode }) {
       </div>
       {examples.length > 0 && (
         <div className="mt-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.11em] text-primary">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.11em] text-brand-ink">
             {t('search.examplesLabel')}
           </p>
           <ul className="mt-1 space-y-1">
@@ -269,7 +269,7 @@ export function DidYouMean({ suggestion, from, to }: DidYouMeanProps) {
       <Link
         to={href}
         lang={from}
-        className="font-mono font-medium text-primary underline underline-offset-4 hover:no-underline"
+        className="font-mono font-medium text-brand-ink underline underline-offset-4 hover:no-underline"
         aria-label={t('search.didYouMeanAction', { suggestion })}
       >
         {suggestion}
@@ -316,7 +316,7 @@ export function PhraseResults({ phrase, from, to }: PhraseResultsProps) {
               label's size and colour, because that is the job it does here: it
               names the block of results underneath it. It does NOT keep the
               recipe's `uppercase`, which would rewrite the reader's word. */}
-          <p className="font-mono text-[11px] font-semibold tracking-[0.11em] text-primary" lang={from}>
+          <p className="font-mono text-[11px] font-semibold tracking-[0.11em] text-brand-ink" lang={from}>
             {match.token}
           </p>
           {match.hits.length > 0 && <SearchResults hits={match.hits} to={to} />}

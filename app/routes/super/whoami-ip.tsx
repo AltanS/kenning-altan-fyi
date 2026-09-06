@@ -55,7 +55,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 function Row({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="border-b py-3 last:border-b-0">
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.11em] text-primary">{label}</dt>
+      <dt className="text-[11px] font-semibold uppercase tracking-[0.11em] text-brand-ink">{label}</dt>
       <dd className="mt-1 break-all font-mono text-sm">{value}</dd>
       {hint !== undefined && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </div>

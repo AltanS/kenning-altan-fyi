@@ -137,7 +137,7 @@ export default function EntryRoute({ loaderData }: Route.ComponentProps) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
         <EntryUnavailable />
-        <Link to="/" className="text-sm text-primary hover:underline">
+        <Link to="/" className="text-sm text-brand-ink hover:underline">
           {t('entry.backToSearch')}
         </Link>
       </div>
@@ -164,7 +164,7 @@ export default function EntryRoute({ loaderData }: Route.ComponentProps) {
             {entry.lemma}
           </h2>
           {entry.pos !== null && <span className="text-sm text-muted-foreground">{entry.pos}</span>}
-          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs uppercase text-primary">
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs uppercase text-brand-ink">
             {entry.languageCode}
           </span>
           {/* Flipping on an entry page points back at the search screen: asking
@@ -217,7 +217,7 @@ export default function EntryRoute({ loaderData }: Route.ComponentProps) {
       </article>
 
       <section className="rounded-lg border bg-card p-4">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.11em] text-primary">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.11em] text-brand-ink">
           {t('entry.examplesLabel')}
         </h2>
         {examples.length === 0 && <p className="mt-1 text-sm text-muted-foreground">{t('entry.noExamples')}</p>}
@@ -252,7 +252,7 @@ export default function EntryRoute({ loaderData }: Route.ComponentProps) {
 
       <EntryNote headwordId={entry.headwordId} />
 
-      <Link to="/" className="text-sm text-primary hover:underline">
+      <Link to="/" className="text-sm text-brand-ink hover:underline">
         {t('entry.backToSearch')}
       </Link>
     </div>

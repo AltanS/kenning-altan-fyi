@@ -76,7 +76,7 @@ export default function ListReviewRoute({ loaderData }: Route.ComponentProps) {
     return (
       <div className="mx-auto flex w-full max-w-md flex-col gap-4">
         <p className="text-sm text-muted-foreground">{t('review.notFound')}</p>
-        <Link to="/lists" className="text-sm text-primary hover:underline">
+        <Link to="/lists" className="text-sm text-brand-ink hover:underline">
           {t('lists.detailBack')}
         </Link>
       </div>
@@ -88,7 +88,7 @@ export default function ListReviewRoute({ loaderData }: Route.ComponentProps) {
       <div className="surface-brand-soft mx-auto flex w-full max-w-md flex-col gap-2 rounded-xl border border-dashed p-6">
         <h2 className="font-display text-base font-semibold">{t('review.emptyTitle')}</h2>
         <p className="text-sm text-muted-foreground">{t('review.emptyBody')}</p>
-        <Link to={`/lists/${list.id}`} className="text-sm text-primary hover:underline">
+        <Link to={`/lists/${list.id}`} className="text-sm text-brand-ink hover:underline">
           {t('review.backToList')}
         </Link>
       </div>
