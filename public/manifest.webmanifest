@@ -7,8 +7,8 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "lang": "en",
-  "background_color": "#f9f6f0",
-  "theme_color": "#f9f6f0",
+  "background_color": "#fbf8f1",
+  "theme_color": "#fbf8f1",
   "categories": ["education", "productivity", "books"],
   "icons": [
     {

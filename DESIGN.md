@@ -1,7 +1,7 @@
 # kenning.altan.fyi Design Language
 
 This product has its own look. A warm-tinted neutral scale on every surface, a
-deep ochre brand accent, a display grotesque for the chrome, and monospaced
+burnt orange brand accent, a display grotesque for the chrome, and monospaced
 headwords. The chrome means the surrounding browser frame and UI shell. The
 visual feel is a quiet study tool: clean, text-forward, and unhurried. It is
 neither a playful consumer app nor a dense dashboard.
@@ -41,8 +41,8 @@ build.
 
 ## 1. Principles
 
-1. **Neutrals carry the chrome, ochre carries the brand.** Most elements use
-   neutral colors. Reserve the brand ochre for elements that need user focus: the
+1. **Neutrals carry the chrome, orange carries the brand.** Most elements use
+   neutral colors. Reserve the brand orange for elements that need user focus: the
    primary button, the active nav item, the focus ring, links, and the single
    hero card on a screen where one exists. Not every screen has one: the
    translator surface in section 3 deliberately has no brand wash at all.
@@ -81,19 +81,20 @@ edit: a token table that drifts from the stylesheet is worse than no table.
 
 | Token                  | Light           | Dark            | Usage                         |
 | ---------------------- | --------------- | --------------- | ----------------------------- |
-| `--background`         | `36 44% 96%` cream | `30 18% 5%` warm black | page                   |
-| `--foreground`         | `30 20% 10%`    | `38 14% 97%`    | text                          |
-| `--card`               | white           | `30 15% 8.5%`   | card surfaces                 |
-| `--muted`              | `38 36% 91%`    | `30 12% 15%`    | hover surfaces, subdued fills |
-| `--accent`             | `38 40% 88%`    | `30 14% 17%`    | hover surfaces, subdued fills |
-| `--muted-foreground`   | `32 12% 33%`    | `36 10% 70%`    | secondary text                |
-| `--border` / `--input` | `36 26% 82%`    | `30 12% 17%`    | hairlines                     |
-| `--primary`            | `32 90% 30%`    | `41 96% 60%`    | CTAs, links, active nav       |
-| `--primary-foreground` | white           | `30 60% 8%`     | text on primary               |
-| `--brand-2`            | `7 93% 62%`     | `7 93% 66%`     | the mark, and one gradient stop |
-| `--destructive`        | `0 72% 45%`     | `0 80% 65%`     | delete, disconnect            |
-| `--success`            | `142 72% 26%`   | `142 62% 55%`   | confirmed state               |
-| `--warning`            | `45 96% 27%`    | `45 95% 58%`    | caution state                 |
+| `--background`         | `38 60% 96.5%` cream | `28 20% 5%` warm black | page              |
+| `--foreground`         | `24 24% 10%`    | `38 16% 97%`    | text                          |
+| `--card`               | white           | `28 17% 8.5%`   | card surfaces                 |
+| `--muted`              | `36 55% 90%`    | `28 14% 15%`    | hover surfaces, subdued fills |
+| `--accent`             | `34 62% 86%`    | `28 16% 18%`    | hover surfaces, subdued fills |
+| `--muted-foreground`   | `24 18% 32%`    | `34 12% 71%`    | secondary text                |
+| `--border` / `--input` | `34 40% 80%`    | `28 14% 18%`    | hairlines                     |
+| `--primary`            | `18 95% 40%`    | `36 97% 58%`    | CTAs, links, active nav       |
+| `--primary-foreground` | white           | `28 60% 8%`     | text on primary               |
+| `--brand-1`            | `39 95% 54%`    | `39 95% 60%`    | the mark's amber, wash stops  |
+| `--brand-2`            | `7 93% 62%`     | `7 93% 66%`     | the mark's coral, wash stops  |
+| `--destructive`        | `356 78% 42%`   | `356 85% 66%`   | delete, disconnect            |
+| `--success`            | `150 75% 26%`   | `150 64% 55%`   | confirmed state               |
+| `--warning`            | `40 96% 27%`    | `42 95% 58%`    | caution state                 |
 | `--ring`               | same as `--primary` | same as `--primary` | focus rings           |
 
 `--card` stays pure white in light mode so cards stand out from the cream page.
@@ -101,17 +102,32 @@ edit: a token table that drifts from the stylesheet is worse than no table.
 **The drawn amber is not `--primary`, and cannot be.** The mark is drawn in
 `hsl(39 95% 54%)` amber and `hsl(7 93% 62%)` coral. As text on white, that amber
 measures **1.93:1**. It fails as link text, it fails as a section label, and
-under white button text it fails again. `--primary` is that amber deepened until
-it clears the bar in both directions at once: **6.19:1** as text on the card, and
-**6.19:1** with white text on it. The drawn amber survives untouched in two
-places where contrast does not apply, the mark itself and low-alpha washes.
+under white button text it fails again. `--primary` has to clear 4.5:1 in both
+directions at once, so it is always a darker relative of a drawn hue, never a
+drawn hue itself.
+
+**Deepening the amber was the wrong way to get there, and that is the lesson.**
+`--primary` was `hsl(32 90% 30%)` from 2026-09-05 until 2026-09-06. The contrast
+was correct and the colour was brown: every button, link and active nav item
+read as a different brand from the logo two centimetres away from it. A hue that
+sits below a drawn hue loses the drawn hue. **A hue that sits BETWEEN the two
+drawn hues keeps them both.** `--primary` is now `hsl(18 95% 40%)`, a burnt
+orange between the mark's amber and its coral, at near-full saturation. It
+measures **5.07:1** as text on the card, **4.77:1** on the page, and **5.07:1**
+under white button text.
+
+The warm neutrals moved with it. They carried roughly 12 to 40% saturation and
+read as grey beside a saturated mark, so the muted, accent and border tiers now
+sit between 40 and 62%. The page is `#fbf8f1`. This is a visible change, not a
+rounding: the surfaces are meant to look tinted.
 
 The other measured values, so nobody has to re-derive them: `--foreground` is
-17.34:1 on the card and 16.06:1 on the page. `--muted-foreground` is 7.31:1 on
-the card. In dark mode `--foreground` is 16.97:1, `--muted-foreground` is
-8.78:1, `--primary` as text is 10.69:1, and `--primary-foreground` on `--primary`
-is 10.62:1. Dark mode's brand takes DARK text, not white, because the bright
-amber it needs on a near-black page is far too light to sit under white.
+17.46:1 on the card and 16.42:1 on the page. `--muted-foreground` is 7.81:1 on
+the card. In dark mode `--foreground` is 16.99:1, `--muted-foreground` is
+9.04:1, `--primary` as text is 9.31:1, and `--primary-foreground` on `--primary`
+is 9.29:1. Dark mode's brand is the drawn amber itself, and it takes DARK text,
+not white, because an amber bright enough for a near-black page is far too light
+to sit under white.
 
 **The three state tokens, and the one honest weakness in them.** `--destructive`,
 `--success` and `--warning` are the only status colours. `--success` and
@@ -119,17 +135,19 @@ amber it needs on a near-black page is far too light to sit under white.
 `green-*`, `amber-*` and `orange-*` utilities, which stayed cold and un-themed
 when the palette went warm. Soft fills are alpha over the token
 (`bg-success/10 text-success`), so neither needs a `-foreground`. Measured as
-text: success 6.02:1 light and 9.37:1 dark, warning 5.35:1 and 11.39:1,
-destructive 5.81:1 and 5.49:1.
+text: success 5.83:1 light and 9.65:1 dark, warning 5.96:1 and 10.62:1,
+destructive 6.26:1 and 5.68:1.
 
-Dark `--destructive` was `0 70% 45%` until this edit and measured **3.08:1** on
-the dark card, below the 4.5:1 floor. That was a live accessibility failure,
-found while deriving the two new tokens, and it is fixed here rather than
-carried forward.
+`--destructive` moved to hue 356, a crimson, when `--primary` became an orange.
+The old `0 72% 45%` red sat close enough to the new brand that a delete button
+and a primary button could be mistaken for each other at a glance. Crimson keeps
+the two apart. Dark `--destructive` was `0 70% 45%` before 2026-09-05 and
+measured **3.08:1** on the dark card, below the 4.5:1 floor. That was a live
+accessibility failure and it stays fixed.
 
 **`--warning` sits close to `--primary`, and that is unavoidable.** The brand is
-a warm ochre, so any warm caution colour is its neighbour: the two measure
-1.16:1 against each other, which means they are near-identical in luminance.
+a warm orange, so any warm caution colour is its neighbour: the two are close in
+both hue and luminance.
 There is no warm hue left that reads as "caution" and not as "brand". So the
 rule is not a colour rule: **a warning state must always carry its icon, and
 colour is never its only signal.** That is WCAG 1.4.1 regardless, and here it is
@@ -137,20 +155,24 @@ also the thing that makes the state legible at all. Never ship a warning that is
 distinguished by hue alone, and never put a `--warning` fill next to a
 `--primary` one.
 
-**`--brand-2` is not a second primary.** It is the mark's coral, and it has
-exactly two jobs: the mark, and the middle stop of `.surface-brand`. It carries
-no text, no control, no state and no meaning. It is deliberately NOT wired to
-`--destructive`: a coral that means "delete" on one screen and "brand" on
-another teaches the reader nothing, and the red destructive stays red so the two
-can never be confused.
+**`--brand-1` and `--brand-2` are not second primaries.** They are the mark's
+own amber and coral at full strength, and they have exactly two jobs: the mark,
+and the stops of the three washes below. They carry no text, no control, no
+state and no meaning, which is why full strength is safe: every wash puts them
+under 0.26 alpha, where contrast does not apply. `--brand-2` is deliberately NOT
+wired to `--destructive`: a coral that means "delete" on one screen and "brand"
+on another teaches the reader nothing, and the crimson destructive stays crimson
+so the two can never be confused.
 
 **Brand discipline.** Neutrals use a warm tint across the whole app. Limit
 saturated brand surfaces strictly. Only three utilities in `app.css` apply one.
-Each uses an `hsl(var(--primary) / ...)` or `hsl(var(--brand-2) / ...)` gradient,
-never a raw literal value:
+Each uses an `hsl(var(--brand-1) / ...)` or `hsl(var(--brand-2) / ...)`
+gradient, never a raw literal value. They read from the drawn hues rather than
+from `--primary`, because `--primary` is contrast-constrained and a
+contrast-constrained value dulls a wash that has no contrast to satisfy:
 
 - `.surface-brand` styles the ONE hero card on a screen. Use it once per screen,
-  never twice. It runs ochre into coral, so the hero carries both of the mark's
+  never twice. It runs amber into coral, so the hero carries both of the mark's
   hues and nothing else in the app has to.
 - `.surface-brand-soft` styles empty-state panels, paired with `border-dashed`.
 - `.brand-glow` styles backdrops behind hero elements only.
@@ -178,7 +200,7 @@ treatments:
 **The PWA colours are a hand-kept copy.** `public/manifest.webmanifest` and the
 two `theme-color` meta tags in `app/root.tsx` carry resolved hex values, because
 neither a manifest nor a meta tag can read a CSS custom property. They are the
-light and dark `--background` values, `#f9f6f0` and `#0f0d0a`. Change them in
+light and dark `--background` values, `#fbf8f1` and `#0f0d0a`. Change them in
 the same edit as the token or the browser chrome drifts from the page. This is
 not hypothetical: the meta tag held `#057a78`, an openplate teal, straight
 through the M186 blue repalette and was only caught when this palette landed.
