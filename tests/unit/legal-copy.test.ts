@@ -9,7 +9,8 @@
  *   1. The privacy policy must keep stating what the operator HOLDS. Since
  *      ADR-0011 the account is plain, so the two facts a rewrite drifts away
  *      from are the password hash in the account record and the READABLE sync
- *      copy of the lists, notes and history. Both are the unflattering half,
+ *      copy of the lists and notes. The search log joined them on 2026-09-07,
+ *      as a server table of its own. All of them are the unflattering half,
  *      which is exactly why a regenerated sentence loses them first, the same
  *      failure M175/04 caught when the flattering half was encryption.
  *   2. Nothing commercial may come back. Payment was scrapped on 2026-09-01 and
@@ -45,10 +46,15 @@ const REQUIRED_CLAIMS: readonly { claim: string; pattern: RegExp }[] = [
   { claim: 'typed queries reach the server in plaintext', pattern: /plaintext/i },
   { claim: 'the account record holds a password hash', pattern: /password hash/i },
   { claim: 'the synced copy is readable by the operator', pattern: /readable/i },
-  { claim: 'no account is required', pattern: /no account|without an account/i },
+  // REVERSED 2026-09-07, and the reversal is the point of pinning it. The copy
+  // claimed no account was needed long after the account gate landed, which is
+  // the kind of drift only an assertion catches. It now has to say the opposite.
+  { claim: 'an account is required to search', pattern: /account is required/i },
   { claim: 'the LLM provider is named', pattern: /gemini/i },
   { claim: 'the AI Act disclosure duty is stated', pattern: /article 50/i },
-  { claim: 'the search history stays on the device', pattern: /history/i },
+  // Also reversed 2026-09-07: the log is a server table under the account now,
+  // so the copy has to say where it is rather than that it never leaves.
+  { claim: 'the search history is named and located', pattern: /search history is stored on our server/i },
   { claim: 'the abuse counter is described', pattern: /hash of your address|counter/i },
   { claim: 'the hosting location is named', pattern: /hetzner/i },
   { claim: 'the CC BY attribution obligation is passed through', pattern: /attribution/i },
@@ -62,6 +68,11 @@ const REQUIRED_GERMAN_CLAIMS: readonly { claim: string; pattern: RegExp }[] = [
   { claim: 'the account record holds a password hash', pattern: /Passwort-Hash/i },
   { claim: 'the synced copy is readable by the operator', pattern: /lesbar/i },
   { claim: 'typed queries reach the server in plaintext', pattern: /Klartext/i },
+  // Pinned in BOTH languages, unlike the claims above it, because this one had
+  // already drifted once: the English said an account was optional for months
+  // after it became mandatory, and a translation run copies whatever it is given.
+  { claim: 'an account is required to search', pattern: /Konto ist erforderlich/i },
+  { claim: 'the search history is on the server', pattern: /Suchverlauf wird auf unserem Server/i },
 ];
 
 describe('legal copy', () => {
