@@ -48,6 +48,12 @@ export * from './schema/users';
 // JSON under a compare-and-swap version. Reached through `getRawDb()`.
 export * from './schema/sync';
 
+// The reader's own search log: what they looked up, when, and what it
+// answered. One row per distinct search per user, capped on every write. It is
+// its own table rather than a member of the sync document, for the reasons in
+// the file header. Reached through `getRawDb()`.
+export * from './schema/search-history';
+
 // Rate-limit counters, the daily spend cap and its operator alerts. They are
 // deliberately anonymous: they protect the installation, and nothing in them
 // identifies a reader. Read via `getRawDb()`.

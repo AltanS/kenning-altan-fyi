@@ -1,4 +1,18 @@
 /**
+ * The device's OLD search log, kept only so it can be handed over.
+ *
+ * THIS MODULE IS TEMPORARY (2026-09-07). The search log lives in
+ * `search_history` on the server now, under the reader's account, and nothing
+ * writes here any more. `MigrateLocalHistory` reads what a device recorded
+ * before the move, posts it to `POST /api/search-history`, and clears this
+ * table; backup and restore still carry the collection so an old archive
+ * restores without losing rows. When the devices in use have handed over, this
+ * file and that component both go. The reasoning for the move is in ADR-0011
+ * and at the top of `drizzle/schema/search-history.ts`.
+ *
+ * Everything below describes the store as it was, and still governs the rows a
+ * handover reads.
+ *
  * The device-only search log: what was looked up, when, and which headword the
  * lookup landed on.
  *

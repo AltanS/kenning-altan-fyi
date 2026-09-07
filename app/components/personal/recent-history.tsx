@@ -1,64 +1,50 @@
-import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from '#app/components/link';
 import { repeatSearchHref, SavedWordRow } from '#app/components/personal/saved-word-row';
-import { listHistory, type LocalHistoryEntry } from '#app/lib/local-store';
 import { formatRelativeTime } from '#app/lib/relative-time';
-import { reportError } from '#app/lib/report-error';
 
-/** How many recorded searches the home screen shows. The whole log is at `/history`. */
+/** How many recorded searches the overview shows. The whole log is at `/history`. */
 export const RECENT_HISTORY_COUNT = 5;
 
-/** The newest few searches, in the order `listHistory` already returns them. */
-export function takeRecent(entries: readonly LocalHistoryEntry[]): LocalHistoryEntry[] {
-  return entries.slice(0, RECENT_HISTORY_COUNT);
+/** One recorded search, as the overview needs it. The shape the history screen renders, minus nothing. */
+export interface RecentSearch {
+  id: string;
+  query: string;
+  from: string;
+  to: string;
+  /** The answer this search got, or null when it was logged before one arrived. */
+  translation: string | null;
+  at: number;
 }
 
 /**
- * The last few searches this device ran, under the translator on the home
- * screen.
+ * The last few searches this reader ran, under the translator on the overview.
  *
- * IT RENDERS NOTHING ON THE SERVER, AND NOTHING ON A FIRST PAINT, for the
- * reason `DailyNudge` does: the log is a table in this browser's own store, so
- * the server has neither the data nor the permission to hold it. The HTML this
- * route sends is unchanged by this component existing.
+ * IT IS FED BY THE LOADER, NOT BY THE DEVICE. It read the browser's own store
+ * in an effect while the log lived there, which meant it could not exist in the
+ * first byte of HTML and flashed in after hydration. The rows are in
+ * `search_history` now, so the server renders them with the rest of the screen
+ * and there is no second state to hold. Why the log moved at all is argued at
+ * the top of `drizzle/schema/search-history.ts` and recorded in ADR-0011.
  *
  * AN EMPTY LOG SHOWS NOTHING, not an empty card explaining itself. A reader who
  * has searched nothing yet is looking at a search box, which already says what
  * to do.
  *
- * ONE INSTANT FOR THE WHOLE BLOCK, taken beside the entries rather than during
+ * ONE INSTANT FOR THE WHOLE BLOCK, taken in the loader rather than during
  * render, so the five rows are all measured against the same moment.
  *
  * THE ROW IS `SavedWordRow`, the same row `/history` and `/favourites` print. A
  * shortened list of a screen the reader can also open in full has to look like
  * that screen, or the two read as two different records.
+ *
+ * IT IS PURE OVER ITS PROPS, which is what lets the surface be rendered for
+ * somebody with no session without reading or writing anything of theirs.
  */
-export function RecentHistory() {
+export function RecentHistory({ entries, nowMs }: { entries: readonly RecentSearch[]; nowMs: number }) {
   const { t, i18n } = useTranslation();
-  const [recent, setRecent] = useState<{ entries: LocalHistoryEntry[]; nowMs: number } | null>(null);
 
-  useEffect(() => {
-    let isCurrent = true;
-
-    const read = async (): Promise<void> => {
-      const entries = await listHistory();
-      if (!isCurrent) return;
-      setRecent({ entries: takeRecent(entries), nowMs: Date.now() });
-    };
-
-    read().catch((cause) => {
-      // A log that cannot be read is not worth an error on the home screen.
-      // The search box above it is why the reader is here.
-      reportError(cause, { scope: 'recent-history' });
-    });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
-
-  if (recent === null || recent.entries.length === 0) return null;
+  if (entries.length === 0) return null;
 
   return (
     <section aria-labelledby="recent-history-title" className="flex flex-col gap-2">
@@ -73,7 +59,7 @@ export function RecentHistory() {
       {/* Set as quietly as the history screen sets it: no card and no shadow,
           rows separated by a hairline. */}
       <ul>
-        {recent.entries.map((entry) => (
+        {entries.map((entry) => (
           <SavedWordRow
             key={entry.id}
             term={entry.query}
@@ -83,11 +69,8 @@ export function RecentHistory() {
             href={repeatSearchHref({ term: entry.query, from: entry.from, to: entry.to })}
             ariaLabel={t('history.repeat', { query: entry.query })}
             trailing={
-              <time
-                dateTime={new Date(entry.at).toISOString()}
-                className="text-xs text-muted-foreground tabular-nums"
-              >
-                {formatRelativeTime(entry.at, recent.nowMs, i18n.language)}
+              <time dateTime={new Date(entry.at).toISOString()} className="text-xs text-muted-foreground tabular-nums">
+                {formatRelativeTime(entry.at, nowMs, i18n.language)}
               </time>
             }
           />

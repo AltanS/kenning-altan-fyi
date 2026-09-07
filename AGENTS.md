@@ -63,12 +63,15 @@ and `app/lib/votes/optimistic.ts`.
 
 Three rules. A favourite is NOT a list entry: one tap on an answer cannot ask a
 reader to pick a sense first, so it is its own entity and lists stay curated
-study material. `recordSearch` is an UPSERT on `(query, from, to)` and the row's
-id survives, so a repeat search moves a row rather than adding one, and history
-is still device-only with no sync stamp and nothing in the blob. A translation
-vote is recorded and nothing else: no re-run, no hiding, and the operator's list
-on `/super/llm` is the only thing built on the scores. The "no reordering" half
-of that rule was amended by M196 below, under a margin; the rest of it stands.
+study material. `recordSearch` is an UPSERT on the search identity and the row
+survives a repeat, so searching one word twice moves a row rather than adding
+one. A translation vote is recorded and nothing else: no re-run, no hiding, and
+the operator's list on `/super/llm` is the only thing built on the scores. The
+"no reordering" half of that rule was amended by M196 below, under a margin; the
+rest of it stands.
+
+**The "device-only history" half of the second rule is REVERSED** (2026-09-07).
+See the section below.
 
 ### One answer, its alternatives, and a usage note (M196)
 
@@ -118,6 +121,51 @@ renders nothing rather than promising one.
 Not done here: no backfill. A word translated before prompt v2 grows notes only
 if `pnpm cli translation retract` drops its edges and a reader looks it up
 again.
+
+### The search log lives on the server (2026-09-07)
+
+The code: `drizzle/schema/search-history.ts`,
+`app/models/search-history.server.ts`, `app/routes/api.search-history.ts`, the
+loaders in `app/routes/history.tsx` and `app/routes/translate.tsx`, and the two
+client components `app/components/personal/record-search.tsx` and
+`app/components/personal/recent-history.tsx`. The decision is recorded in
+[ADR-0011](.adr/0011-plain-accounts-replace-the-encrypted-layer.md), amended in
+place rather than given a new number, and in
+`app/lib/local-store/BLOB-CONTENTS.md`.
+
+The log was device-only until this change, on the argument that the server must
+never learn what anybody looked up. That argument does not hold here: the search
+loader already receives every word typed, because it queries the shared corpus
+with it, so a device-only log reduced retention and not disclosure, while
+costing the reader the one thing a history is for. It did not follow them to a
+second device.
+
+Four rules.
+
+**It is not in the sync blob, and must not be.** That document is rewritten
+whole under a compare-and-swap and capped at 2 MiB. A collection that grows with
+every query typed belongs in its own table with its own endpoint, which is what
+`search_history` is.
+
+**Nothing logs a query.** The model and the route hold an account id and a typed
+word in one scope, which makes them the two places this product could turn its
+own log file into a search log. Neither writes a log line at any level. Keep it
+that way.
+
+**The identity of a search is `(user, query, from, to)`, and `headword_id` is
+outside it.** The same typed word can land on a different top hit as the
+dictionary grows, and a reader who types the same thing twice has run the same
+search either way.
+
+**A later `NULL` never unwrites an answer.** The recorder posts once when the
+search is on screen and again when the pane has words, so the write uses
+`coalesce(excluded, existing)` on both answer-carrying columns. Taking the first
+`null` literally would blank an answer the reader can still see.
+
+`MigrateLocalHistory` is TEMPORARY. It hands a device's old local log to the
+server once and then clears it, so nobody loses a history to this change. When
+the devices in use have all handed over, it and `app/lib/local-store/history.ts`
+can both go.
 
 ## Prerequisites
 

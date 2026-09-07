@@ -199,6 +199,11 @@ export const ROUTE_CLASSIFICATION = {
     reason:
       'Its action calls `requireVoterAccount` first and answers 401 before it reads the body, so a signed-out post learns nothing from a well-formed one. It records a vote and starts no work, so there is nothing behind the gate to spend.',
   },
+  'api.search-history.ts': {
+    access: 'gated-inline',
+    reason:
+      'Its action calls `resolveUser` first and answers 401 before it reads the body, so a signed-out post learns nothing from a well-formed one. Every row it writes belongs to the reader the cookie names, so there is no version of it that works without an account.',
+  },
   'api.translation.$headwordId.ts': {
     access: 'public',
     reason:

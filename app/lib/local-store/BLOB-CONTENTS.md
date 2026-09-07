@@ -54,31 +54,42 @@ cannot: it sees one opaque byte string.
 
 ## Not in the blob: search history
 
-Search history is **client only**. It is capped on the device, it is never
-pushed, and there is no server endpoint that accepts it.
+Search history is **not in the synced document**, and since 2026-09-07 that no
+longer means it is device-only. It is a server table of its own,
+`search_history`, written through `POST /api/search-history` and read by the two
+screens that render it. The decision is recorded in
+[ADR-0011](../../../.adr/0011-plain-accounts-replace-the-encrypted-layer.md).
 
-Two independent reasons, either of which would be sufficient.
+**Why it is not in the blob.** The document is a whole-document
+compare-and-swap, so every push rewrites every byte, and `MAX_BLOB_BYTES` is
+2 MiB (`app/lib/sync/server/blob-store.server.ts`). A collection that grows with
+every query typed would make every push heavier for every reader, permanently,
+and would spend the headroom the reader's actual saved data needs. A log and a
+whole-document swap have opposite write patterns. That reasoning is unchanged
+and is why the log did not simply join the blob when it left the device.
 
-1. **It is the fastest-growing personal entity and the least valuable to sync.**
-   A whole-blob compare-and-swap rewrites every byte on every push. Putting a
-   log that grows with every keystroke session into that write would make every
-   push heavier for every user, permanently, to synchronise something a second
-   device does not need.
-2. **The capacity cliff is real.** One document holds a user's entire store and
-   `MAX_BLOB_BYTES` is 2 MiB (`app/lib/sync/server/blob-store.server.ts`), so the
-   fix past that cap is a chunking design rather than a patch. Feeding history
-   into the document would spend the headroom the product's actual data needs.
+**Why it is not device-only any more.** The old rule said the server must never
+learn what anybody looked up. It did not survive being read closely. The search
+loader receives every word typed, because it queries the shared corpus with it,
+so a device-only log reduced retention rather than disclosure. What it cost was
+the whole point of a history: a word looked up on a laptop was missing on the
+phone, and clearing a browser profile took the log with it. This is a
+dictionary, the rows are ordinary vocabulary, and erasure comes free with the
+`ON DELETE cascade` every other personal table already uses.
 
-## The append-only history log is NOT built
+**What that means for this file's promise.** The synced document still does not
+carry the log, and `blob-schema.ts`'s projection plus the unit test on the
+serialized bytes still say so. What changed is that the claim is now about the
+BLOB alone, not about the service. The service holds the log in its own table.
 
-This service exposes no history endpoint, and the optional design (a separate
-append-only log keyed by `(deviceId, lamport)`) is **not implemented**. It is written down as the
-shape a future decision would take, not as a thing that exists.
+## The append-only history log, as built
 
-If it is ever built, it is a separate log with its own endpoint. It is never
-merged into the compare-and-swap blob, because a monotonic append stream and a
-whole-document swap have opposite write patterns and merging them would give the
-append stream the swap's cost.
+The separate log this file used to describe as unbuilt is built, in the shape it
+predicted: its own table and its own endpoint, never merged into the
+compare-and-swap document. It is keyed by `(user_id, query, from_language,
+to_language)` rather than by `(deviceId, lamport)`, because it is not a merge
+stream: one row is one search by one reader, an upsert moves it, and there is no
+second device's write to reconcile.
 
 ## What the server knows
 
@@ -86,10 +97,10 @@ Everything in the document: the lists, the entries in them, the notes, the
 review tallies and the favourites. That is the honest answer since M191, and the privacy page says
 it in as many words.
 
-WHAT IT STILL DOES NOT KNOW IS WHAT WAS LOOKED UP. The search log is not in the
-document, so there is nothing to store and no endpoint to leak it from. That
-claim is kept true by the projection in `app/lib/local-store/blob-schema.ts`
-plus a unit test on the serialized bytes
+AND, SINCE 2026-09-07, WHAT WAS LOOKED UP. The search log is a table of the
+service, `search_history`, not a part of this document. It is still absent from
+the blob, and that absence is kept true by the projection in
+`app/lib/local-store/blob-schema.ts` plus a unit test on the serialized bytes
 (`tests/unit/personal/blob-serializer.test.ts`), not by encryption.
 
 `sync_blobs.size_bytes` is a denormalised copy of the document's length, so

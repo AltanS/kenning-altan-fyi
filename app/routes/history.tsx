@@ -6,10 +6,10 @@ import { z } from 'zod';
 import { ConfirmAction } from '#app/components/confirm-action';
 import { repeatSearchHref, SavedWordRow } from '#app/components/personal/saved-word-row';
 import { Button } from '#app/components/ui/button';
-import { Skeleton } from '#app/components/ui/skeleton';
 import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
-import { clearHistory, listHistory } from '#app/lib/local-store';
 import { formatRelativeTime } from '#app/lib/relative-time';
+import { clearSearchHistory, listSearchHistory } from '#app/models/search-history.server';
+import { resolveUser } from '#app/middleware/auth';
 
 export const meta: MetaFunction = ({ matches }) => {
   const language = metaLanguage(matches);
@@ -20,33 +20,47 @@ export const meta: MetaFunction = ({ matches }) => {
 };
 
 /**
- * The searches this device has run.
+ * The searches this reader has run.
  *
- * A CLIENT LOADER, AND IT COULD NOT BE ANYTHING ELSE. Search history is the one
- * personal entity that never leaves the device: it has no server table, no sync
- * blob and no endpoint (`app/lib/local-store/BLOB-CONTENTS.md`). A server loader here
- * would have nothing to read, and asking for one would mean telling the server
- * what somebody looked up.
+ * A SERVER LOADER, AND IT USED TO BE A CLIENT ONE. The log lived only in this
+ * browser's store until the server table existed, so there was nothing for a
+ * server loader to read and asking for one would have meant telling the server
+ * what somebody looked up. Both halves of that changed: the rows are in
+ * `search_history` now, and the server has always received the word anyway,
+ * because it searches the dictionary with it. The argument in full is in
+ * ADR-0011 and at the top of `drizzle/schema/search-history.ts`.
  *
- * `listHistory` already returns newest first, and it already filters nothing:
- * the cap is applied at the WRITE, in `history.ts`, so what is here is exactly
- * what the device kept.
+ * WHAT THE READER GETS OUT OF THE MOVE is the only thing that justified it: the
+ * log follows the account. A word looked up on a laptop is in the history on a
+ * phone, which is what anybody means by "my history" and what a device-only
+ * store could never do.
+ *
+ * `listSearchHistory` already returns newest first and the cap is applied at
+ * the WRITE, so what is here is exactly what the account kept.
  *
  * One `now` for the whole page, taken here rather than during render, so every
  * row is measured against the same instant.
+ *
+ * THE ROUTE IS UNDER `_app.gated`, so `authMiddleware` has already refused a
+ * signed-out request before this runs. `resolveUser` is read for the id, and
+ * the null branch is a type narrowing rather than a second gate.
  */
-export async function clientLoader() {
-  const entries = await listHistory();
-  return { entries, nowMs: Date.now() };
-}
+export async function loader({ request }: Route.LoaderArgs) {
+  const user = await resolveUser(request);
+  if (user === null) return { entries: [], nowMs: Date.now() };
 
-/** The device answers in a frame or two, so the wait is a shape, not a spinner. */
-export function HydrateFallback() {
-  return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <Skeleton className="h-40 w-full" />
-    </div>
-  );
+  const rows = await listSearchHistory(user.id);
+  return {
+    entries: rows.map((row) => ({
+      id: String(row.id),
+      query: row.query,
+      from: row.fromLanguage,
+      to: row.toLanguage,
+      translation: row.translation,
+      at: row.at.getTime(),
+    })),
+    nowMs: Date.now(),
+  };
 }
 
 const INTENT = { CLEAR: 'clear' } as const;
@@ -54,14 +68,19 @@ const INTENT = { CLEAR: 'clear' } as const;
 const historyFormSchema = z.object({ intent: z.literal(INTENT.CLEAR) });
 
 /**
- * Drops the whole log. A HARD delete, unlike every other delete in this layer:
- * there is no peer to converge with, so there is nothing for a tombstone to
- * tell. "Clear" here means cleared.
+ * Drops the whole log. A HARD delete, unlike every other delete in the personal
+ * layer: there is no peer to converge with, so there is nothing for a tombstone
+ * to tell. "Clear" here means cleared, and the rows are gone from the database
+ * rather than marked.
  */
-export async function clientAction({ request }: Route.ClientActionArgs) {
+export async function action({ request }: Route.ActionArgs) {
+  const user = await resolveUser(request);
+  if (user === null) return { success: false, error: 'unauthenticated' };
+
   const parsed = historyFormSchema.safeParse(Object.fromEntries(await request.formData()));
   if (!parsed.success) return { success: false, error: 'invalid-form' };
-  await clearHistory();
+
+  await clearSearchHistory(user.id);
   return { success: true };
 }
 

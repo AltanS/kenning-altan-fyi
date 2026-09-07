@@ -26,6 +26,22 @@ superadmin flag, is plumbing `selfhostedworld-com` and `ts-factory-stack`
 already carry. This is a copy of a proven pattern, not new design, the same way
 ADR-0008 copied a proven pattern for the layer it replaces.
 
+**The search log was carved out of this, and the carve-out did not survive**
+(amended 2026-09-07). When the encrypted layer went, one thing was kept back on
+the old bar: the search history stayed device-only, with no endpoint and no
+column, so that the server could not be said to know what anybody looked up.
+The claim was never true in the way it sounded. The search loader receives every
+word typed, because it queries the shared corpus with it; what the carve-out
+actually reduced was RETENTION, not disclosure. What it cost was the whole point
+of a history: a word looked up on a laptop was missing from the phone, and a
+cleared browser profile took the log with it. The operator settled it on
+2026-09-07: "what's the security concern when learning a new language? the
+privacy aspect is kinda weak for this type of app. it should be about UX." A
+dictionary log is ordinary vocabulary, the erasure path already exists in the
+`ON DELETE cascade` every other personal table uses, and the UX gap was real. So
+the log moved to the server, under the same account and the same deletion, and
+this ADR carries the decision rather than a new record beside it.
+
 ## Decision
 
 Replace the encrypted account model with a plain one.
@@ -60,6 +76,15 @@ authenticates with the session cookie on same-origin fetches, the same as
 every other app screen. `sync_key_records`, the table that held the wrapped
 per-device key material, is gone with the keys it wrapped.
 
+**Search history is a server table, not a device-only log** (amended
+2026-09-07). `search_history` holds one row per distinct search per user, keyed
+`(user_id, query, from_language, to_language)`, capped at 500 rows and 90 days
+on every write, and cascaded away with the user. It is NOT in the sync blob: a
+log that grows with every query typed does not belong in a document that is
+rewritten whole under a compare-and-swap and capped at 2 MiB. The screens read
+it through their own loaders; one session-authenticated endpoint,
+`POST/DELETE /api/search-history`, writes and clears it.
+
 **Signup is open.** There is no invite and no bootstrap token. A verification
 mail is required before the first sign-in.
 
@@ -82,6 +107,15 @@ independent layer.
 `sync_blobs.payload`, readable by any query against that table. That was true
 by construction under the old model and it is the central trade this ADR
 makes.
+
+**And the server can now read the search log**, as ordinary rows rather than as
+a payload, since the 2026-09-07 amendment above. Two things follow that a
+reader of this record should not have to discover from the schema. Deleting an
+account deletes the log in the same statement, because the foreign key
+cascades, so there is no sweep to forget. And nothing may log a query: the model
+and the endpoint that hold an account id and a typed word in one scope write no
+log line at any level, because a debug line pairing a reader with a word is a
+search log whatever it is called.
 
 **Mail is now a hard dependency.** Signup, forgotten-password, and losing
 access to the mailbox on file all now depend on a working mail transport.
@@ -114,8 +148,10 @@ These are accepted gaps, not oversights, and a review by four advisors before
 this ADR was written returned "proceed with adjustments" from all four.
 
 - **The sync blob is no longer encrypted at rest.** A database dump exposes a
-  reader's lists, notes, and history. This is the central trade above, stated
-  again because it is the one a future reader is most likely to ask about.
+  reader's lists, notes and study progress, and, since the 2026-09-07
+  amendment, their search log in `search_history` beside it. This is the
+  central trade above, stated again because it is the one a future reader is
+  most likely to ask about.
 - **One blob per user, with a Lamport merge and compare-and-set, and no
   per-device rows or conflict UI.** Two devices pushing at once resolve
   through the same merge the old model used; there is nowhere to see or
@@ -143,3 +179,7 @@ this ADR was written returned "proceed with adjustments" from all four.
   transcribes into prose.
 - `app/services/auth.server.ts`, `drizzle/schema/users.ts`,
   `drizzle/schema/sync.ts`, `app/services/email.server.ts`.
+- `drizzle/schema/search-history.ts`, `app/models/search-history.server.ts`,
+  `app/routes/api.search-history.ts`, and
+  `app/lib/local-store/BLOB-CONTENTS.md`, which records what is in the synced
+  document and what is not.

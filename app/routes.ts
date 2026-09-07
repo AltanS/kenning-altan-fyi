@@ -82,6 +82,11 @@ export default [
   // `/api/translation/vote` the `:headwordId` segment below would swallow it and
   // every vote would reach the poll loader instead of the action.
   route('/api/translation-vote', 'routes/api.translation-vote.ts'),
+  // The reader's own search log, written from the screen that ran the search.
+  // Session-authenticated, like every other fetcher route here: its caller is a
+  // component inside a rendered page, not a script. The two screens that RENDER
+  // the log read it through their own loaders, so this path only writes.
+  route('/api/search-history', 'routes/api.search-history.ts'),
 
   route('/api/translation/:headwordId', 'routes/api.translation.$headwordId.ts'),
   route('/api/translation/:headwordId/retry', 'routes/api.translation.$headwordId.retry.ts'),

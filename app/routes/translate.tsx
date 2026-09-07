@@ -3,7 +3,8 @@ import { redirect, type MetaFunction } from 'react-router';
 import { DailyNudge } from '#app/components/daily-nudge';
 import { LandingDoors, LandingExampleCard, LandingPrivacyNote } from '#app/components/landing';
 import { PersistLanguagePair } from '#app/components/persist-language-pair';
-import { RecentHistory } from '#app/components/personal/recent-history';
+import { MigrateLocalHistory } from '#app/components/personal/migrate-local-history';
+import { RecentHistory, RECENT_HISTORY_COUNT, type RecentSearch } from '#app/components/personal/recent-history';
 import { RecordSearch } from '#app/components/personal/record-search';
 import { SearchPanes } from '#app/components/search-panes';
 import { useTranslationPane } from '#app/components/translation-pane';
@@ -21,6 +22,7 @@ import { resolveTriggeredPhrasePanel } from '#app/lib/translation/phrase-panel.s
 import type { TranslationPaneTarget } from '#app/lib/translation/pane-state';
 import type { TitleHandle } from '#app/lib/route-title';
 import { searchHeadwords, searchPhrase } from '#app/lib/dictionary/search.server';
+import { listSearchHistory } from '#app/models/search-history.server';
 import { resolveUser } from '#app/middleware/auth';
 import type { AuthenticatedUser } from '#app/middleware/helpers';
 import { SIGN_IN_PATH } from '#app/lib/auth/paths';
@@ -124,7 +126,14 @@ export async function loader({ request }: Route.LoaderArgs) {
   //   IT GATES NOTHING. Nothing below reads it, and nothing may: the moment a
   //   decision that costs money is taken from this boolean, an unvalidated
   //   cookie has become a credential.
-  const signedIn = user !== null || (await resolveUser(request)) !== null;
+  //   IT IS KEPT, NOT DISCARDED, SINCE THE SEARCH LOG MOVED TO THE SERVER. The
+  //   overview renders the reader's last few searches, and those rows are
+  //   theirs, so reading them needs the id this resolve already produced. That
+  //   is a read of one reader's own rows and nothing else: it decides no spend,
+  //   queues no job and gates nothing, which is the property the paragraph
+  //   above is about.
+  const reader = user ?? (await resolveUser(request));
+  const signedIn = reader !== null;
 
   const db = getRawDb();
   // The UI language comes from the request cookie, not from the i18next
@@ -163,7 +172,23 @@ export async function loader({ request }: Route.LoaderArgs) {
   // uses, which is the point: the landing page cannot keep advertising a
   // dictionary that has stopped answering.
   if (q === '') {
-    const example = await loadLandingExample((params) => searchHeadwords(db, params));
+    // THE TWO HALVES OF AN EMPTY SCREEN, IN ONE `Promise.all`. The worked
+    // example is a dictionary read and the recent searches are the reader's own
+    // rows; neither feeds the other, so running them in sequence would add a
+    // round trip to the landing page for nothing. A stranger has no log, and
+    // asks for none.
+    const [example, recentRows] = await Promise.all([
+      loadLandingExample((params) => searchHeadwords(db, params)),
+      reader === null ? [] : listSearchHistory(reader.id, RECENT_HISTORY_COUNT),
+    ]);
+    const recentSearches: RecentSearch[] = recentRows.map((row) => ({
+      id: String(row.id),
+      query: row.query,
+      from: row.fromLanguage,
+      to: row.toLanguage,
+      translation: row.translation,
+      at: row.at.getTime(),
+    }));
     // NOT RECONCILED, AND THAT IS RIGHT. `direction` here is only what an empty
     // query would resolve to if it were searched; nothing below this branch
     // reads it, and no search ran to have used it. Reconciling `pair` against a
@@ -185,6 +210,10 @@ export async function loader({ request }: Route.LoaderArgs) {
       // matched no headword.
       translationPanel: null,
       translationHeadwordId: null,
+      recentSearches,
+      // ONE INSTANT FOR EVERY ROW IN THE BLOCK, taken here rather than during
+      // render, so the five ages are all measured against the same moment.
+      nowMs: Date.now(),
     };
   }
 
@@ -289,6 +318,11 @@ export async function loader({ request }: Route.LoaderArgs) {
       // neither has anything to act on here. The pane does not use it any more,
       // it polls by the text.
       translationHeadwordId: null,
+      // AN ANSWERED SCREEN SHOWS NO LOG. `RecordSearch` below has just written
+      // the search the reader is looking at, so the block's newest row would be
+      // the screen they are already on.
+      recentSearches: [],
+      nowMs: Date.now(),
     };
   }
 
@@ -400,6 +434,10 @@ export async function loader({ request }: Route.LoaderArgs) {
     panel,
     translationPanel,
     translationHeadwordId: chosenHit?.headwordId ?? null,
+    // Same as the phrase branch above: this screen carries an answer, so it
+    // does not also carry a list of the searches that led to it.
+    recentSearches: [],
+    nowMs: Date.now(),
   };
 }
 
@@ -470,6 +508,8 @@ export default function TranslateRoute({ loaderData }: Route.ComponentProps) {
     panel,
     translationPanel,
     translationHeadwordId,
+    recentSearches,
+    nowMs,
   } = loaderData;
 
   // THE PANE'S STATE MACHINE, CALLED UNCONDITIONALLY, because it is a hook. The
@@ -530,17 +570,22 @@ export default function TranslateRoute({ loaderData }: Route.ComponentProps) {
         emptyPane={example === null ? undefined : <LandingExampleCard example={example} />}
       />
 
-      {/* THE LAST FEW SEARCHES, ON THE OVERVIEW ONLY. `q === ''` is what makes
-          this screen the overview rather than an answer, and an answered screen
-          would list the search the reader is already looking at as its own
-          newest row, because `RecordSearch` below has just written it.
+      {/* THE LAST FEW SEARCHES, ON THE OVERVIEW ONLY, and the loader is what
+          decides that: only the empty-query branch fills `recentSearches`. An
+          answered screen would list the search the reader is already looking at
+          as its own newest row, because `RecordSearch` below has just written
+          it. A stranger's list is empty for the same reason, one level up: the
+          loader asks for no rows without a reader to own them, and the block
+          renders nothing for an empty list. */}
+      <RecentHistory entries={recentSearches} nowMs={nowMs} />
 
-          IT IS FOR A SIGNED-IN READER ONLY, and for the reason `DailyNudge`
-          above is: reading the device's store OPENS the local database and
-          starts a persister polling it, which must not happen moments after a
-          sign-out deleted it. A stranger also has no recorded searches for it
-          to show. */}
-      {q === '' && signedIn && <RecentHistory />}
+      {/* The one-time handover of a log this device recorded before the server
+          held one, and it renders nothing. It is HERE, on the screen every
+          reader passes through, and only for a signed-in one: the rows have to
+          land under an account, and reading the device's store must not happen
+          for a stranger. It does nothing at all on a device with no old log,
+          which is every device after the first load. */}
+      {signedIn && <MigrateLocalHistory />}
 
       {/* The language pair WRITE, and it renders nothing. It is here rather
           than inside `SearchPanes` for the reason `RecordSearch` is: a
