@@ -5,7 +5,7 @@
   "homepage": "https://kenning.altan.fyi",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SPRQVNTRS/kenning-altan-fyi.git"
+    "url": "git+https://github.com/AltanS/kenning-altan-fyi.git"
   },
   "type": "module",
   "dependencies": {

@@ -55,7 +55,7 @@ passing them directly to Node.
 ### Install and run
 
 ```bash
-git clone https://github.com/SPRQVNTRS/kenning-altan-fyi.git
+git clone https://github.com/AltanS/kenning-altan-fyi.git
 cd kenning-altan-fyi
 pnpm install
 
@@ -147,9 +147,9 @@ Tatoeba, which takes hours. Instead, you can use a pre-built seed dump of the
 shared dictionary tables:
 
 - **Download:**
-  [`dictionary-seed-2026-09-02.dump`](https://github.com/SPRQVNTRS/translate-altan-fyi/releases/download/seed-2026-09-02/dictionary-seed-2026-09-02.dump)
+  [`dictionary-seed-2026-09-02.dump`](https://github.com/AltanS/kenning-altan-fyi/releases/download/seed-2026-09-02/dictionary-seed-2026-09-02.dump)
   (45 MB, custom pg_dump format), with an [md5
-  checksum](https://github.com/SPRQVNTRS/translate-altan-fyi/releases/download/seed-2026-09-02/dictionary-seed-2026-09-02.dump.md5)
+  checksum](https://github.com/AltanS/kenning-altan-fyi/releases/download/seed-2026-09-02/dictionary-seed-2026-09-02.dump.md5)
   file.
 - **Generated:** 2026-09-02.
 - **Contents:** 383,185 headwords, 102,335 senses, 107,085 sense versions, 1,862
@@ -178,7 +178,7 @@ The seed dump contains table rows without any schema definitions. Run database
 migrations first, then run these commands:
 
 ```bash
-curl -LO https://github.com/SPRQVNTRS/translate-altan-fyi/releases/download/seed-2026-09-02/dictionary-seed-2026-09-02.dump
+curl -LO https://github.com/AltanS/kenning-altan-fyi/releases/download/seed-2026-09-02/dictionary-seed-2026-09-02.dump
 scripts/dictionary-restore.sh --truncate-first dictionary-seed-2026-09-02.dump
 ```
 
