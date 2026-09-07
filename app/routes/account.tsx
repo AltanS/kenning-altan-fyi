@@ -28,13 +28,13 @@ import { AuthCard, AuthField, AuthNotice } from '#app/components/account/auth-ca
 import { ExportDataButton } from '#app/components/account/export-data-button';
 import { Button, buttonVariants } from '#app/components/ui/button';
 import { Link } from '#app/components/link';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage } from '#app/i18n/meta-title';
 import { MIN_PASSWORD_LENGTH } from '#app/lib/auth/password-rule';
 import { SIGN_IN_PATH, SIGN_UP_PATH } from '#app/lib/auth/paths';
 import { changePassword, deleteAccount } from '#app/services/auth.server';
 import { resolveUser } from '#app/middleware/auth';
 
-export const meta: MetaFunction = ({ matches }) => [{ title: metaTitle(metaLanguage(matches), 'account.metaTitle') }];
+export const meta: MetaFunction = ({ matches }) => [{ title: documentTitle(metaLanguage(matches), 'account.metaTitle') }];
 
 /** What a post to this screen can report. Each member carries one literal, so each narrows on its own. */
 type AccountResult =

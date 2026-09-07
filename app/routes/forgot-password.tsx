@@ -18,7 +18,7 @@ import type { Route } from './+types/forgot-password';
 import { AuthCard, AuthField, AuthNotice } from '#app/components/account/auth-card';
 import { Button } from '#app/components/ui/button';
 import { Link } from '#app/components/link';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage } from '#app/i18n/meta-title';
 import { requestT } from '#app/i18n/request-t';
 import { parseEmail } from '#app/lib/auth/email';
 import { SIGN_IN_PATH } from '#app/lib/auth/paths';
@@ -29,7 +29,7 @@ import { requestPasswordReset } from '#app/services/auth.server';
 export const middleware = [rateLimit({ limit: 3, windowMs: 60 * 60 * 1000, name: 'forgot-password' })];
 
 export const meta: MetaFunction = ({ matches }) => [
-  { title: metaTitle(metaLanguage(matches), 'account.forgotMetaTitle') },
+  { title: documentTitle(metaLanguage(matches), 'account.forgotMetaTitle') },
 ];
 
 export const handle = { titleKey: 'account.forgotMetaTitle' } satisfies TitleHandle;

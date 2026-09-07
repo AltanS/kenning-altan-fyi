@@ -24,7 +24,7 @@ import type { Route } from './+types/sign-up';
 import { AuthCard, AuthField, AuthNotice } from '#app/components/account/auth-card';
 import { Button } from '#app/components/ui/button';
 import { Link } from '#app/components/link';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage } from '#app/i18n/meta-title';
 import { requestT } from '#app/i18n/request-t';
 import { parseEmail } from '#app/lib/auth/email';
 import { MIN_PASSWORD_LENGTH } from '#app/lib/auth/password-rule';
@@ -38,7 +38,7 @@ import { resolveUser } from '#app/middleware/auth';
 export const middleware = [rateLimit({ limit: 5, windowMs: 60 * 60 * 1000, name: 'sign-up' })];
 
 export const meta: MetaFunction = ({ matches }) => [
-  { title: metaTitle(metaLanguage(matches), 'account.createMetaTitle') },
+  { title: documentTitle(metaLanguage(matches), 'account.createMetaTitle') },
 ];
 
 export const handle = { titleKey: 'account.createMetaTitle' } satisfies TitleHandle;

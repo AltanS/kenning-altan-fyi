@@ -4,7 +4,7 @@ import type { MetaFunction } from 'react-router';
 import { Link } from '#app/components/link';
 import { ReviewSessionView } from '#app/components/review-session';
 import { Skeleton } from '#app/components/ui/skeleton';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import type { TitleHandle } from '#app/lib/route-title';
 import { getLocalList, listLocalListItems } from '#app/lib/local-store';
 import type { ReviewCard } from '#app/lib/review/session';
@@ -12,7 +12,7 @@ import type { ReviewCard } from '#app/lib/review/session';
 export const meta: MetaFunction = ({ matches }) => {
   const language = metaLanguage(matches);
   return [
-    { title: metaTitle(language, 'review.metaTitle') },
+    { title: documentTitle(language, 'review.metaTitle') },
     { name: 'description', content: metaTitle(language, 'review.metaDescription') },
   ];
 };

@@ -20,7 +20,7 @@ import type { Route } from './+types/verify-email';
 import { AuthCard, AuthField, AuthNotice } from '#app/components/account/auth-card';
 import { Button, buttonVariants } from '#app/components/ui/button';
 import { Link } from '#app/components/link';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage } from '#app/i18n/meta-title';
 import { requestT } from '#app/i18n/request-t';
 import { parseEmail } from '#app/lib/auth/email';
 import { SIGN_IN_PATH } from '#app/lib/auth/paths';
@@ -32,7 +32,7 @@ import { resendVerification, verifyEmailToken } from '#app/services/auth.server'
 export const middleware = [rateLimit({ limit: 5, windowMs: 60 * 60 * 1000, name: 'verify-resend' })];
 
 export const meta: MetaFunction = ({ matches }) => [
-  { title: metaTitle(metaLanguage(matches), 'account.verifyMetaTitle') },
+  { title: documentTitle(metaLanguage(matches), 'account.verifyMetaTitle') },
 ];
 
 export const handle = { titleKey: 'account.verifyMetaTitle' } satisfies TitleHandle;

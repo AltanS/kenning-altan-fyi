@@ -4,13 +4,13 @@ import { Link } from 'react-router';
 import type { Route } from './+types/settings';
 import { InstallApp } from '#app/components/install-app';
 import { LanguageToggle } from '#app/components/language-toggle';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import { resolveUser } from '#app/middleware/auth';
 
 export const meta: MetaFunction = ({ matches }) => {
   const language = metaLanguage(matches);
   return [
-    { title: metaTitle(language, 'settings.metaTitle') },
+    { title: documentTitle(language, 'settings.metaTitle') },
     { name: 'description', content: metaTitle(language, 'settings.metaDescription') },
   ];
 };

@@ -8,7 +8,7 @@ import { RecentHistory, RECENT_HISTORY_COUNT, type RecentSearch } from '#app/com
 import { RecordSearch } from '#app/components/personal/record-search';
 import { SearchPanes } from '#app/components/search-panes';
 import { useTranslationPane } from '#app/components/translation-pane';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import { resolveRequestLanguage } from '#app/i18n/language-prefs';
 import { detectLanguage, type LanguageCode } from '#app/lib/dictionary/detect-language';
 import { suggestDidYouMean } from '#app/lib/dictionary/did-you-mean';
@@ -35,7 +35,7 @@ import { getRawDb } from '#drizzle/db';
 export const meta: MetaFunction = ({ matches }) => {
   const language = metaLanguage(matches);
   return [
-    { title: metaTitle(language, 'search.metaTitle') },
+    { title: documentTitle(language, 'search.metaTitle') },
     { name: 'description', content: metaTitle(language, 'search.metaDescription') },
   ];
 };

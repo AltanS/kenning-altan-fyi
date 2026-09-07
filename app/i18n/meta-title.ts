@@ -24,11 +24,16 @@
  *
  * ```ts
  * export const meta: MetaFunction = ({ matches }) => [
- *   { title: metaTitle(metaLanguage(matches), 'search.metaTitle') },
+ *   { title: documentTitle(metaLanguage(matches), 'search.metaTitle') },
+ *   { name: 'description', content: metaTitle(metaLanguage(matches), 'search.metaDescription') },
  * ];
  * ```
+ *
+ * Use `documentTitle` for the `<title>` and `metaTitle` for everything else.
+ * The two differ only in the brand suffix, and a description must not carry it.
  */
 import { z } from 'zod';
+import { APP_NAME } from '../lib/app-name';
 import { DEFAULT_LANGUAGE, isLanguageCode, type LanguageCode } from './language-prefs';
 import enCommon from '../locales/en/common.json';
 import deCommon from '../locales/de/common.json';
@@ -197,4 +202,29 @@ export function translateStatic(
  */
 export function metaTitle(language: string | null | undefined, key: string): string {
   return translateStatic(language, key);
+}
+
+/**
+ * The document `<title>`: a page name with the product name after it.
+ *
+ * Every `metaTitle` key in the catalogs names the PAGE and only the page,
+ * `Lists`, `History`, `Übersetzen`, so on its own a tab, a bookmark and a
+ * search result all read as some anonymous page. The brand belongs in the
+ * title, but it does NOT belong in each of the twenty catalog strings: that
+ * would spread the product name across two languages and twenty keys, so a
+ * rename would have to find all forty. It lives in `APP_NAME` instead, and is
+ * appended here, once.
+ *
+ * The page name stays FIRST because a browser tab truncates from the right,
+ * and the page name is the half that tells two open tabs apart.
+ *
+ * `APP_NAME` is a proper noun, so it is not translated and the separator is
+ * the same in every language.
+ *
+ * @param language - the active language, e.g. from `metaLanguage(matches)`.
+ * @param key - a dotted catalog key, optionally namespaced as `'legal:...'`.
+ * @returns the page name, then a middle dot, then the product name.
+ */
+export function documentTitle(language: string | null | undefined, key: string): string {
+  return `${translateStatic(language, key)} · ${APP_NAME}`;
 }

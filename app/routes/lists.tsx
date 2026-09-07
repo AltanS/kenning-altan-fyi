@@ -11,7 +11,7 @@ import { Button } from '#app/components/ui/button';
 import { Input } from '#app/components/ui/input';
 import { Label } from '#app/components/ui/label';
 import { Skeleton } from '#app/components/ui/skeleton';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import {
   deleteLocalList,
   deleteLocalListItem,
@@ -24,7 +24,7 @@ import {
 export const meta: MetaFunction = ({ matches }) => {
   const language = metaLanguage(matches);
   return [
-    { title: metaTitle(language, 'lists.metaTitle') },
+    { title: documentTitle(language, 'lists.metaTitle') },
     { name: 'description', content: metaTitle(language, 'lists.metaDescription') },
   ];
 };

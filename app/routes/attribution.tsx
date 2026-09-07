@@ -2,7 +2,7 @@ import type { Route } from './+types/attribution';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { MetaFunction } from 'react-router';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import { isGeneratedSource } from '#app/lib/dictionary/generated-source';
 import { listSources } from '#app/lib/dictionary/sources.server';
 import { getRawDb } from '#drizzle/db';
@@ -10,7 +10,7 @@ import { getRawDb } from '#drizzle/db';
 export const meta: MetaFunction = ({ matches }) => {
   const language = metaLanguage(matches);
   return [
-    { title: metaTitle(language, 'attribution.metaTitle') },
+    { title: documentTitle(language, 'attribution.metaTitle') },
     { name: 'description', content: metaTitle(language, 'attribution.metaDescription') },
   ];
 };

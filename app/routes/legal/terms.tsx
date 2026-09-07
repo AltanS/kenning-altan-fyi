@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { H1, H2, P } from '#app/components/typography';
 import PublicWrapper from '#app/components/public-wrapper';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage } from '#app/i18n/meta-title';
 import { LEGAL_LAST_UPDATED, formatLegalDate } from './last-updated';
 import { LegalPageLinks } from './page-links';
 
@@ -28,7 +28,7 @@ import { LegalPageLinks } from './page-links';
  * linked from the lead, never a product name.
  */
 export const meta: MetaFunction = ({ matches }) => [
-  { title: metaTitle(metaLanguage(matches), 'legal:meta.termsTitle') },
+  { title: documentTitle(metaLanguage(matches), 'legal:meta.termsTitle') },
 ];
 
 export function TermsContent() {

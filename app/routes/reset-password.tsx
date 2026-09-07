@@ -21,13 +21,13 @@ import type { Route } from './+types/reset-password';
 import { AuthCard, AuthField, AuthNotice } from '#app/components/account/auth-card';
 import { Button } from '#app/components/ui/button';
 import { Link } from '#app/components/link';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage } from '#app/i18n/meta-title';
 import { MIN_PASSWORD_LENGTH } from '#app/lib/auth/password-rule';
 import type { TitleHandle } from '#app/lib/route-title';
 import { resetPassword } from '#app/services/auth.server';
 
 export const meta: MetaFunction = ({ matches }) => [
-  { title: metaTitle(metaLanguage(matches), 'account.resetMetaTitle') },
+  { title: documentTitle(metaLanguage(matches), 'account.resetMetaTitle') },
 ];
 
 export const handle = { titleKey: 'account.resetMetaTitle' } satisfies TitleHandle;

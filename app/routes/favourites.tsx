@@ -7,13 +7,13 @@ import { ConfirmAction } from '#app/components/confirm-action';
 import { repeatSearchHref, SavedWordRow } from '#app/components/personal/saved-word-row';
 import { Button } from '#app/components/ui/button';
 import { Skeleton } from '#app/components/ui/skeleton';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import { listFavorites, removeFavorite } from '#app/lib/local-store';
 
 export const meta: MetaFunction = ({ matches }) => {
   const language = metaLanguage(matches);
   return [
-    { title: metaTitle(language, 'favourites.metaTitle') },
+    { title: documentTitle(language, 'favourites.metaTitle') },
     { name: 'description', content: metaTitle(language, 'favourites.metaDescription') },
   ];
 };

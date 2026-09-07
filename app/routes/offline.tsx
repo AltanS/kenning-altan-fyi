@@ -2,12 +2,12 @@ import { WifiOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { MetaFunction } from 'react-router';
 import { Button } from '#app/components/ui/button';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 
 export const meta: MetaFunction = ({ matches }) => {
   const language = metaLanguage(matches);
   return [
-    { title: metaTitle(language, 'offline.metaTitle') },
+    { title: documentTitle(language, 'offline.metaTitle') },
     { name: 'description', content: metaTitle(language, 'offline.metaDescription') },
   ];
 };

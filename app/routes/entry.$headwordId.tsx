@@ -13,7 +13,7 @@ import { EntryNote } from '#app/components/personal/entry-note';
 import { ExampleLanguageBadge } from '#app/components/search-results';
 import { SenseTabs } from '#app/components/sense-tabs';
 import { SourceLink } from '#app/components/source-link';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import { resolveRequestLanguage } from '#app/i18n/language-prefs';
 import { isServedLanguage, type Direction, type LanguageCode } from '#app/lib/dictionary/detect-language';
 import { EXAMPLE_LIMIT, getEntry } from '#app/lib/dictionary/entry.server';
@@ -26,7 +26,7 @@ import { getRawDb } from '#drizzle/db';
 export const meta: MetaFunction = ({ matches }) => {
   const language = metaLanguage(matches);
   return [
-    { title: metaTitle(language, 'entry.metaTitle') },
+    { title: documentTitle(language, 'entry.metaTitle') },
     { name: 'description', content: metaTitle(language, 'entry.metaDescription') },
   ];
 };

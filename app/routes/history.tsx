@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { ConfirmAction } from '#app/components/confirm-action';
 import { repeatSearchHref, SavedWordRow } from '#app/components/personal/saved-word-row';
 import { Button } from '#app/components/ui/button';
-import { metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import { formatRelativeTime } from '#app/lib/relative-time';
 import { clearSearchHistory, listSearchHistory } from '#app/models/search-history.server';
 import { resolveUser } from '#app/middleware/auth';
@@ -14,7 +14,7 @@ import { resolveUser } from '#app/middleware/auth';
 export const meta: MetaFunction = ({ matches }) => {
   const language = metaLanguage(matches);
   return [
-    { title: metaTitle(language, 'history.metaTitle') },
+    { title: documentTitle(language, 'history.metaTitle') },
     { name: 'description', content: metaTitle(language, 'history.metaDescription') },
   ];
 };
