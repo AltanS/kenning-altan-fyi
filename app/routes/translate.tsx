@@ -3,6 +3,7 @@ import { redirect, type MetaFunction } from 'react-router';
 import { DailyNudge } from '#app/components/daily-nudge';
 import { LandingDoors, LandingExampleCard, LandingPrivacyNote } from '#app/components/landing';
 import { PersistLanguagePair } from '#app/components/persist-language-pair';
+import { RecentHistory } from '#app/components/personal/recent-history';
 import { RecordSearch } from '#app/components/personal/record-search';
 import { SearchPanes } from '#app/components/search-panes';
 import { useTranslationPane } from '#app/components/translation-pane';
@@ -528,6 +529,18 @@ export default function TranslateRoute({ loaderData }: Route.ComponentProps) {
         // shows the dictionary answering.
         emptyPane={example === null ? undefined : <LandingExampleCard example={example} />}
       />
+
+      {/* THE LAST FEW SEARCHES, ON THE OVERVIEW ONLY. `q === ''` is what makes
+          this screen the overview rather than an answer, and an answered screen
+          would list the search the reader is already looking at as its own
+          newest row, because `RecordSearch` below has just written it.
+
+          IT IS FOR A SIGNED-IN READER ONLY, and for the reason `DailyNudge`
+          above is: reading the device's store OPENS the local database and
+          starts a persister polling it, which must not happen moments after a
+          sign-out deleted it. A stranger also has no recorded searches for it
+          to show. */}
+      {q === '' && signedIn && <RecentHistory />}
 
       {/* The language pair WRITE, and it renders nothing. It is here rather
           than inside `SearchPanes` for the reason `RecordSearch` is: a

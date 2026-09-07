@@ -160,7 +160,9 @@
     "clearConfirm": "Verlauf löschen",
     "capNote": "Es werden nur die letzten 500 Suchanfragen behalten und nichts, was älter als 90 Tage ist.",
     "clearPending": "Verlauf wird gelöscht...",
-    "clearedToast": "Suchverlauf gelöscht."
+    "clearedToast": "Suchverlauf gelöscht.",
+    "recentTitle": "Zuletzt gesucht",
+    "recentAll": "Alle anzeigen"
   },
   "settings": {
     "metaTitle": "Einstellungen",

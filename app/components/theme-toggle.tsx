@@ -1,8 +1,7 @@
 import { Monitor, Moon, Sun } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { cn } from '#app/lib/utils';
 
 const themeSchema = z.enum(['system', 'light', 'dark']).catch('system');
 type Theme = z.infer<typeof themeSchema>;
@@ -20,29 +19,45 @@ function getStoredTheme(): Theme {
   return themeSchema.parse(globalThis.window?.__getStoredTheme?.());
 }
 
+/**
+ * The three states, in the order a click walks them.
+ *
+ * SYSTEM IS FIRST, AND IT IS WHERE A READER WHO HAS NEVER TOUCHED THIS
+ * CONTROL STANDS: nothing in `localStorage` reads back as `system`, so the app
+ * follows the operating system until the reader says otherwise. The cycle
+ * returns to it, so the reader can hand the decision back.
+ */
+const THEME_ORDER = ['system', 'light', 'dark'] as const satisfies readonly Theme[];
+
+/** The state one click away from `theme`, wrapping at the end of the order. */
+export function nextTheme(theme: Theme): Theme {
+  const index = THEME_ORDER.indexOf(theme);
+  return THEME_ORDER[(index + 1) % THEME_ORDER.length];
+}
+
+const THEME_ICONS = { system: Monitor, light: Sun, dark: Moon } as const;
+
+/**
+ * The colour theme, as ONE button rather than a menu.
+ *
+ * A MENU WAS THREE CLICKS FOR A TWO-STATE DECISION. Opening a popover, reading
+ * three rows and picking one is the wrong ceremony for a control whose whole
+ * job is "not this, the other one". The button now applies the next state
+ * directly, and the icon on it is the state the app is IN, not the state a
+ * click would reach: the reader looks at the header to know where they are.
+ *
+ * THE CYCLE HAS THREE STOPS, NOT TWO, because `system` has to stay reachable.
+ * A light/dark flip would strand a reader who had once chosen: there would be
+ * no way back to following the operating system, and the app would keep an
+ * opinion the reader never meant to make permanent.
+ */
 export function ThemeToggle() {
   const { t } = useTranslation();
   const [theme, setTheme] = useState<Theme>(getStoredTheme);
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   // Sync state from localStorage on mount
   useEffect(() => {
     setTheme(getStoredTheme());
-  }, []);
-
-  // Handle click outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      // SAFETY: `contains` accepts any Node; a MouseEvent target is always a
-      // Node in the DOM, but the DOM lib types `EventTarget` as its supertype.
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Apply theme when it changes
@@ -62,58 +77,19 @@ export function ThemeToggle() {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
-  // Built inside the component, not at module scope: the labels are translated,
-  // so they have to be resolved per render rather than frozen once at import.
-  const themes = [
-    { value: 'system' as const, label: t('theme.system'), icon: Monitor },
-    { value: 'light' as const, label: t('theme.light'), icon: Sun },
-    { value: 'dark' as const, label: t('theme.dark'), icon: Moon },
-  ];
-
-  const currentTheme = themes.find((option) => option.value === theme) || themes[0];
+  const Icon = THEME_ICONS[theme];
 
   return (
-    <div className="relative" ref={menuRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative inline-flex items-center justify-center h-8 w-8 p-0 text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors"
-        aria-label={t('theme.selector')}
-        aria-expanded={isOpen}
-      >
-        <currentTheme.icon className="h-4 w-4" />
-      </button>
-
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-36 rounded-md shadow-lg bg-popover border ring-1 ring-black ring-opacity-5">
-          <div className="py-1" role="menu">
-            {themes.map((themeOption) => {
-              const Icon = themeOption.icon;
-              const isActive = theme === themeOption.value;
-
-              return (
-                <button
-                  key={themeOption.value}
-                  onClick={() => {
-                    setTheme(themeOption.value);
-                    setIsOpen(false);
-                  }}
-                  className={cn(
-                    'w-full flex items-center px-4 py-2 text-sm transition-colors',
-                    isActive
-                      ? 'bg-muted text-foreground'
-                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
-                  )}
-                  role="menuitem"
-                >
-                  <Icon className="h-4 w-4 mr-2" />
-                  {themeOption.label}
-                  {isActive && <span className="ml-auto text-xs">✓</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={() => setTheme(nextTheme(theme))}
+      className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg p-0 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+      // The label names the control and the state it is in, so a screen reader
+      // hears which theme is active rather than only that a theme button exists.
+      aria-label={`${t('theme.selector')}: ${t(`theme.${theme}`)}`}
+      title={t(`theme.${theme}`)}
+    >
+      <Icon className="h-4 w-4" aria-hidden="true" />
+    </button>
   );
 }

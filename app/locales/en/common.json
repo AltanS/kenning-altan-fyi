@@ -160,7 +160,9 @@
     "clearConfirm": "Clear history",
     "capNote": "Only the 500 most recent searches, and nothing older than 90 days, are kept.",
     "clearPending": "Clearing history...",
-    "clearedToast": "Search history cleared."
+    "clearedToast": "Search history cleared.",
+    "recentTitle": "Recent searches",
+    "recentAll": "See all"
   },
   "settings": {
     "metaTitle": "Settings",

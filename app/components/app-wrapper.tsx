@@ -5,6 +5,7 @@ import { ArrowLeft, Menu } from 'lucide-react';
 import { Link } from '#app/components/link';
 import { ThemeToggle } from '#app/components/theme-toggle';
 import { APP_NAME } from '#app/lib/app-name';
+import { KenningMark } from '#app/components/kenning-mark';
 import { routeTitle } from '#app/lib/route-title';
 import { cn } from '#app/lib/utils';
 import { useInstallPrompt } from '#app/hooks/use-install-prompt';
@@ -289,11 +290,25 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
           <Separator orientation="vertical" className="mr-2 hidden h-4 md:block" />
           <NavDrawer />
           <div className="flex flex-1 items-center justify-between">
-            <div className="flex min-w-0 flex-col justify-center gap-px">
-              {/* The wordmark, mobile only. At md and up the sidebar's own logo
-                  renders this exact word a few pixels away, and a second one
-                  there is a duplicate rather than emphasis. Decorative: the
-                  page title below names the screen for assistive tech. */}
+            {/* THE MARK, MOBILE ONLY, AND IT IS A LINK HOME. At md and up the
+                sidebar header carries this exact drawing a few pixels away, so
+                a second one there is a duplicate rather than emphasis. Below md
+                the sidebar is gone and the header carried a word and no mark at
+                all, which read as unbranded chrome. Decorative for assistive
+                tech: the link is named, the drawing is not. */}
+            <Link
+              to="/"
+              aria-label={APP_NAME}
+              className="mr-2.5 shrink-0 transition-opacity hover:opacity-80 md:hidden"
+            >
+              <KenningMark className="size-8" />
+            </Link>
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-px">
+              {/* The wordmark, mobile only, beside the mark. At md and up the
+                  sidebar's own logo renders this exact word a few pixels away,
+                  and a second one there is a duplicate rather than emphasis.
+                  Decorative: the page title below names the screen for
+                  assistive tech. */}
               <span
                 aria-hidden="true"
                 className="font-display text-xs font-semibold leading-none text-brand-ink md:hidden"
