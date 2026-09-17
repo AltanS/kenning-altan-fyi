@@ -43,9 +43,16 @@ export interface ModeSwitchProps {
  * text on the card, so the pair reads as one control with one of its halves
  * pressed rather than as two competing buttons.
  *
- * 44px MINIMUM TAP HEIGHT ON BOTH SEGMENTS, the same floor the language bar's
- * selects and the submit button carry. This control sits directly above the box
- * on a screen used one-handed on a phone.
+ * 40px TAP HEIGHT ON BOTH SEGMENTS, four pixels under the 44px the language
+ * bar's selects and the submit button keep. That is deliberate and it is the
+ * only control here allowed it: those three ACT on what the reader typed, and a
+ * missed tap on one of them costs a search, a wrong language or a paid run.
+ * These two are navigation between two screens, and a missed tap costs one more
+ * tap. DESIGN.md's 44px rule names the two selects, the swap button and the
+ * submit button, and this control is not among them, so the four pixels are
+ * spent where they buy the most: back into the space above the fold, on the
+ * screen this app is mostly read on. Do not take this as licence to shrink the
+ * four controls the rule does name.
  */
 export function ModeSwitch({ active, from, to, className }: ModeSwitchProps) {
   const { t } = useTranslation();
@@ -84,7 +91,7 @@ export function ModeSwitch({ active, from, to, className }: ModeSwitchProps) {
             // `basis-0` with `flex-1` makes the two halves equal by
             // construction. Without it each segment starts at its own text
             // width, so the longer label keeps a wider half at every viewport.
-            className={`flex h-11 flex-1 basis-0 items-center justify-center rounded-lg px-4 text-sm font-medium outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+            className={`flex h-10 flex-1 basis-0 items-center justify-center rounded-lg px-4 text-sm font-medium outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
               isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
             }`}
           >

@@ -1,6 +1,6 @@
 ---
 name: language-bar-labels-and-allow-detect
-description: LanguageBar always renders visible labels as cells of its own grid, drops aria-label for aria-labelledby, and takes allowDetect=false on the explain screen
+description: LanguageBar always renders a label per select, sr-only since the M200 density pass, drops aria-label for aria-labelledby, and takes allowDetect=false on the explain screen
 metadata:
   type: project
 ---
@@ -16,9 +16,13 @@ under the question box that nobody connected to a control two blocks above it.
 `/explain` passes `explain.wordsIn` / `explain.explainIn`.
 
 **How to apply:**
-- The labels are CELLS OF THE SAME `grid-cols-[1fr_auto_1fr]`, with an empty
-  `aria-hidden` middle cell. A separate flex row above would line up by
-  coincidence, which is the misalignment DESIGN.md section 3 already describes.
+- The labels were CELLS OF THE SAME `grid-cols-[1fr_auto_1fr]`, with an empty
+  `aria-hidden` middle spacer. That is REVERSED: `LABEL_RECIPE` is now the bare
+  string `'sr-only'` and the spacer cell is deleted, so the grid is one row of
+  three controls. The `<label>` elements themselves must stay, because the two
+  triggers name themselves with `aria-labelledby` pointing at them; deleting
+  them leaves two unnamed dropdowns. With nothing visible there is nothing left
+  to align, which is why the old cell argument no longer applies.
 - The triggers now carry `aria-labelledby`, not `aria-label`. Radix renders each
   as a button, `<label htmlFor>` on a button is not reliably its name, and two
   names on one control is how a screen reader announces something the screen does

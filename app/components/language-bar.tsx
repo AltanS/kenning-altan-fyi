@@ -16,14 +16,17 @@ import {
 import { persistLanguagePair } from '#app/lib/local-store';
 
 /**
- * The label over each select.
+ * The label on each select.
  *
- * THE SAME SMALL UPPERCASE TREATMENT THE ANSWER SECTIONS USE, so a label reads
- * as a label rather than as the first line of the control. `mb-1` and nothing
- * else for spacing: the grid owns the horizontal gaps, and a label that set its
- * own would drift out of the column it names.
+ * `sr-only`: IT IS READ, NEVER SEEN. The two labels were a visible uppercase
+ * row of their own, which cost a whole line above the fold to say "From" and
+ * "Into" over two selects that already show a language each. The words are the
+ * accessible NAMES of the two triggers, though, wired by `aria-labelledby`
+ * below, so the elements have to stay in the tree: deleting them would leave
+ * two unnamed dropdowns for anybody not looking at the screen. Hiding them
+ * visually keeps the name and gives back the line.
  */
-const LABEL_RECIPE = 'mb-1 text-[11px] font-semibold uppercase tracking-[0.11em] text-brand-ink';
+const LABEL_RECIPE = 'sr-only';
 
 /** What the bar needs from the screen around it. */
 export interface LanguageBarProps {
@@ -44,10 +47,10 @@ export interface LanguageBarProps {
    * WRITTEN IN. The bar is one component either way, so the sentence above it is
    * what tells them apart.
    *
-   * OMITTED MEANS THE TRANSLATOR'S OWN PAIR, not "no labels". Two unnamed
-   * dropdowns over a text box is a guess a reader has to make, and the guess is
-   * wrong half the time: the screen reader was told what they were and the
-   * person looking at them was not.
+   * OMITTED MEANS THE TRANSLATOR'S OWN PAIR, not "no labels". The label is
+   * `sr-only` now, so what it buys is the accessible name of the select rather
+   * than a visible caption, and a bar with no label at all would be two unnamed
+   * dropdowns for anybody not looking at the screen.
    */
   labels?: { source: string; target: string };
   /**
@@ -109,9 +112,9 @@ export function LanguageBar({ pair, direction, q, formRef, labels, allowDetect =
   const targetLabelText = labels?.target ?? t('search.intoLabel');
   // Radix renders each trigger as a button, and a `<label htmlFor>` on a button
   // focuses it on click but is not reliably read as its name. `aria-labelledby`
-  // is, so the visible label does both jobs and the `aria-label` that used to
-  // carry the name alone is gone: two names on one control is how a screen
-  // reader comes to announce something the screen does not say.
+  // is, so the label carries the name even though it is `sr-only`, and the
+  // `aria-label` that used to carry it alone is gone: two names on one control
+  // is how a screen reader comes to announce something the screen does not say.
   const sourceLabelId = `${sourceId}-label`;
   const targetLabelId = `${targetId}-label`;
   const [source, setSource] = useState<SourceSelection>(pair.source);
@@ -215,17 +218,16 @@ export function LanguageBar({ pair, direction, q, formRef, labels, allowDetect =
           own width in the middle. A phone gets the same row as a desktop, one
           line shorter of nothing. */}
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-2">
-        {/* THE LABELS ARE CELLS OF THE SAME GRID, so each one sits exactly over
-            the select it names at every width. A separate flex row above would
-            line up by coincidence and stop lining up the first time a track
-            changed, which is the misalignment DESIGN.md section 3 describes.
-            The middle cell is empty and `aria-hidden`: the swap button carries
-            its own accessible name and a blank cell above it would be announced
-            as a heading over nothing. */}
+        {/* THE LABELS ARE STILL HERE, AND THEY ARE NO LONGER CELLS. They used
+            to be a visible row of three cells above the controls, the middle one
+            an empty `aria-hidden` spacer, so that each label sat exactly over
+            the select it named. With the labels hidden there is nothing to
+            align, and the spacer had nothing left to space, so the grid is one
+            row of three controls again. The labels keep their ids because the
+            two triggers name themselves with `aria-labelledby`. */}
         <label id={sourceLabelId} htmlFor={sourceId} className={LABEL_RECIPE}>
           {sourceLabelText}
         </label>
-        <span aria-hidden="true" className={LABEL_RECIPE} />
         <label id={targetLabelId} htmlFor={targetId} className={LABEL_RECIPE}>
           {targetLabelText}
         </label>

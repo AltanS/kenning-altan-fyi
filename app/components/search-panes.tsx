@@ -269,7 +269,7 @@ function ResultField({ text, allText, hasAlternatives, body, favorite, isStale }
     // conditional into it would make that check unable to see either card, so
     // the one rule it enforces would quietly stop being enforced.
     <div className={isStale ? 'pulse-soft opacity-60' : undefined}>
-      <div className="rounded-2xl border p-5">
+      <div className="rounded-2xl border p-4">
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-medium">{t('search.resultLabel')}</p>
           <div className="flex items-center gap-1">
@@ -335,7 +335,7 @@ function ResultField({ text, allText, hasAlternatives, body, favorite, isStale }
  * THE TWO CARDS MATCH ON PURPOSE, AND NEITHER CARRIES `.surface-brand`. The
  * input card used to be the one element on this screen allowed that class,
  * inherited from the hero card it replaced. That rule is dead. Both cards are a
- * plain `rounded-2xl border p-5`, because the box and the answer are one
+ * plain `rounded-2xl border p-4`, because the box and the answer are one
  * control and its reply: a tint on the first of two stacked cards makes them
  * read as two unrelated panels rather than as a question and its answer.
  *
@@ -433,32 +433,44 @@ export function SearchPanes({
 
         {/* Identical to the result card below, deliberately: see this
             component's own comment on why neither is tinted. */}
-        <div className="rounded-2xl border p-5">
+        <div className="rounded-2xl border p-4">
           {/* THE TWO THINGS THIS APP DOES, AT THE TOP OF THE CARD, and in the
               same place on `/explain`. It is first because it answers the
               question the card then asks: what kind of thing am I typing here.
               It carries the pair across and deliberately not the query: a word
               to translate is not a question to ask about one. */}
-          <ModeSwitch active="translate" from={pair.source} to={pair.target} className="mb-4 sm:max-w-sm" />
+          <ModeSwitch active="translate" from={pair.source} to={pair.target} className="mb-3 sm:max-w-sm" />
           {/* THE LABEL, THE BOX AND THE NOTE ARE ONE FIELD, so their spacing is
               the column's `gap-2` rather than a margin hand-set on each of
               them. Three separate `mt-*` values are three places the rhythm of
               this card can be changed independently, which is how it drifts. */}
           <div className="flex flex-col gap-2">
-            <label htmlFor="search-word" className="text-sm font-medium">
+            {/* `sr-only`: THE PLACEHOLDER ALREADY NAMES THE FIELD. It reads
+                "Type a word, for example: Feierabend", so the caption above it
+                spent a line of a phone screen repeating what the box says. The
+                element stays, because `htmlFor` is what gives the textarea its
+                accessible name. */}
+            <label htmlFor="search-word" className="sr-only">
               {t('search.fieldLabel')}
             </label>
             <Textarea
               ref={inputRef}
               id="search-word"
               name="q"
-              rows={4}
+              // Three rows, not four. The box is for a word, and a phrase of a
+              // few words still fits: the fourth row was empty on every query
+              // this screen is actually used for, and it was empty above the
+              // fold.
+              rows={3}
               defaultValue={q}
               placeholder={t('search.placeholder')}
               autoComplete="off"
               onKeyDown={handleKeyDown}
             />
-            <p className="text-sm text-muted-foreground">{t('search.note')}</p>
+            {/* `text-xs`, the size every other note in this app uses. At
+                `text-sm` it competed with the label it was under and with the
+                button below it. */}
+            <p className="text-xs text-muted-foreground">{t('search.note')}</p>
           </div>
           {/* THE MIC AND THE SUBMIT SHARE ONE ROW, microphone on the left and
               the primary action on the right. They used to stack, submit
@@ -473,7 +485,7 @@ export function SearchPanes({
               itself; sharing the row with the mic control means a full-width
               button would push the mic beneath it, the exact stacking this
               tidy removes. Both controls keep the shared 44px tap height. */}
-          <div className="mt-4 flex w-full items-center justify-between gap-2">
+          <div className="mt-3 flex w-full items-center justify-between gap-2">
             <VoiceInput inputRef={inputRef} formRef={formRef} sourceLanguage={direction.from} className="shrink-0" />
             {/* The primary action takes whatever the mic leaves on a phone and
                 shrinks back to its own width from `sm` up, where a button

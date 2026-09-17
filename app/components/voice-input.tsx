@@ -412,8 +412,18 @@ export function VoiceControl({ state, onToggle, hasTranscript, className }: Voic
           THE BEST-EFFORT NOTE WAITS FOR A TRANSCRIPTION. It is advice about
           words a recogniser wrote, so on an untouched page it said nothing
           about anything, and it stacked a second hint under the input pane's
-          own note on the first screen a reader ever sees. */}
-      <output className="text-xs text-muted-foreground">
+          own note on the first screen a reader ever sees.
+
+          `empty:hidden` IS THE ALIGNMENT FIX, AND THE ELEMENT STAYS IN THE DOM.
+          With nothing to say this line still occupied a line box and the
+          column's `gap-2` above it, which made the whole control about 10px
+          taller than it looked. Inside the translator's mic-and-submit row,
+          which centres its items, that pushed the microphone button 10px above
+          the submit button beside it. Collapsing it with CSS rather than
+          unmounting it is deliberate: a live region has to exist BEFORE its
+          content changes, or the first sentence it ever shows is announced by
+          nothing. */}
+      <output className="text-xs text-muted-foreground empty:hidden">
         {state.kind === 'denied' && t('voice.denied')}
         {state.kind === 'failed' && t('voice.failed')}
         {isSpeaking && isListening && t('voice.listening')}

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useLocation, useMatches, useNavigation, useRouteLoaderData } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Menu } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Link } from '#app/components/link';
 import { AvatarMenu } from '#app/components/avatar-menu';
 import { APP_NAME } from '#app/lib/app-name';
@@ -110,9 +110,15 @@ function InstallDrawerRow({ onNavigate }: { onNavigate: () => void }) {
  * does, in the same order and with the same footer separation, so a phone user
  * and a laptop user see one map of the app rather than two.
  *
- * `md:hidden`, because at md and up the sidebar is already on screen. There is
- * no logo image to tap yet, so the trigger is a real button with an accessible
- * label rather than a decorative mark.
+ * `md:hidden`, because at md and up the sidebar is already on screen.
+ *
+ * THE TRIGGER IS THE MARK, AND THAT IS WHY THE HEADER IS ONE LINE. It used to
+ * be a hamburger with a separate mark-link home beside it, which spent two
+ * controls and a whole line of a phone header on saying one thing. The drawing
+ * carries the brand where the eyebrow used to, and the first tab of the bottom
+ * nav is the way home, so the link it replaces had no job left. The button
+ * keeps its accessible name, `nav.openMenu`: the mark is a drawing and stays
+ * `aria-hidden`, so what a screen reader hears is still what the control does.
  */
 function NavDrawer() {
   const { t } = useTranslation();
@@ -129,7 +135,15 @@ function NavDrawer() {
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="size-9 shrink-0 md:hidden" aria-label={t('nav.openMenu')}>
-          <Menu className="size-5" aria-hidden="true" />
+          {/* THE `aria-hidden` SITS ON A WRAPPER, because `KenningMark` takes a
+              class list and nothing else, and it names itself with an
+              `aria-label` and a `<title>`. Hidden here, the button's own
+              `nav.openMenu` is the single name a screen reader reads; left
+              visible, the mark offers the product's name from inside a control
+              that opens a menu. */}
+          <span aria-hidden="true" className="contents">
+            <KenningMark className="size-7" />
+          </span>
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-72 gap-0 p-0 md:hidden">
@@ -213,7 +227,18 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
           `border-brand-ink/20` tints the closing hairline the way the active tab
           is tinted, and `AppSidebar`'s header carries the same value so the two
           rules read as one line across the chrome at md and up. */}
-      <header className="flex min-h-16 shrink-0 items-center gap-2 border-b border-brand-ink/20 bg-card">
+      {/* 56px ON THE PHONE, 64px AT md AND UP. It was two stacked lines at
+          64px on every width, a wordmark eyebrow over the screen title, and
+          the eyebrow said the product's name to a reader who had just tapped
+          its icon to get here. The mark in the drawer trigger says it
+          instead, in the space the header was already spending, and that
+          collapse is a PHONE decision: below md there is no sidebar on
+          screen for this hairline to meet. At md and up `AppSidebar` renders
+          alongside this header with its own 64px `SidebarHeader`, and the two
+          `border-brand-ink/20` hairlines close at the same height and read as
+          ONE line across the chrome. `min-h-14` here at 64px would leave an
+          8px step where the two rules meet. */}
+      <header className="flex min-h-14 shrink-0 items-center gap-2 border-b border-brand-ink/20 bg-card md:min-h-16">
         <div className="flex w-full items-center gap-2.5 px-4">
           {/* Desktop only. Below md the drawer trigger beside it opens the same
               list, and two triggers for one sheet is one too many. */}
@@ -221,31 +246,15 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
           <Separator orientation="vertical" className="mr-2 hidden h-4 md:block" />
           <NavDrawer />
           <div className="flex flex-1 items-center justify-between">
-            {/* THE MARK, MOBILE ONLY, AND IT IS A LINK HOME. At md and up the
-                sidebar header carries this exact drawing a few pixels away, so
-                a second one there is a duplicate rather than emphasis. Below md
-                the sidebar is gone and the header carried a word and no mark at
-                all, which read as unbranded chrome. Decorative for assistive
-                tech: the link is named, the drawing is not. */}
-            <Link
-              to="/"
-              aria-label={APP_NAME}
-              className="mr-2.5 shrink-0 transition-opacity hover:opacity-80 md:hidden"
-            >
-              <KenningMark className="size-8" />
-            </Link>
-            <div className="flex min-w-0 flex-1 flex-col justify-center gap-px">
-              {/* The wordmark, mobile only, beside the mark. At md and up the
-                  sidebar's own logo renders this exact word a few pixels away,
-                  and a second one there is a duplicate rather than emphasis.
-                  Decorative: the page title below names the screen for
-                  assistive tech. */}
-              <span
-                aria-hidden="true"
-                className="font-display text-xs font-semibold leading-none text-brand-ink md:hidden"
-              >
-                {APP_NAME}
-              </span>
+            {/* THE TITLE IS THE ONLY THING IN THIS CELL NOW. It shared a
+                two-line column with a mobile wordmark eyebrow, and had a
+                separate mark-link home to the left of that column. Both are
+                gone: the drawer trigger beside this cell draws the mark, and
+                the bottom nav's first tab is the way home, so the header spends
+                one line on the one thing that changes per screen. `min-w-0` is
+                what lets the `truncate` below act, since a flex item does not
+                shrink below its content width without it. */}
+            <div className="flex min-w-0 flex-1 items-center">
               {/* `truncate`, because a long title would otherwise wrap the
                   header to a second line on a narrow phone. */}
               <h1 className="truncate font-display text-lg font-semibold leading-tight tracking-tight md:text-xl">
@@ -282,7 +291,12 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
           bar is gone and the padding drops back to normal. */}
       <div
         className={cn(
-          'flex-1 p-4 md:p-6 md:pb-6',
+          // `py-3` below md rather than `p-4`: the phone screens in this app
+          // open with a control the reader came to use, and 16px of dead space
+          // above it is 16px of the fold. The horizontal 16px stays, because it
+          // is the gutter every card in the well lines up against, and md and up
+          // keeps the roomier 24px on both axes.
+          'flex-1 px-4 py-3 md:p-6 md:pb-6',
           isSignedIn ? 'pb-[calc(env(safe-area-inset-bottom)+5rem)]' : 'pb-6',
         )}
       >

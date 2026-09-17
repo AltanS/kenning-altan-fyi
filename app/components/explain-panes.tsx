@@ -55,7 +55,7 @@ export interface ExplainPanesProps {
  * IT IS THE TRANSLATOR SURFACE'S SIBLING, NOT A NEW KIND OF SCREEN. One column
  * at every width inside `mx-auto max-w-2xl`, the language bar, then the input
  * card, then the answer card, all exactly as wide as each other, both cards
- * `rounded-2xl border p-5` with no brand wash. That is DESIGN.md section 3's
+ * `rounded-2xl border p-4` with no brand wash. That is DESIGN.md section 3's
  * translator recipe applied unchanged: a reader moving between the two screens
  * with the mode switch must not feel they have left the product.
  *
@@ -124,8 +124,11 @@ export function ExplainPanes({ q, direction, pair, explanation, emptyPane }: Exp
           allowDetect={false}
         />
 
-        <div className="rounded-2xl border p-5">
-          <ModeSwitch active="explain" from={stated.source} to={stated.target} className="mb-4" />
+        {/* `p-4` AND `mb-3`, THE SAME NUMBERS THE TRANSLATOR CARD CARRIES. The
+            two screens are one product under a switch the reader taps between,
+            so a card that padded itself differently would read as a jump. */}
+        <div className="rounded-2xl border p-4">
+          <ModeSwitch active="explain" from={stated.source} to={stated.target} className="mb-3" />
 
           {/* ONE COLUMN WITH ONE GAP, rather than a stack of hand-set top
               margins. The label, the box and the counter are one field, and

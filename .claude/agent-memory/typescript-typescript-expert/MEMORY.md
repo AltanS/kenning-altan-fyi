@@ -106,4 +106,6 @@
 - [The shell's legal footer was tried and removed](project_kenning_legal_footer_removed.md) — settings.tsx's LegalLinksCard is now the sole home for imprint/privacy/terms links; don't re-add a shell-wide footer without asking
 - [The build stamp is one object, two deliveries](project_kenning_build_stamp.md) — `__KENNING_BUILD__` plus `build/build-info.json`, parked on globalThis because the build evaluates vite.config twice
 - [/api/build is public, no-store, and live in dev](project_kenning_api_build_endpoint.md) — reading the stamp file in dev pins a permanent false "reload" ribbon
+- [The phone chrome is one 56px header](project_kenning_mobile_density_pass.md) — the drawer trigger IS the mark, the language-bar labels went sr-only, and ModeSwitch is the one control under 44px
 - [Per-item actions live behind one overflow menu](project_item_actions_menu_is_the_per_item_surface.md) — four row kinds; a confirm row needs onSelect preventDefault and a non-modal dropdown
+- [theme-color must be script-owned, not JSX](project_kenning_theme_color_is_script_owned.md) — React 19 re-creates a rendered meta tag on hydration, stranding the boot script's fix

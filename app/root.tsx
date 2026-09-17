@@ -196,20 +196,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {/* Brand-tints the browser chrome on mobile and in the installed app.
-            These hexes are the resolved `--background` values from `app.css`,
-            light and dark, and must be updated together with that token: a
-            raster meta tag cannot read a CSS custom property. This media-
-            scoped pair is only the pre-script fallback, painted before
-            `applyTheme` below runs. It follows the OPERATING SYSTEM's colour
-            scheme, not the app's own theme, so `applyTheme` immediately
-            overwrites both tags' `content` with the resolved APP theme and
-            drops their `media` attribute, so the OS preference can never
-            override the app's choice again (e.g. a dark app theme on a light
-            OS). The hexes must stay in sync in three places: `--background`
-            in app.css, the two tags below, and the `color` variable inside
+            This tag is entirely SCRIPT-OWNED and is never rendered here in
+            JSX. React 19 hoists a `<meta>` rendered in `Layout` into its own
+            metadata handling, and RE-CREATES it during hydration, after this
+            boot script has already run. A mutation made to a rendered tag
+            before hydration does not survive that: measured on this app with
+            the app theme set to dark, hydration re-created the light-scheme
+            tag from its original JSX props, leaving a stray `#ffffff` tag
+            beside the two the script had already fixed up, a white
+            status-bar band above an otherwise dark installed app. So
+            `applyTheme` below finds or creates the ONE tag itself, entirely
+            after React has run, and never sets a `media` attribute on it:
+            the app's own theme is the authority here, not the OS's. The
+            hexes must stay in sync in TWO places now, not three:
+            `--background` in app.css, and the `color` variable inside
             `applyTheme`. */}
-        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
         <Meta />
         <Links />
         <script
@@ -221,11 +222,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   var isDark = theme === 'dark' || (!theme || theme === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches;
                   document.documentElement.classList.toggle('dark', isDark);
                   var color = isDark ? '#0a0a0a' : '#ffffff';
-                  var metas = document.querySelectorAll('meta[name="theme-color"]');
-                  for (var i = 0; i < metas.length; i++) {
-                    metas[i].setAttribute('content', color);
-                    metas[i].removeAttribute('media');
+                  var meta = document.querySelector('meta[name="theme-color"]');
+                  if (!meta) {
+                    meta = document.createElement('meta');
+                    meta.setAttribute('name', 'theme-color');
+                    document.head.appendChild(meta);
                   }
+                  meta.setAttribute('content', color);
                 }
                 applyTheme();
                 window.__applyTheme = applyTheme;
