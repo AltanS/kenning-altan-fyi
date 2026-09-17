@@ -115,7 +115,13 @@
     "removedItemToast": "Wort aus der Liste entfernt.",
     "removeItemPending": "Wort wird entfernt...",
     "itemCount_one": "{{count}} Wort",
-    "itemCount_other": "{{count}} Wörter"
+    "itemCount_other": "{{count}} Wörter",
+    "actionsLabel": "Aktionen für {{name}}",
+    "itemActionsLabel": "Aktionen für {{term}}",
+    "openTrigger": "Öffnen",
+    "removeItemTitle": "Dieses Wort entfernen?",
+    "removeItemBody": "Es wird auf allen Geräten aus dieser Liste entfernt.",
+    "removeItemConfirm": "Wort entfernen"
   },
   "review": {
     "metaTitle": "Karteikarten wiederholen",
@@ -267,7 +273,9 @@
       "weak": "Schwach",
       "fair": "Mittel",
       "strong": "Stark"
-    }
+    },
+    "menuLabel": "Kontomenü",
+    "signedOutLabel": "Nicht angemeldet"
   },
   "offline": {
     "metaTitle": "Offline",
@@ -417,7 +425,8 @@
     "removedToast": "Entfernt.",
     "emptyTitle": "Hier landen deine gespeicherten Wörter.",
     "emptyBody": "Tippe auf den Stern an einer Antwort, um sie zu behalten.",
-    "saveFailed": "Das Wort konnte nicht gespeichert werden. Versuch es noch mal."
+    "saveFailed": "Das Wort konnte nicht gespeichert werden. Versuch es noch mal.",
+    "actionsLabel": "Aktionen für {{term}}"
   },
   "translationVote": {
     "up": "Dieses Wort ist richtig",
@@ -516,6 +525,13 @@
     "removeConfirm": "Entfernen",
     "removePending": "Wird entfernt...",
     "removeCancel": "Abbrechen",
-    "removedToast": "Entfernt."
+    "removedToast": "Entfernt.",
+    "actionsLabel": "Aktionen für diese Frage",
+    "rowActionsLabel": "Aktionen für {{question}}",
+    "open": "Öffnen"
+  },
+  "update": {
+    "bundleReady": "Eine neuere Version dieser Seite steht bereit.",
+    "reload": "Neu laden"
   }
 }

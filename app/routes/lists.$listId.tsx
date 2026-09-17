@@ -1,12 +1,10 @@
 import type { Route } from './+types/lists.$listId';
-import { useEffect, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useFetcher } from 'react-router';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { ItemActionsMenu } from '#app/components/item-actions-menu';
 import { Link } from '#app/components/link';
-import { Button } from '#app/components/ui/button';
 import { Skeleton } from '#app/components/ui/skeleton';
 import { deleteLocalListItem, getLocalList, listLocalListItems } from '#app/lib/local-store';
 
@@ -74,33 +72,6 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
   return { success: true };
 }
 
-function RemoveItemForm({ itemId }: { itemId: string }) {
-  const { t } = useTranslation();
-  const fetcher = useFetcher<typeof clientAction>();
-  const isSubmitting = fetcher.state !== 'idle';
-
-  // THE CONFIRMATION WAITS FOR THE WRITE, so a removal that failed leaves the
-  // word on screen and says nothing, rather than reporting it gone. Each answer
-  // is confirmed once: a language change hands back a new `t`.
-  const confirmed = useRef<object | null>(null);
-  useEffect(() => {
-    if (fetcher.data?.success !== true || confirmed.current === fetcher.data) return;
-    confirmed.current = fetcher.data;
-    toast.success(t('lists.removedItemToast'));
-  }, [fetcher.data, t]);
-
-  return (
-    <fetcher.Form method="post">
-      <input type="hidden" name="intent" value={INTENT.REMOVE} />
-      <input type="hidden" name="id" value={itemId} />
-      <Button type="submit" variant="ghost" size="sm" disabled={isSubmitting}>
-        {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-        {isSubmitting ? t('lists.removeItemPending') : t('lists.removeItem')}
-      </Button>
-    </fetcher.Form>
-  );
-}
-
 interface ListItemView {
   id: string;
   lemma: string;
@@ -108,6 +79,17 @@ interface ListItemView {
   note: string;
 }
 
+/**
+ * One saved word, and the one thing a reader can do to it.
+ *
+ * THE REMOVAL NOW ASKS FIRST. It was a bare submit button that took the word on
+ * a single tap, sitting beside a word it did not name. DESIGN.md principle 3
+ * says a destructive action opens a confirmation, and the menu is what gives it
+ * one, so the tap that removes a word is never the tap meant for the row above.
+ * The write, the toast and the pending label are the same three they were: the
+ * dialog posts the same form to the same `clientAction`, and `confirmPendingText`
+ * is where `removeItemPending` moved to.
+ */
 function ItemRow({ item }: { item: ListItemView }) {
   const { t } = useTranslation();
 
@@ -118,7 +100,27 @@ function ItemRow({ item }: { item: ListItemView }) {
           <span className="block text-sm font-medium">{item.lemma}</span>
           <span className="block truncate text-sm text-muted-foreground">{item.translationSnapshot}</span>
         </div>
-        <RemoveItemForm itemId={item.id} />
+        <ItemActionsMenu
+          label={t('lists.itemActionsLabel', { term: item.lemma })}
+          actions={[
+            {
+              kind: 'confirm',
+              key: 'remove',
+              label: t('lists.removeItem'),
+              destructive: true,
+              icon: Trash2,
+              title: t('lists.removeItemTitle'),
+              description: t('lists.removeItemBody'),
+              confirmText: t('lists.removeItemConfirm'),
+              confirmPendingText: t('lists.removeItemPending'),
+              cancelText: t('lists.deleteCancel'),
+              formData: { intent: INTENT.REMOVE, id: item.id },
+              // `onSuccess` runs on the action's own answer, so a removal that
+              // failed leaves the word on screen and says nothing.
+              onSuccess: () => toast.success(t('lists.removedItemToast')),
+            },
+          ]}
+        />
       </div>
       {item.note !== '' && (
         <p className="px-3 pb-2 text-xs text-muted-foreground">

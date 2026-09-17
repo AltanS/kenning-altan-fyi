@@ -16,6 +16,18 @@ FROM dependencies-env AS build-env
 COPY ./package.json pnpm-lock.yaml /app/
 COPY --from=development-dependencies-env /app/node_modules /app/node_modules
 WORKDIR /app
+# THE COMMIT STAMP. `vite.config.ts` asks git for the short sha and writes it
+# into the bundles and into build/build-info.json; the browser compares that
+# value against GET /api/build to decide whether the open page is older than
+# what the server now serves. Without a git binary the stamp reads `unknown`,
+# and `unknown` is never a mismatch, so the whole update ribbon stays silent.
+#
+# The repository IS here: .dockerignore does not exclude .git, and Bay builds
+# this image from a persistent checkout on the infra server. Only the binary
+# was missing. It is installed in this stage alone, which is discarded, so the
+# runtime image still carries no git. If .git is ever added to .dockerignore,
+# pass KENNING_BUILD_SHA in instead; the stamp reads that first.
+RUN apk add --no-cache git
 RUN pnpm build
 
 FROM dependencies-env

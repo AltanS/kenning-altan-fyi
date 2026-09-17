@@ -3,7 +3,7 @@ import { useLocation, useMatches, useNavigation, useRouteLoaderData } from 'reac
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Menu } from 'lucide-react';
 import { Link } from '#app/components/link';
-import { ThemeToggle } from '#app/components/theme-toggle';
+import { AvatarMenu } from '#app/components/avatar-menu';
 import { APP_NAME } from '#app/lib/app-name';
 import { KenningMark } from '#app/components/kenning-mark';
 import { routeTitle } from '#app/lib/route-title';
@@ -19,6 +19,7 @@ import {
   type NavigationItem,
 } from './app-sidebar';
 import { BottomNav } from './bottom-nav';
+import { UpdateRibbon } from './update-ribbon';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
@@ -155,65 +156,6 @@ function NavDrawer() {
   );
 }
 
-/**
- * The account slot in the header: the reader's address, or the way to get an
- * account.
- *
- * BOTH STATES ARE A DOOR, AND THAT IS THE POINT. Until M189 the shell showed
- * an anonymous visitor nothing at all about accounts, which was correct while
- * the product was anonymous by default and wrong the moment M184 made an
- * account mandatory: an invited reader had to be told a URL by hand. A signed
- * in reader gets the opposite job done, seeing which account this device is
- * carrying.
- *
- * IT READS THE ROOT LOADER, NOT A SESSION. `userEmail` is a label for the
- * chrome and nothing more; every real gate re-reads the user itself on the
- * server. It comes from `root` rather than from a layout loader so it survives
- * the offline fallback in `root.tsx` unchanged.
- *
- * `truncate` with a width cap, because an address can be long and the header
- * must not grow a second line on a narrow phone. `min-w-0` ON BOTH THE LINK AND
- * THE TEXT IS WHAT LETS `truncate` ACT AT ALL: a flex item does not shrink below
- * its own content unless it is told to, so the 8rem cap was being overrun and on
- * a 390px phone the address ran into the screen title beside it. The share of
- * the header this slot may take is capped by the cell around it, in the header
- * itself, where a percentage has a definite width to resolve against.
- *
- * THE LINK STAYS ON SCREEN BELOW `sm` rather than being hidden. It is the only
- * thing that says which account this device is carrying, and truncated it still
- * leads to `/account`; the drawer's own account row is two taps away, which is
- * not the same thing.
- *
- * IT NEEDS NO PER-PATH EXCEPTION ANY MORE. It used to render nothing on
- * `/sign-in` and `/sign-up`, because a link to the page you are reading is
- * noise. Those five screens left this shell in M191/03 (`_auth-shell.tsx`), so
- * the only screen left that shows both doors as content is `/account`, and a
- * signed-out reader arriving there is exactly who the link is for.
- */
-function AccountSlot() {
-  const { t } = useTranslation();
-  const rootData = useRouteLoaderData<{ userEmail: string | null }>('root');
-  const email = rootData?.userEmail ?? null;
-
-  if (email === null) {
-    return (
-      <Link
-        to="/sign-in"
-        className="text-sm font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
-      >
-        {t('account.signInAction')}
-      </Link>
-    );
-  }
-
-  return (
-    <Link to="/account" className="flex min-w-0 max-w-32 items-center gap-1 text-sm hover:underline">
-      <span className="sr-only">{t('account.title')}</span>
-      <span className="min-w-0 truncate font-mono text-xs">{email}</span>
-    </Link>
-  );
-}
-
 export default function AppWrapper({
   title,
   backTo,
@@ -261,6 +203,11 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
   return (
     <>
       <ProgressBar />
+      {/* IN FLOW AND ABOVE THE HEADER, so it reserves its own space. It renders
+          nothing at all until this page is two polls behind the server, and
+          then it is one line with one button. See
+          `#app/components/update-ribbon`. */}
+      <UpdateRibbon />
       {/* The chrome sits on `bg-card`, not `bg-background`, so the header is a
           treated surface rather than the same fill as the page under it.
           `border-brand-ink/20` tints the closing hairline the way the active tab
@@ -305,17 +252,16 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
                 {title ?? handleTitle ?? activeLabel ?? APP_NAME}
               </h1>
             </div>
-            {/* `min-w-0` so the account slot inside it can give way to the
-                screen title, a 40% cap below `sm` so it can never take most of a
-                phone's header, and `shrink-0` on the theme toggle so the one
-                control that cannot truncate never does. The percentage resolves
-                against this cell's own flex parent, which has a definite width;
-                on the link inside it there would be nothing to resolve. */}
-            <div className="flex min-w-0 max-w-[40%] items-center gap-3 sm:max-w-none">
-              <AccountSlot />
-              <div className="shrink-0">
-                <ThemeToggle />
-              </div>
+            {/* THE ACCOUNT AND THE DEVICE, IN ONE CONTROL. This cell used to
+                hold the reader's address beside the theme button, under a
+                `min-w-0` and a 40% width cap: an address is a long, variable
+                string, and without the cap it ran into the screen title on a
+                narrow phone. The trigger inside is a fixed width at every
+                breakpoint now, so there is nothing left to cap and nothing
+                left to truncate. `shrink-0` keeps it whole when the title
+                beside it is long. */}
+            <div className="flex shrink-0 items-center">
+              <AvatarMenu />
             </div>
           </div>
         </div>

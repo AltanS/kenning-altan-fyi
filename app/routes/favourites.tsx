@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import type { MetaFunction } from 'react-router';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { ConfirmAction } from '#app/components/confirm-action';
+import { Trash2 } from 'lucide-react';
+import { ItemActionsMenu } from '#app/components/item-actions-menu';
 import { repeatSearchHref, SavedWordRow } from '#app/components/personal/saved-word-row';
-import { Button } from '#app/components/ui/button';
 import { Skeleton } from '#app/components/ui/skeleton';
 import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import { listFavorites, removeFavorite } from '#app/lib/local-store';
@@ -95,6 +95,12 @@ interface FavoriteView {
  * its trailing control rather than built into it: a recorded search has nothing
  * to give back one at a time, so a shared row that owned a remove button would
  * be owning half of one caller's screen.
+ *
+ * THE MENU IS BUILT HERE AND NOT IN `saved-word-row.tsx` FOR THAT SAME REASON.
+ * The row is shared with `/history`, whose trailing slot carries an instant and
+ * whose rows have no per-item action at all, so a row component that owned an
+ * actions menu would be inventing one for a screen that has none. The row's own
+ * rule says it: it decides WHERE a trailing thing sits and never WHAT it is.
  */
 function FavoriteRow({ favorite }: { favorite: FavoriteView }) {
   const { t } = useTranslation();
@@ -108,22 +114,28 @@ function FavoriteRow({ favorite }: { favorite: FavoriteView }) {
       href={repeatSearchHref({ term: favorite.lemma, from: favorite.from, to: favorite.to })}
       ariaLabel={t('favourites.repeat', { term: favorite.lemma })}
       trailing={
-        <ConfirmAction
-          trigger={
-            <Button type="button" variant="ghost" size="sm" aria-label={t('favourites.removeLabel', { term: favorite.lemma })}>
-              {t('favourites.removeTrigger')}
-            </Button>
-          }
-          title={t('favourites.removeTitle')}
-          description={t('favourites.removeBody')}
-          confirmText={t('favourites.removeConfirm')}
-          confirmPendingText={t('favourites.removePending')}
-          cancelText={t('favourites.removeCancel')}
-          confirmVariant="destructive"
-          formData={{ intent: INTENT.REMOVE, id: favorite.id }}
-          // `onSuccess` runs on the action's own answer, so a removal that
-          // failed says nothing rather than claiming a word is gone.
-          onSuccess={() => toast.success(t('favourites.removedToast'))}
+        // THE TRIGGER NAMES THE WORD, which is the job the visible button's
+        // `removeLabel` used to do. A glyph names nothing on its own.
+        <ItemActionsMenu
+          label={t('favourites.actionsLabel', { term: favorite.lemma })}
+          actions={[
+            {
+              kind: 'confirm',
+              key: 'remove',
+              label: t('favourites.removeTrigger'),
+              destructive: true,
+              icon: Trash2,
+              title: t('favourites.removeTitle'),
+              description: t('favourites.removeBody'),
+              confirmText: t('favourites.removeConfirm'),
+              confirmPendingText: t('favourites.removePending'),
+              cancelText: t('favourites.removeCancel'),
+              formData: { intent: INTENT.REMOVE, id: favorite.id },
+              // `onSuccess` runs on the action's own answer, so a removal that
+              // failed says nothing rather than claiming a word is gone.
+              onSuccess: () => toast.success(t('favourites.removedToast')),
+            },
+          ]}
         />
       }
     />

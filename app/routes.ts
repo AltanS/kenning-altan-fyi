@@ -56,6 +56,14 @@ export default [
   // behind that check, as defence in depth.
   route('/api/v1/transcribe', 'routes/api.v1.transcribe.ts'),
 
+  // What build this server is running. PUBLIC and unauthenticated, like
+  // `/healthcheck` and unlike every other `/api/` route here: its caller is the
+  // update ribbon in the app shell, which has to work for a reader who is
+  // signed out as much as for one who is not, and its answer names nobody. It
+  // sits outside `/api/v1/` because it is not part of the bearer-token REST
+  // surface an API client talks to.
+  route('/api/build', 'routes/api.build.ts'),
+
   // Public and read only, unlike the bearer-token `/api/v1/*` routes above.
   route('/api/enrichment/:headwordId', 'routes/api.enrichment.$headwordId.ts'),
 

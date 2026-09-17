@@ -101,4 +101,9 @@
 - [The clipboard has a fallback, behind a port](project_clipboard_has_a_fallback_port.md) — plain-http origins have no `navigator.clipboard`; `copyText` never throws and the CHOICE is what a unit test drives
 - [A terminal write always writes `error`](project_a_terminal_write_always_writes_error.md) — pg-boss retries on the SAME row, so a conditional spread leaves a timeout message beside a good answer
 - [The header account slot needs two `min-w-0`s](project_header_account_slot_truncation.md) — `truncate` cannot act on a flex item that may not shrink; the percentage cap goes on the cell
+- [The avatar menu is the header's right side](project_avatar_menu_is_the_header_right_side.md) — AccountSlot and the theme slot are gone; one hook, `use-theme-preference.ts`, backs both theme controls
+- [The account door is a pure resolver](project_avatar_menu_door_resolver.md) — no DOM test environment, so the rule leaves the JSX; sign-out is a POST so its clientAction runs
 - [The shell's legal footer was tried and removed](project_kenning_legal_footer_removed.md) — settings.tsx's LegalLinksCard is now the sole home for imprint/privacy/terms links; don't re-add a shell-wide footer without asking
+- [The build stamp is one object, two deliveries](project_kenning_build_stamp.md) — `__KENNING_BUILD__` plus `build/build-info.json`, parked on globalThis because the build evaluates vite.config twice
+- [/api/build is public, no-store, and live in dev](project_kenning_api_build_endpoint.md) — reading the stamp file in dev pins a permanent false "reload" ribbon
+- [Per-item actions live behind one overflow menu](project_item_actions_menu_is_the_per_item_surface.md) — four row kinds; a confirm row needs onSelect preventDefault and a non-modal dropdown

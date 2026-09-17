@@ -207,6 +207,11 @@ export const ROUTE_CLASSIFICATION = {
   'legal/terms.tsx': { access: 'public', reason: 'A legal document.' },
   '$.tsx': { access: 'public', reason: 'The 404. Every unmatched URL lands here, signed in or not.' },
   'healthcheck.ts': { access: 'public', reason: 'Read by Docker and by Gatus, neither of which holds a session.' },
+  'api.build.ts': {
+    access: 'public',
+    reason:
+      'The version, commit and build time of this server, for the update ribbon in the app shell. It is deliberately not gated: a signed-out reader is looking at a page that can go stale too, and a gate here would leave them with a ribbon that never appears. The answer names nobody and reads nothing but a build stamp.',
+  },
 
   // ── Helper modules that live under `app/routes/` ───────────────────────
   'legal/last-updated.ts': { access: 'module', reason: 'A date helper imported by the legal pages. Not a route.' },

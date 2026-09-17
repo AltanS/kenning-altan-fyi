@@ -1,11 +1,11 @@
 import type { Route } from './+types/lists';
 import { useEffect, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
+import { ExternalLink, Loader2, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useFetcher, type MetaFunction } from 'react-router';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { ConfirmAction } from '#app/components/confirm-action';
+import { ItemActionsMenu } from '#app/components/item-actions-menu';
 import { Link } from '#app/components/link';
 import { Button } from '#app/components/ui/button';
 import { Input } from '#app/components/ui/input';
@@ -217,20 +217,29 @@ function ListRow({ list }: { list: { id: string; name: string; itemCount: number
             {t('lists.itemCount', { count: list.itemCount })}
           </span>
         </Link>
-        <ConfirmAction
-          trigger={
-            <Button type="button" variant="ghost" size="sm">
-              {t('lists.deleteTrigger')}
-            </Button>
-          }
-          title={t('lists.deleteTitle')}
-          description={t('lists.deleteBody')}
-          confirmText={t('lists.deleteConfirm')}
-          confirmPendingText={t('lists.deletePending')}
-          cancelText={t('lists.deleteCancel')}
-          confirmVariant="destructive"
-          formData={{ intent: INTENT.DELETE, id: list.id }}
-          onSuccess={() => toast.success(t('lists.deletedToast'))}
+        {/* THE TRIGGER NAMES THE LIST. The delete button it replaces said only
+            "Delete", so a screen reader moving down a page of lists heard the
+            same word over and over with nothing saying which list it would
+            take. */}
+        <ItemActionsMenu
+          label={t('lists.actionsLabel', { name: list.name })}
+          actions={[
+            { kind: 'link', key: 'open', label: t('lists.openTrigger'), to: `/lists/${list.id}`, icon: ExternalLink },
+            {
+              kind: 'confirm',
+              key: 'delete',
+              label: t('lists.deleteTrigger'),
+              destructive: true,
+              icon: Trash2,
+              title: t('lists.deleteTitle'),
+              description: t('lists.deleteBody'),
+              confirmText: t('lists.deleteConfirm'),
+              confirmPendingText: t('lists.deletePending'),
+              cancelText: t('lists.deleteCancel'),
+              formData: { intent: INTENT.DELETE, id: list.id },
+              onSuccess: () => toast.success(t('lists.deletedToast')),
+            },
+          ]}
         />
       </div>
       <div className="px-3 pb-3">

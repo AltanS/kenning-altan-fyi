@@ -115,7 +115,13 @@
     "removedItemToast": "Word removed from list.",
     "removeItemPending": "Removing word...",
     "itemCount_one": "{{count}} word",
-    "itemCount_other": "{{count}} words"
+    "itemCount_other": "{{count}} words",
+    "actionsLabel": "Actions for {{name}}",
+    "itemActionsLabel": "Actions for {{term}}",
+    "openTrigger": "Open",
+    "removeItemTitle": "Remove this word?",
+    "removeItemBody": "It leaves this list on every device you use.",
+    "removeItemConfirm": "Remove word"
   },
   "review": {
     "metaTitle": "Review flashcards",
@@ -267,7 +273,9 @@
       "weak": "Weak",
       "fair": "Fair",
       "strong": "Strong"
-    }
+    },
+    "menuLabel": "Account menu",
+    "signedOutLabel": "Not signed in"
   },
   "offline": {
     "metaTitle": "Offline",
@@ -417,7 +425,8 @@
     "removedToast": "Removed.",
     "emptyTitle": "Your saved words collect here.",
     "emptyBody": "Tap the star on an answer to keep one.",
-    "saveFailed": "That word could not be saved. Try again."
+    "saveFailed": "That word could not be saved. Try again.",
+    "actionsLabel": "Actions for {{term}}"
   },
   "translationVote": {
     "up": "This word is right",
@@ -516,6 +525,13 @@
     "removeConfirm": "Remove",
     "removePending": "Removing...",
     "removeCancel": "Cancel",
-    "removedToast": "Removed."
+    "removedToast": "Removed.",
+    "actionsLabel": "Actions for this question",
+    "rowActionsLabel": "Actions for {{question}}",
+    "open": "Open"
+  },
+  "update": {
+    "bundleReady": "A newer version of this page is ready.",
+    "reload": "Reload"
   }
 }

@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next';
 import type { MetaFunction } from 'react-router';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { ConfirmAction } from '#app/components/confirm-action';
+import { ExternalLink, Trash2 } from 'lucide-react';
+import { ItemActionsMenu } from '#app/components/item-actions-menu';
 import { Link } from '#app/components/link';
 import { languageName } from '#app/components/personal/saved-word-row';
-import { Button } from '#app/components/ui/button';
 import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import { formatRelativeTime } from '#app/lib/relative-time';
 import type { TitleHandle } from '#app/lib/route-title';
@@ -162,9 +162,11 @@ interface AskView {
  * hairline. A page of cards here would read as a page of answers, which is what
  * the detail screen is for.
  *
- * THE WHOLE ROW IS THE LINK AND THE REMOVE CONTROL IS BESIDE IT, never inside
- * it: a button nested in an anchor is a control a keyboard cannot reach without
- * also following the link.
+ * THE WHOLE ROW IS THE LINK AND THE ACTIONS SIT BESIDE IT, never inside it: a
+ * button nested in an anchor is a control a keyboard cannot reach without also
+ * following the link. They are behind one overflow menu rather than beside the
+ * row as a word, so twenty rows carry twenty small triggers and not twenty
+ * competing "Remove" buttons.
  */
 function AskRow({ ask, nowMs }: { ask: AskView; nowMs: number }) {
   const { t, i18n } = useTranslation();
@@ -189,30 +191,35 @@ function AskRow({ ask, nowMs }: { ask: AskView; nowMs: number }) {
             </span>
           </span>
         </Link>
-        <ConfirmAction
-          trigger={
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              // 44px tall below `sm`, compact from `sm` up: a thumb has to be
-              // able to reach it on a phone.
-              className="min-h-11 sm:min-h-8"
-              aria-label={t('explanations.removeLabel', { question: ask.question })}
-            >
-              {t('explanations.removeTrigger')}
-            </Button>
-          }
-          title={t('explanations.removeTitle')}
-          description={t('explanations.removeBody')}
-          confirmText={t('explanations.removeConfirm')}
-          confirmPendingText={t('explanations.removePending')}
-          cancelText={t('explanations.removeCancel')}
-          confirmVariant="destructive"
-          formData={{ intent: INTENT.REMOVE, id: ask.id }}
-          // `onSuccess` runs on the action's own answer, so a removal that
-          // failed says nothing rather than claiming a row is gone.
-          onSuccess={() => toast.success(t('explanations.removedToast'))}
+        {/* THE TRIGGER NAMES THE QUESTION, which is what the visible "Remove"
+            button beside it used to do through `removeLabel`. A glyph names
+            nothing, and twenty rows each offering "More" is a list a screen
+            reader cannot move around in. */}
+        <ItemActionsMenu
+          label={t('explanations.rowActionsLabel', { question: ask.question })}
+          actions={[
+            // The whole row is still the link. This row repeats it because a
+            // menu that opens on a single destructive choice is a menu that
+            // only ever destroys, and because a reader who opened it looking
+            // for the way in should find one.
+            { kind: 'link', key: 'open', label: t('explanations.open'), to: `/explanations/${ask.id}`, icon: ExternalLink },
+            {
+              kind: 'confirm',
+              key: 'remove',
+              label: t('explanations.removeTrigger'),
+              destructive: true,
+              icon: Trash2,
+              title: t('explanations.removeTitle'),
+              description: t('explanations.removeBody'),
+              confirmText: t('explanations.removeConfirm'),
+              confirmPendingText: t('explanations.removePending'),
+              cancelText: t('explanations.removeCancel'),
+              formData: { intent: INTENT.REMOVE, id: ask.id },
+              // `onSuccess` runs on the action's own answer, so a removal that
+              // failed says nothing rather than claiming a row is gone.
+              onSuccess: () => toast.success(t('explanations.removedToast')),
+            },
+          ]}
         />
       </div>
     </li>

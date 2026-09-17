@@ -21,3 +21,8 @@ against.
 the only thing saying which account the device carries, and the drawer's
 account row is two taps away, which is not the same thing. The longest title it
 must survive is `nav.explanations`, "Explanations".
+
+**SUPERSEDED 2026-09-17.** That cell is gone: the header's right side is
+`AvatarMenu`, a fixed-width trigger with nothing to truncate. The note is kept
+for the mechanism, which still applies anywhere a flex item must shrink. See
+[[avatar-menu-is-the-header-right-side]].

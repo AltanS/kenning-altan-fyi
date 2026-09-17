@@ -120,6 +120,23 @@ export const CONFIG = {
   },
 
   /**
+   * The build stamp
+   *
+   * `KENNING_BUILD_SHA` is the escape hatch, not the normal path. The BUILD
+   * stage of `Dockerfile.pnpm` installs git and `.dockerignore` keeps `.git`
+   * in the context, so `git rev-parse` answers during the image build and the
+   * stamp lands in the bundles and in `build/build-info.json` without anybody
+   * passing anything. This variable is what a build with no repository uses
+   * instead. Empty means unset: `app/lib/build-info.server.ts` falls back to
+   * git, and then to the literal `unknown`. `vite.config.ts` reads the same
+   * variable, and it must, or a build would stamp the bundles from the
+   * override and the server from git.
+   */
+  build: {
+    shaOverride: optionalEnv('KENNING_BUILD_SHA', ''),
+  },
+
+  /**
    * Logging Configuration
    */
   logging: {

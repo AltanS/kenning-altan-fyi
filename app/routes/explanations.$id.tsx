@@ -1,16 +1,15 @@
 import type { Route } from './+types/explanations.$id';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Copy, Link2, RotateCcw, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { data, useNavigate, type MetaFunction } from 'react-router';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { ConfirmAction } from '#app/components/confirm-action';
-import { CopyTextButton } from '#app/components/copy-text-button';
+import { ItemActionsMenu } from '#app/components/item-actions-menu';
 import { useExplainPane } from '#app/components/explain-pane';
 import { ExplanationBody } from '#app/components/explanation-body';
 import { Link } from '#app/components/link';
 import { languageName } from '#app/components/personal/saved-word-row';
-import { Button, buttonVariants } from '#app/components/ui/button';
+import { Button } from '#app/components/ui/button';
 import { Skeleton } from '#app/components/ui/skeleton';
 import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import type { TitleHandle } from '#app/lib/route-title';
@@ -153,9 +152,12 @@ function AnswerSkeleton() {
  * it failed. Rendering only the answered case would have made half the rows on
  * the list screen lead to a blank page.
  *
- * THE ACTIONS ARE ON ONE ROW, right-aligned from `sm` and stacked full width
- * below it. They are the four things a reader wants from an answer they came
- * back to: ask it again, take the text, take the address, or be rid of it.
+ * THE ACTIONS ARE BEHIND ONE OVERFLOW CONTROL, on the metadata line under the
+ * question. They are still the four things a reader wants from an answer they
+ * came back to, ask it again, take the text, take the address, or be rid of it,
+ * and they used to be four buttons in a band across the page. Below `sm` that
+ * band stacked, so a phone showed four 44px controls between the question and
+ * the answer and the answer began off screen.
  */
 export default function ExplanationDetailRoute({ loaderData }: Route.ComponentProps) {
   const { t, i18n } = useTranslation();
@@ -195,70 +197,70 @@ export default function ExplanationDetailRoute({ loaderData }: Route.ComponentPr
           {question}
         </h1>
 
-        <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-          <span>{t('explanations.pair', { from: languageName(from), to: languageName(to) })}</span>
-          <span aria-hidden="true">&middot;</span>
-          <time dateTime={new Date(askedAt).toISOString()} className="tabular-nums">
-            {askedOn}
-          </time>
-        </p>
-      </div>
+        {/* THE ACTIONS SIT BESIDE THE METADATA, NOT ACROSS THE PAGE. They were
+            a band of four buttons under the question, full width and stacked
+            below `sm`, which on a phone put four 44px controls between the
+            question and its answer and pushed the answer off screen. One
+            trigger on this line gives that space back to the writing. */}
+        <div className="flex items-start justify-between gap-2">
+          <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+            <span>{t('explanations.pair', { from: languageName(from), to: languageName(to) })}</span>
+            <span aria-hidden="true">&middot;</span>
+            <time dateTime={new Date(askedAt).toISOString()} className="tabular-nums">
+              {askedOn}
+            </time>
+          </p>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-        {/* `min-h-11 sm:min-h-8` on all four actions in this row: 44px tall for a
-            thumb below `sm`, compact from `sm` up. */}
-        <Link
-          to={askAgainHref}
-          className={`${buttonVariants({ variant: 'outline', size: 'sm' })} min-h-11 w-full sm:min-h-8 sm:w-auto`}
-        >
-          {t('explanations.askAgain')}
-        </Link>
-
-        {answer !== null && (
-          <CopyTextButton
-            text={answerText}
-            label={t('explanations.copy')}
-            copiedLabel={t('explanations.copied')}
-            successMessage={t('explanations.copiedToast')}
-            errorMessage={t('explanations.copyFailedToast')}
-            variant="outline"
-          >
-            {t('explanations.copy')}
-          </CopyTextButton>
-        )}
-
-        <CopyTextButton
-          text={pageUrl}
-          label={t('explanations.copyLink')}
-          copiedLabel={t('explanations.copied')}
-          successMessage={t('explanations.linkCopiedToast')}
-          errorMessage={t('explanations.copyFailedToast')}
-          variant="outline"
-        >
-          {t('explanations.copyLink')}
-        </CopyTextButton>
-
-        <ConfirmAction
-          trigger={
-            <Button type="button" variant="ghost" size="sm" className="min-h-11 w-full text-destructive sm:min-h-8 sm:w-auto">
-              {t('explanations.removeTrigger')}
-            </Button>
-          }
-          title={t('explanations.removeTitle')}
-          description={t('explanations.removeBody')}
-          confirmText={t('explanations.removeConfirm')}
-          confirmPendingText={t('explanations.removePending')}
-          cancelText={t('explanations.removeCancel')}
-          confirmVariant="destructive"
-          formData={{ intent: INTENT.REMOVE }}
-          // THE LIST IS WHERE A REMOVED ROW LEAVES THE READER. Staying here would
-          // leave them on a page whose row no longer exists, which a reload turns
-          // into a 404.
-          onSuccess={() => {
-            toast.success(t('explanations.removedToast'));
-            void navigate('/explanations');
-          }}
-        />
+          <ItemActionsMenu
+            label={t('explanations.actionsLabel')}
+            actions={[
+              { kind: 'link', key: 'ask-again', label: t('explanations.askAgain'), to: askAgainHref, icon: RotateCcw },
+              // NO ANSWER, NO ROW. A question whose run is still going or has
+              // failed has nothing to put on a clipboard, and a copy control
+              // over an empty string is a control that lies about what it holds.
+              answer === null ?
+                null
+              : {
+                  kind: 'copy',
+                  key: 'copy-answer',
+                  label: t('explanations.copy'),
+                  text: answerText,
+                  successMessage: t('explanations.copiedToast'),
+                  errorMessage: t('explanations.copyFailedToast'),
+                  icon: Copy,
+                },
+              {
+                kind: 'copy',
+                key: 'copy-link',
+                label: t('explanations.copyLink'),
+                text: pageUrl,
+                successMessage: t('explanations.linkCopiedToast'),
+                errorMessage: t('explanations.copyFailedToast'),
+                icon: Link2,
+              },
+              {
+                kind: 'confirm',
+                key: 'remove',
+                label: t('explanations.removeTrigger'),
+                destructive: true,
+                icon: Trash2,
+                title: t('explanations.removeTitle'),
+                description: t('explanations.removeBody'),
+                confirmText: t('explanations.removeConfirm'),
+                confirmPendingText: t('explanations.removePending'),
+                cancelText: t('explanations.removeCancel'),
+                formData: { intent: INTENT.REMOVE },
+                // THE LIST IS WHERE A REMOVED ROW LEAVES THE READER. Staying
+                // here would leave them on a page whose row no longer exists,
+                // which a reload turns into a 404.
+                onSuccess: () => {
+                  toast.success(t('explanations.removedToast'));
+                  void navigate('/explanations');
+                },
+              },
+            ]}
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-4">

@@ -30,6 +30,7 @@ import {
   type LanguageCode,
 } from '#app/i18n/language-prefs';
 import { shouldFallbackOffline } from '#app/lib/local-store';
+import { registerServiceWorker } from '#app/lib/service-worker';
 import { isAnalyticsHost } from '#app/lib/analytics-host';
 import { Matomo, MatomoRouteTracker } from '#app/components/site/matomo';
 
@@ -330,17 +331,12 @@ export default function App() {
   const loaderData = useLoaderData<typeof loader>();
   useToast(loaderData?.toast);
 
-  // Register the service worker, production only. In dev the worker would sit
-  // between Vite and the browser and serve a stale module graph, which reads as
-  // "my edit did nothing" rather than as a caching bug. `import.meta.env.PROD`
-  // is a build-time constant, so the whole branch is dropped from the dev
-  // bundle. A registration failure (an unsupported browser, a blocked origin,
-  // a private window) is swallowed: the app works without a worker, so it must
-  // never take the page down with it.
+  // Register the service worker, production only. The rules and the reasons
+  // moved into `#app/lib/service-worker` unchanged: the registration OBJECT is
+  // what the update ribbon's reload path needs, and one module owns it rather
+  // than asking the browser for it again.
   useEffect(() => {
-    if (!import.meta.env.PROD) return;
-    if (!('serviceWorker' in navigator)) return;
-    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    registerServiceWorker();
   }, []);
 
   return (

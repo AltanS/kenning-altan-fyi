@@ -369,12 +369,23 @@ container and shadow, and render simple rows on the page.
 ## 6. The shell
 
 The wrapper in `app/components/app-wrapper.tsx` renders both responsive layouts.
-Its header carries one account slot on every screen: a "Sign in" link to
-`/sign-in` for an anonymous visitor, and the reader's email address, linking to
-`/account`, for a signed-in one. An account is required for every search since
+Its header carries one control on the right at every breakpoint, the avatar menu
+(`app/components/avatar-menu.tsx`): an avatar circle alone below `sm`, with a
+short label beside it from `sm` up. An account is required for every search since
 M184, so the shell shows the door rather than hiding it. The two doors are
 `/sign-up` and `/sign-in`; sync is a consequence of holding an account and is
 never presented as something a reader sets up.
+
+**The menu holds the account and the device, never a copy of the navigation.**
+Top to bottom: the reader's address, or a line saying nobody is signed in; the
+one account door, sign out or sign in, chosen by `resolveAvatarMenuDoor`; a row
+to `/account` when signed in; a row to `/settings`; then the theme and the app
+language, each a segmented strip of Radix radio items. The theme strip keeps the
+menu open on a pick, because comparing light and dark means looking at the page
+behind it; the language strip reloads the document, so it closes. The address
+used to sit bare in the header, where it took most of a 390px phone's header row
+and crowded the screen title; a fixed-width trigger is what removed that, and
+the `max-w-[40%]` cap that used to contain it is gone with it.
 
 Since M191 an account is created with an email address and a password rather
 than a passphrase-derived identity. `/sign-up` and `/sign-in` are plain forms:
