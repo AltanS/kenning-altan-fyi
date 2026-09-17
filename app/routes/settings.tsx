@@ -55,14 +55,13 @@ export default function SettingsRoute() {
 /**
  * The way into the imprint, the privacy policy and the terms.
  *
- * IT SITS HERE BECAUSE THE SHELL HAS NO FOOTER. `AppWrapper` is a bottom tab
- * bar and a sidebar of destinations a person USES, and a privacy policy is not
- * one of them. Settings is the screen a reader already opens to find out what
- * the app does with their words, so the three documents hang off it, and each
- * document cross-links to the other two once you are inside.
- *
- * A footer link in the app shell is still owed. `app/components/app-wrapper.tsx`
- * is the file that would carry it.
+ * THIS IS THE ONLY PLACE THESE LINKS LIVE, AND THAT IS DELIBERATE. `AppWrapper`
+ * carried a matching footer on every screen until it was tried and removed: a
+ * bottom tab bar and a sidebar are destinations a person USES, and a privacy
+ * policy is not one of them, so a line about it on every screen was noise
+ * rather than access. Settings is the screen a reader already opens to find
+ * out what the app does with their words, so the three documents hang off it
+ * instead, and each document cross-links to the other two once you are inside.
  *
  * The labels come from the `legal` namespace, not from `common`, so the whole
  * legal vocabulary lives in one catalogue.

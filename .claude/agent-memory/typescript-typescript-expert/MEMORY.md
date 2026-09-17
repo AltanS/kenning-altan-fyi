@@ -101,3 +101,4 @@
 - [The clipboard has a fallback, behind a port](project_clipboard_has_a_fallback_port.md) — plain-http origins have no `navigator.clipboard`; `copyText` never throws and the CHOICE is what a unit test drives
 - [A terminal write always writes `error`](project_a_terminal_write_always_writes_error.md) — pg-boss retries on the SAME row, so a conditional spread leaves a timeout message beside a good answer
 - [The header account slot needs two `min-w-0`s](project_header_account_slot_truncation.md) — `truncate` cannot act on a flex item that may not shrink; the percentage cap goes on the cell
+- [The shell's legal footer was tried and removed](project_kenning_legal_footer_removed.md) — settings.tsx's LegalLinksCard is now the sole home for imprint/privacy/terms links; don't re-add a shell-wide footer without asking

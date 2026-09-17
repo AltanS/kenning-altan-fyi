@@ -214,41 +214,6 @@ function AccountSlot() {
   );
 }
 
-/**
- * The imprint and privacy links, at the bottom of every screen in the shell.
- *
- * A German Impressum has to be reachable from every page in two clicks, and
- * `/settings` was the only entry point these two documents had. They are NOT in
- * the nav catalog on purpose: the sidebar and the tab bar are places a person
- * goes, and a privacy policy is not one of them. A quiet footer line is where a
- * reader looks for them, and it costs the navigation nothing.
- *
- * The labels come from the `legal` namespace, so the footer and the strip at
- * the bottom of each document read the same word.
- */
-function LegalFooter() {
-  const { t } = useTranslation('legal');
-
-  return (
-    <footer className="border-t px-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] pt-4 text-xs text-muted-foreground md:px-6 md:pb-4">
-      <nav aria-label={t('links.title')}>
-        <ul className="flex list-none flex-wrap gap-x-4 gap-y-1 pl-0">
-          <li>
-            <Link to="/legal/imprint" className="underline underline-offset-4 hover:text-foreground">
-              {t('links.imprint')}
-            </Link>
-          </li>
-          <li>
-            <Link to="/legal/privacy" className="underline underline-offset-4 hover:text-foreground">
-              {t('links.privacy')}
-            </Link>
-          </li>
-        </ul>
-      </nav>
-    </footer>
-  );
-}
-
 export default function AppWrapper({
   title,
   backTo,
@@ -276,8 +241,8 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
   const matches = useMatches();
   // THE BOTTOM PADDING IS A CONTRACT WITH `BottomNav`, so it has to follow the
   // same condition the bar does. The bar renders nothing for a signed-out
-  // reader, and 5rem of reserved space under a screen with no bar on it is a
-  // visible gap above the legal footer.
+  // reader, and 5rem of reserved space under a screen with no bar on it would
+  // be a visible empty gap at the foot of the screen.
   const rootData = useRouteLoaderData<{ userId: number | null }>('root');
   const isSignedIn = (rootData?.userId ?? null) !== null;
   // When a route passes no title, two fallbacks answer for it, in order. A
@@ -377,7 +342,6 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
       >
         {children}
       </div>
-      <LegalFooter />
       <BottomNav />
     </>
   );
