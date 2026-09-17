@@ -16,23 +16,30 @@
  * session epoch, which refuses every cookie issued before it, this request's
  * included, and hands back a fresh one. Setting that cookie is not optional.
  *
- * DELETING ASKS FOR THE PASSWORD, in the same form. It replaced a type-to-
- * confirm dialog, which asks whether the person meant it; the password asks
- * whether they are the owner.
+ * DELETING ASKS TWICE, AND THE TWO QUESTIONS ARE DIFFERENT. The password asks
+ * whether this is the owner; the `ConfirmAction` dialog that follows asks
+ * whether they meant it. The password alone was the whole gate until now, which
+ * turned one mis-aimed tap into a deleted account.
  */
-import { Form, redirect, type MetaFunction } from 'react-router';
+import { useState } from 'react';
+import { Form, redirect, useNavigation, type MetaFunction } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import type { Route } from './+types/account';
 import { AuthCard, AuthField, AuthNotice } from '#app/components/account/auth-card';
 import { ExportDataButton } from '#app/components/account/export-data-button';
+import { ConfirmAction } from '#app/components/confirm-action';
 import { Button, buttonVariants } from '#app/components/ui/button';
+import { Input } from '#app/components/ui/input';
+import { Label } from '#app/components/ui/label';
 import { Link } from '#app/components/link';
 import { documentTitle, metaLanguage } from '#app/i18n/meta-title';
+import { requestT } from '#app/i18n/request-t';
 import { MIN_PASSWORD_LENGTH } from '#app/lib/auth/password-rule';
 import { SIGN_IN_PATH, SIGN_UP_PATH } from '#app/lib/auth/paths';
 import { changePassword, deleteAccount } from '#app/services/auth.server';
 import { resolveUser } from '#app/middleware/auth';
+import { redirectWithToast } from '#app/utils/toast.server';
 
 export const meta: MetaFunction = ({ matches }) => [{ title: documentTitle(metaLanguage(matches), 'account.metaTitle') }];
 
@@ -40,16 +47,21 @@ export const meta: MetaFunction = ({ matches }) => [{ title: documentTitle(metaL
 type AccountResult =
   | { status: 'wrong-password' }
   | { status: 'invalid-password' }
-  | { status: 'password-mismatch' };
+  | { status: 'password-mismatch' }
+  /**
+   * The delete form's refusal, and it is shaped for a FETCHER rather than for
+   * this screen's `actionData`. `ConfirmAction` submits the deletion through
+   * `useFetcher` and reads `{ success, error }` back, so the sentence is
+   * resolved on the server, in the reader's own language, and rendered inside
+   * the dialog they are still looking at. It keeps a `status` so every member
+   * of this union answers `.status`.
+   */
+  | { status: 'delete-wrong-password'; success: false; error: string };
 
 /** Anonymous is a NORMAL state here: this screen reports it rather than ending it. */
-export async function loader({ request }: Route.LoaderArgs): Promise<{ email: string | null; changed: boolean }> {
+export async function loader({ request }: Route.LoaderArgs): Promise<{ email: string | null }> {
   const user = await resolveUser(request);
-  // The confirmation after a password change survives the redirect that hands
-  // the fresh cookie over. A flash message in the session would be the other
-  // way, and it would have to be written into the very cookie this redirect is
-  // replacing.
-  return { email: user?.email ?? null, changed: new URL(request.url).searchParams.get('changed') === '1' };
+  return { email: user?.email ?? null };
 }
 
 export async function action({ request }: Route.ActionArgs): Promise<Response | AccountResult> {
@@ -60,7 +72,9 @@ export async function action({ request }: Route.ActionArgs): Promise<Response | 
 
   if (String(form.get('intent') ?? '') === 'delete') {
     const removed = await deleteAccount({ userId: user.id, password: String(form.get('deleteCurrent') ?? '') });
-    if (removed.status === 'wrong-password') return { status: 'wrong-password' };
+    if (removed.status === 'wrong-password') {
+      return { status: 'delete-wrong-password', success: false, error: requestT(request)('account.wrongPassword') };
+    }
     // The account is gone, so the cookie names nobody. `/sign-out` would be
     // the tidier destination, but it needs a session to sync one last time and
     // there is nothing left to sync to.
@@ -78,15 +92,34 @@ export async function action({ request }: Route.ActionArgs): Promise<Response | 
   });
   if (result.status !== 'ok') return { status: result.status };
 
+  // THE CONFIRMATION IS A TOAST, NOT A QUERY FLAG. `?changed=1` said so in the
+  // URL, which meant the sentence survived a reload, a share and a bookmark: a
+  // reader who came back to that address a week later was told their password
+  // had just changed. The flash cookie says it once, to the tab that asked.
+  //
   // The fresh cookie is what keeps THIS tab signed in: the change moved the
   // session epoch, so every older cookie, this request's included, is refused
-  // from now on.
-  return redirect('/account?changed=1', { headers: { 'Set-Cookie': result.setCookie } });
+  // from now on. Both cookies ride the same response.
+  return redirectWithToast(
+    '/account',
+    { description: requestT(request)('account.passwordChangedToast'), type: 'success' },
+    { headers: { 'Set-Cookie': result.setCookie } },
+  );
 }
 
 export default function AccountRoute({ loaderData, actionData }: Route.ComponentProps) {
   const { t } = useTranslation();
-  const { email, changed } = loaderData;
+  const { email } = loaderData;
+  // THREE FORMS, ONE NAVIGATION, SO THE PENDING STATE IS SCOPED BY WHAT WAS
+  // POSTED. A bare `state !== 'idle'` would spin the password button while the
+  // reader was signing out. The sign-out form posts to another route, so its
+  // own `formAction` names it; the password form is this route's only other
+  // navigation, and the deletion never appears here at all because
+  // `ConfirmAction` submits through a fetcher.
+  const navigation = useNavigation();
+  const isNavigating = navigation.state !== 'idle';
+  const isSigningOut = isNavigating && navigation.formAction?.endsWith('/sign-out') === true;
+  const isChangingPassword = isNavigating && !isSigningOut;
 
   if (email === null) {
     return (
@@ -148,11 +181,8 @@ export default function AccountRoute({ loaderData, actionData }: Route.Component
           {actionData?.status === 'invalid-password' && (
             <AuthNotice>{t('account.passwordTooShort', { min: MIN_PASSWORD_LENGTH })}</AuthNotice>
           )}
-          {changed && actionData === undefined && (
-            <p className="text-sm text-muted-foreground">{t('account.changePasswordDone')}</p>
-          )}
-          <Button type="submit" className="self-start">
-            {t('account.changePasswordSubmit')}
+          <Button type="submit" className="self-start" pending={isChangingPassword}>
+            {isChangingPassword ? t('account.changingPassword') : t('account.changePasswordSubmit')}
           </Button>
         </Form>
       </section>
@@ -165,8 +195,8 @@ export default function AccountRoute({ loaderData, actionData }: Route.Component
         {/* Posts to `/sign-out`, which syncs once and then empties this device.
             The wipe is why the sentence above warns rather than reassures. */}
         <Form method="post" action="/sign-out" className="mt-4">
-          <Button type="submit" variant="outline">
-            {t('account.signOutAction')}
+          <Button type="submit" variant="outline" pending={isSigningOut}>
+            {isSigningOut ? t('account.signingOut') : t('account.signOutAction')}
           </Button>
         </Form>
       </section>
@@ -174,19 +204,57 @@ export default function AccountRoute({ loaderData, actionData }: Route.Component
       <section className="rounded-xl border bg-card p-6">
         <h2 className="font-display text-base font-semibold">{t('account.deleteTitle')}</h2>
         <p className="mt-2 text-sm text-muted-foreground">{t('account.deleteBody')}</p>
-        <Form method="post" className="mt-6 flex flex-col gap-5">
-          <input type="hidden" name="intent" value="delete" />
-          <AuthField
-            name="deleteCurrent"
-            label={t('account.currentPasswordLabel')}
-            type="password"
-            autoComplete="current-password"
-          />
-          <Button type="submit" variant="destructive" className="self-start">
+        <DeleteAccountForm />
+      </section>
+    </div>
+  );
+}
+
+/**
+ * Deleting the account: the password, then a confirmation dialog.
+ *
+ * TWO GATES, AND THEY ASK DIFFERENT QUESTIONS. The password asks whether this
+ * is the owner; the dialog asks whether they meant it. A screen that asks only
+ * the first deletes an account on one mis-aimed tap, and `window.confirm` is
+ * banned (DESIGN.md section 10), so the dialog is `ConfirmAction`.
+ *
+ * THE PASSWORD IS CONTROLLED STATE RATHER THAN A FORM FIELD, because
+ * `ConfirmAction` submits its own `FormData` through a fetcher and never reads
+ * the surrounding form. Holding the value here is what lets the dialog carry it.
+ * It is never sent anywhere but this route's own action.
+ */
+function DeleteAccountForm() {
+  const { t } = useTranslation();
+  const [password, setPassword] = useState('');
+
+  return (
+    <div className="mt-6 flex flex-col gap-5">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="deleteCurrent">{t('account.currentPasswordLabel')}</Label>
+        <Input
+          id="deleteCurrent"
+          name="deleteCurrent"
+          type="password"
+          required
+          autoComplete="current-password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
+      </div>
+      <ConfirmAction
+        trigger={
+          <Button type="button" variant="destructive" className="self-start" disabled={password === ''}>
             {t('account.deleteSubmit')}
           </Button>
-        </Form>
-      </section>
+        }
+        title={t('account.deleteConfirmTitle')}
+        description={t('account.deleteConfirmBody')}
+        formData={{ intent: 'delete', deleteCurrent: password }}
+        confirmText={t('account.deleteConfirmAction')}
+        confirmPendingText={t('account.deletingAccount')}
+        confirmVariant="destructive"
+        cancelText={t('favourites.removeCancel')}
+      />
     </div>
   );
 }

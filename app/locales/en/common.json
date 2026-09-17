@@ -12,7 +12,9 @@
     "back": "Back",
     "attribution": "Sources",
     "admin": "Admin",
-    "favourites": "Favourites"
+    "favourites": "Favourites",
+    "explain": "Explain",
+    "explanations": "Explanations"
   },
   "theme": {
     "selector": "Color theme",
@@ -43,12 +45,15 @@
     "phraseNoExamples": "No recorded sentences contain this exact phrase.",
     "sourceLabel": "Language to translate from",
     "targetLabel": "Language to translate into",
+    "fromLabel": "From",
+    "intoLabel": "Into",
     "detectLanguage": "Detect language",
     "detectedAs": "{{language}} (detected)",
     "swapLanguages": "Swap the two languages",
     "resultLabel": "Translation",
     "copy": "Copy the translation",
     "copied": "Copied",
+    "copyFailed": "That did not reach your clipboard. Select the word and copy it by hand.",
     "entriesHeading": "Dictionary entries, exact word and similar spellings",
     "similarSpellings": "Similar spellings ({{count}})",
     "phraseEntriesNote": "The dictionary entries for each word. The translation above is the whole sentence."
@@ -180,6 +185,13 @@
     "installStepsDesktop": "Open the browser menu, then choose \"Install\". Some browsers show an install icon in the address bar.",
     "installedNote": "The app is installed on this device. Open it from your home screen."
   },
+  "auth": {
+    "signingIn": "Signing you in.",
+    "creatingAccount": "Creating your account.",
+    "sendingLink": "Sending the link.",
+    "settingPassword": "Setting your password.",
+    "sendingAgain": "Sending it again."
+  },
   "account": {
     "metaTitle": "Account",
     "metaDescription": "Your email address and password.",
@@ -233,8 +245,14 @@
     "resetInvalidBody": "It was used, or it expired. Request a new link.",
     "changePasswordTitle": "Change password",
     "changePasswordBody": "Your other devices are signed out. This device stays signed in.",
+    "changingPassword": "Changing your password.",
+    "passwordChangedToast": "Your password is changed. Other devices are signed out.",
+    "signingOut": "Signing out.",
+    "deletingAccount": "Deleting your account.",
+    "deleteConfirmTitle": "Delete your account?",
+    "deleteConfirmBody": "Your words, lists and history go with it. This cannot be undone.",
+    "deleteConfirmAction": "Delete my account.",
     "changePasswordSubmit": "Change password",
-    "changePasswordDone": "The password was changed.",
     "exportTitle": "Export data",
     "exportBody": "A JSON file with your lists, saved words, notes, and search history from this device.",
     "exportButton": "Download export file",
@@ -315,6 +333,9 @@
     "generated": "Generated",
     "generatedHint": "Made by a language model. It can contain mistakes.",
     "tooLong": "That text is too long to translate. Try 200 characters or less.",
+    "translatingStill": "Still going. The model is writing the answer.",
+    "translatingLonger": "Nearly there. Longer words take longer.",
+    "retrying": "Trying again.",
     "alternatives": "Other translations",
     "useThis": "Use this translation as the answer",
     "copyAll": "Copy all translations"
@@ -394,12 +415,107 @@
     "removePending": "Removing...",
     "removeCancel": "Cancel",
     "removedToast": "Removed.",
-    "emptyTitle": "No saved words yet",
-    "emptyBody": "Tap the star on an answer to keep the word here."
+    "emptyTitle": "Your saved words collect here.",
+    "emptyBody": "Tap the star on an answer to keep one.",
+    "saveFailed": "That word could not be saved. Try again."
   },
   "translationVote": {
     "up": "This word is right",
     "down": "This word is wrong",
     "signIn": "Sign in to vote on a word"
+  },
+  "explain": {
+    "metaTitle": "Explain",
+    "metaDescription": "Ask about a word, or about the difference between two words.",
+    "modeLabel": "What to do with this text",
+    "modeTranslate": "Translate",
+    "modeExplain": "Explain",
+    "fieldLabel": "Your question",
+    "wordsIn": "The words are in",
+    "explainIn": "Explain in",
+    "placeholder": "For example: What is the difference between kennen and wissen?",
+    "submit": "Explain",
+    "submitting": "Thinking...",
+    "counter": "{{count}} of {{max}} characters",
+    "landingHint": "Ask about a word, or how two words differ.",
+    "examplesLabel": "Example questions",
+    "examples": {
+      "de": {
+        "1": "Was ist der Unterschied zwischen kennen und wissen?",
+        "2": "Wann sagt man Feierabend?",
+        "3": "Wie benutzt man doch in einem Satz?"
+      },
+      "en": {
+        "1": "What is the difference between make and do?",
+        "2": "When do people say cheers?",
+        "3": "How is actually used in a sentence?"
+      },
+      "tr": {
+        "1": "Bilmek ile tanımak arasındaki fark nedir?",
+        "2": "Kolay gelsin ne zaman söylenir?",
+        "3": "Bir cümlede yani nasıl kullanılır?"
+      },
+      "es": {
+        "1": "¿Cuál es la diferencia entre ser y estar?",
+        "2": "¿Cuándo se dice vale?",
+        "3": "¿Cómo se usa pues en una frase?"
+      }
+    },
+    "answerLabel": "Explanation",
+    "atAGlanceLabel": "At a glance",
+    "termsHeading": "The words",
+    "contrastsHeading": "How they differ",
+    "aspectHeading": "Aspect",
+    "pitfallsHeading": "Watch out for",
+    "relatedHeading": "Also look up",
+    "waitingThinking": "Thinking about your question.",
+    "waitingWriting": "Writing the explanation.",
+    "waitingExamples": "Checking the examples.",
+    "stillWorking": "Still working. Come back in a minute, the answer will be here.",
+    "failed": "The explanation did not come through.",
+    "retry": "Try again",
+    "retrying": "Trying again.",
+    "budget": "Today's limit for explanations is reached. Try again tomorrow.",
+    "rateLimited": "You have asked a lot of questions just now. Please wait a few minutes before asking another.",
+    "tooLong": "That question is too long. Try 300 characters or less.",
+    "referencesHeading": "Where to read more",
+    "register": {
+      "neutral": "everyday",
+      "formal": "formal",
+      "informal": "informal",
+      "slang": "slang",
+      "technical": "technical",
+      "literary": "literary",
+      "dated": "dated",
+      "regional": "regional"
+    }
+  },
+  "explanations": {
+    "metaTitle": "Explanations",
+    "detailMetaTitle": "Your question",
+    "metaDescription": "The questions you asked, and the answers they got.",
+    "emptyTitle": "Your questions collect here.",
+    "emptyBody": "Questions you ask will collect here.",
+    "pair": "{{from}} to {{to}}",
+    "showMore": "Show more, {{shown}} of {{total}}",
+    "back": "All questions",
+    "askAgain": "Ask again",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyLink": "Copy link",
+    "copiedToast": "Copied.",
+    "linkCopiedToast": "Link copied.",
+    "copyFailedToast": "That could not be copied. Your browser refused the clipboard.",
+    "statePending": "Still being written.",
+    "stateFailed": "This one did not come through.",
+    "stateUnanswered": "Not answered yet.",
+    "removeTrigger": "Remove",
+    "removeLabel": "Remove {{question}}",
+    "removeTitle": "Remove this question?",
+    "removeBody": "It leaves your list. The answer itself stays in the shared record, which names nobody.",
+    "removeConfirm": "Remove",
+    "removePending": "Removing...",
+    "removeCancel": "Cancel",
+    "removedToast": "Removed."
   }
 }

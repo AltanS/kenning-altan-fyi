@@ -291,7 +291,10 @@ export async function finishRun(db: DictionaryDb, runId: string, params: FinishR
       ...(params.output !== undefined && { output: params.output }),
       ...(params.written !== undefined && { written: params.written }),
       ...(params.capped !== undefined && { capped: params.capped }),
-      ...(params.error !== undefined && { error: params.error }),
+      // ALWAYS WRITTEN, null included. A retry of a timed-out job settles the
+      // SAME row, so leaving the column alone kept the first attempt's message
+      // beside the second attempt's answer. See `explanationTerminalValues`.
+      error: params.error ?? null,
       // `costUsd` is threaded through even when it is null, because null is a
       // real answer here: it means the call ran and nothing could price it.
       ...(params.costUsd !== undefined && { costUsd: params.costUsd === null ? null : params.costUsd.toFixed(6) }),

@@ -12,7 +12,9 @@
     "back": "Zurück",
     "attribution": "Quellen",
     "admin": "Admin",
-    "favourites": "Favoriten"
+    "favourites": "Favoriten",
+    "explain": "Erklären",
+    "explanations": "Erklärungen"
   },
   "theme": {
     "selector": "Farbschema",
@@ -43,12 +45,15 @@
     "phraseNoExamples": "Keine hinterlegten Sätze enthalten genau diesen Ausdruck.",
     "sourceLabel": "Sprache, aus der übersetzt wird",
     "targetLabel": "Sprache, in die übersetzt wird",
+    "fromLabel": "Von",
+    "intoLabel": "Nach",
     "detectLanguage": "Sprache erkennen",
     "detectedAs": "{{language}} (erkannt)",
     "swapLanguages": "Die beiden Sprachen tauschen",
     "resultLabel": "Übersetzung",
     "copy": "Übersetzung kopieren",
     "copied": "Kopiert",
+    "copyFailed": "Nicht in der Zwischenablage gelandet. Markiere das Wort und kopiere es manuell.",
     "entriesHeading": "Wörterbucheinträge, exakter Treffer und ähnliche Schreibweisen",
     "similarSpellings": "Ähnliche Schreibweisen ({{count}})",
     "phraseEntriesNote": "Die Wörterbucheinträge für jedes Wort. Oben steht die Übersetzung des ganzen Satzes."
@@ -180,6 +185,13 @@
     "installStepsDesktop": "Öffne das Browsermenü und wähle „Installieren“. Manche Browser zeigen ein Installationssymbol in der Adressleiste.",
     "installedNote": "Die App ist auf diesem Gerät installiert. Öffne sie über deinen Startbildschirm."
   },
+  "auth": {
+    "signingIn": "Du wirst angemeldet.",
+    "creatingAccount": "Dein Konto wird erstellt.",
+    "sendingLink": "Link wird gesendet.",
+    "settingPassword": "Passwort wird festgelegt.",
+    "sendingAgain": "Wird erneut gesendet."
+  },
   "account": {
     "metaTitle": "Konto",
     "metaDescription": "Deine Mailadresse und dein Passwort.",
@@ -233,8 +245,14 @@
     "resetInvalidBody": "Er wurde bereits genutzt oder ist abgelaufen. Fordere einen neuen Link an.",
     "changePasswordTitle": "Passwort ändern",
     "changePasswordBody": "Deine anderen Geräte werden abgemeldet. Auf diesem Gerät bleibst du angemeldet.",
+    "changingPassword": "Passwort wird geändert.",
+    "passwordChangedToast": "Dein Passwort wurde geändert. Andere Geräte sind abgemeldet.",
+    "signingOut": "Du wirst abgemeldet.",
+    "deletingAccount": "Dein Konto wird gelöscht.",
+    "deleteConfirmTitle": "Dein Konto löschen?",
+    "deleteConfirmBody": "Deine Wörter, Listen und dein Verlauf gehen mit verloren. Das lässt sich nicht rückgängig machen.",
+    "deleteConfirmAction": "Mein Konto löschen.",
     "changePasswordSubmit": "Passwort ändern",
-    "changePasswordDone": "Das Passwort wurde geändert.",
     "exportTitle": "Daten exportieren",
     "exportBody": "Eine Datei im JSON Format mit deinen Listen, gespeicherten Wörtern, Notizen und dem Suchverlauf von diesem Gerät.",
     "exportButton": "Exportdatei herunterladen",
@@ -315,6 +333,9 @@
     "generated": "Generiert",
     "generatedHint": "Von einem Sprachmodell erstellt. Kann Fehler enthalten.",
     "tooLong": "Dieser Text ist zu lang zum Übersetzen. Versuch es mit maximal 200 Zeichen.",
+    "translatingStill": "Läuft noch. Das Modell schreibt die Antwort.",
+    "translatingLonger": "Fast geschafft. Längere Wörter dauern etwas.",
+    "retrying": "Neuer Versuch.",
     "alternatives": "Weitere Übersetzungen",
     "useThis": "Diese Übersetzung als Antwort verwenden",
     "copyAll": "Alle Übersetzungen kopieren"
@@ -394,12 +415,107 @@
     "removePending": "Wird entfernt...",
     "removeCancel": "Abbrechen",
     "removedToast": "Entfernt.",
-    "emptyTitle": "Noch keine Wörter gespeichert",
-    "emptyBody": "Tippe bei einer Übersetzung auf den Stern, um das Wort hier zu speichern."
+    "emptyTitle": "Hier landen deine gespeicherten Wörter.",
+    "emptyBody": "Tippe auf den Stern an einer Antwort, um sie zu behalten.",
+    "saveFailed": "Das Wort konnte nicht gespeichert werden. Versuch es noch mal."
   },
   "translationVote": {
     "up": "Dieses Wort ist richtig",
     "down": "Dieses Wort ist falsch",
     "signIn": "Melde dich an, um über ein Wort abzustimmen"
+  },
+  "explain": {
+    "metaTitle": "Erklären",
+    "metaDescription": "Fragen zu einem Wort stellen oder dazu, wie sich zwei Wörter unterscheiden.",
+    "modeLabel": "Aktion für diesen Text",
+    "modeTranslate": "Übersetzen",
+    "modeExplain": "Erklären",
+    "fieldLabel": "Frage",
+    "wordsIn": "Die Wörter sind auf",
+    "explainIn": "Erklären auf",
+    "placeholder": "Zum Beispiel: Was ist der Unterschied zwischen kennen und wissen?",
+    "submit": "Erklären",
+    "submitting": "Überlegt...",
+    "counter": "{{count}} von {{max}} Zeichen",
+    "landingHint": "Fragen zu einem Wort oder dem Unterschied zwischen zwei Wörtern stellen.",
+    "examplesLabel": "Beispielfragen",
+    "examples": {
+      "de": {
+        "1": "Was ist der Unterschied zwischen kennen und wissen?",
+        "2": "Wann sagt man Feierabend?",
+        "3": "Wie benutzt man doch in einem Satz?"
+      },
+      "en": {
+        "1": "What is the difference between make and do?",
+        "2": "When do people say cheers?",
+        "3": "How is actually used in a sentence?"
+      },
+      "tr": {
+        "1": "Bilmek ile tanımak arasındaki fark nedir?",
+        "2": "Kolay gelsin ne zaman söylenir?",
+        "3": "Bir cümlede yani nasıl kullanılır?"
+      },
+      "es": {
+        "1": "¿Cuál es la diferencia entre ser y estar?",
+        "2": "¿Cuándo se dice vale?",
+        "3": "¿Cómo se usa pues en una frase?"
+      }
+    },
+    "answerLabel": "Erklärung",
+    "atAGlanceLabel": "Auf einen Blick",
+    "termsHeading": "Die Wörter",
+    "contrastsHeading": "Unterschiede",
+    "aspectHeading": "Aspekt",
+    "pitfallsHeading": "Stolperfallen",
+    "relatedHeading": "Siehe auch",
+    "waitingThinking": "Denke über deine Frage nach.",
+    "waitingWriting": "Schreibe die Erklärung.",
+    "waitingExamples": "Prüfe die Beispiele.",
+    "stillWorking": "Wird noch bearbeitet. In einer Minute noch einmal nachsehen, die Antwort erscheint hier.",
+    "failed": "Die Erklärung konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "retrying": "Versuche es noch einmal.",
+    "budget": "Das heutige Limit für Erklärungen ist erreicht. Morgen wieder versuchen.",
+    "rateLimited": "Es wurden gerade viele Fragen gestellt. Bitte ein paar Minuten warten, bevor eine neue Frage gestellt wird.",
+    "tooLong": "Diese Frage ist zu lang. Maximal 300 Zeichen eingeben.",
+    "referencesHeading": "Zum Weiterlesen",
+    "register": {
+      "neutral": "alltäglich",
+      "formal": "formell",
+      "informal": "informell",
+      "slang": "Slang",
+      "technical": "fachsprachlich",
+      "literary": "literarisch",
+      "dated": "veraltet",
+      "regional": "regional"
+    }
+  },
+  "explanations": {
+    "metaTitle": "Erklärungen",
+    "detailMetaTitle": "Deine Frage",
+    "metaDescription": "Deine gestellten Fragen und die Antworten darauf.",
+    "emptyTitle": "Hier sammeln sich deine Fragen.",
+    "emptyBody": "Fragen, die du stellst, landen hier.",
+    "pair": "{{from}} zu {{to}}",
+    "showMore": "Mehr anzeigen, {{shown}} von {{total}}",
+    "back": "Alle Fragen",
+    "askAgain": "Noch einmal fragen",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "copyLink": "Link kopieren",
+    "copiedToast": "Kopiert.",
+    "linkCopiedToast": "Link kopiert.",
+    "copyFailedToast": "Konnte nicht kopiert werden. Dein Browser hat den Zugriff verweigert.",
+    "statePending": "Wird noch geschrieben.",
+    "stateFailed": "Das hat leider nicht geklappt.",
+    "stateUnanswered": "Noch nicht beantwortet.",
+    "removeTrigger": "Entfernen",
+    "removeLabel": "{{question}} entfernen",
+    "removeTitle": "Diese Frage entfernen?",
+    "removeBody": "Sie verschwindet aus deiner Liste. Die Antwort selbst bleibt im gemeinsamen Datensatz, ohne Namen.",
+    "removeConfirm": "Entfernen",
+    "removePending": "Wird entfernt...",
+    "removeCancel": "Abbrechen",
+    "removedToast": "Entfernt."
   }
 }

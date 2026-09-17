@@ -14,8 +14,8 @@ import {
   AppSidebar,
   installNavigationAction,
   navigationItems,
-  primaryNavigationItems,
   visibleFooterNavigationItems,
+  visiblePrimaryNavigationItems,
   type NavigationItem,
 } from './app-sidebar';
 import { BottomNav } from './bottom-nav';
@@ -120,8 +120,9 @@ function NavDrawer() {
   const close = (): void => setIsOpen(false);
   const activeHref = activeNavigationHref(location.pathname);
   // Same source and same convenience-not-a-gate reasoning as `AppSidebar`.
-  const rootData = useRouteLoaderData<{ isSuperadmin: boolean }>('root');
+  const rootData = useRouteLoaderData<{ isSuperadmin: boolean; userId: number | null }>('root');
   const footerItems = visibleFooterNavigationItems(rootData?.isSuperadmin ?? false);
+  const primaryItems = visiblePrimaryNavigationItems((rootData?.userId ?? null) !== null);
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -136,12 +137,14 @@ function NavDrawer() {
           <SheetDescription className="sr-only">{t('nav.drawerDescription')}</SheetDescription>
         </SheetHeader>
         <nav className="flex flex-col gap-1 p-2">
-          {primaryNavigationItems.map((item) => (
+          {primaryItems.map((item) => (
             <DrawerRow key={item.to} item={item} isActive={activeHref === item.to} onNavigate={close} />
           ))}
           {/* The same footer separation the sidebar draws: the things you set
-              once sit below a rule, not among the places you go every day. */}
-          <Separator className="my-2" />
+              once sit below a rule, not among the places you go every day. It
+              separates nothing for a signed-out reader, who has no primary
+              rows, so it is drawn only when there is something above it. */}
+          {primaryItems.length > 0 && <Separator className="my-2" />}
           {footerItems.map((item) => (
             <DrawerRow key={item.to} item={item} isActive={activeHref === item.to} onNavigate={close} />
           ))}
@@ -169,7 +172,17 @@ function NavDrawer() {
  * the offline fallback in `root.tsx` unchanged.
  *
  * `truncate` with a width cap, because an address can be long and the header
- * must not grow a second line on a narrow phone.
+ * must not grow a second line on a narrow phone. `min-w-0` ON BOTH THE LINK AND
+ * THE TEXT IS WHAT LETS `truncate` ACT AT ALL: a flex item does not shrink below
+ * its own content unless it is told to, so the 8rem cap was being overrun and on
+ * a 390px phone the address ran into the screen title beside it. The share of
+ * the header this slot may take is capped by the cell around it, in the header
+ * itself, where a percentage has a definite width to resolve against.
+ *
+ * THE LINK STAYS ON SCREEN BELOW `sm` rather than being hidden. It is the only
+ * thing that says which account this device is carrying, and truncated it still
+ * leads to `/account`; the drawer's own account row is two taps away, which is
+ * not the same thing.
  *
  * IT NEEDS NO PER-PATH EXCEPTION ANY MORE. It used to render nothing on
  * `/sign-in` and `/sign-up`, because a link to the page you are reading is
@@ -194,9 +207,9 @@ function AccountSlot() {
   }
 
   return (
-    <Link to="/account" className="flex max-w-32 items-center gap-1 text-sm hover:underline">
+    <Link to="/account" className="flex min-w-0 max-w-32 items-center gap-1 text-sm hover:underline">
       <span className="sr-only">{t('account.title')}</span>
-      <span className="truncate font-mono text-xs">{email}</span>
+      <span className="min-w-0 truncate font-mono text-xs">{email}</span>
     </Link>
   );
 }
@@ -261,6 +274,12 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
   const { t } = useTranslation();
   const location = useLocation();
   const matches = useMatches();
+  // THE BOTTOM PADDING IS A CONTRACT WITH `BottomNav`, so it has to follow the
+  // same condition the bar does. The bar renders nothing for a signed-out
+  // reader, and 5rem of reserved space under a screen with no bar on it is a
+  // visible gap above the legal footer.
+  const rootData = useRouteLoaderData<{ userId: number | null }>('root');
+  const isSignedIn = (rootData?.userId ?? null) !== null;
   // When a route passes no title, two fallbacks answer for it, in order. A
   // route can name itself through a `handle` (see `#app/lib/route-title`),
   // which is the only way a screen inside this layout can reach the header at
@@ -321,9 +340,17 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
                 {title ?? handleTitle ?? activeLabel ?? APP_NAME}
               </h1>
             </div>
-            <div className="flex items-center gap-3">
+            {/* `min-w-0` so the account slot inside it can give way to the
+                screen title, a 40% cap below `sm` so it can never take most of a
+                phone's header, and `shrink-0` on the theme toggle so the one
+                control that cannot truncate never does. The percentage resolves
+                against this cell's own flex parent, which has a definite width;
+                on the link inside it there would be nothing to resolve. */}
+            <div className="flex min-w-0 max-w-[40%] items-center gap-3 sm:max-w-none">
               <AccountSlot />
-              <ThemeToggle />
+              <div className="shrink-0">
+                <ThemeToggle />
+              </div>
             </div>
           </div>
         </div>
@@ -342,7 +369,14 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
       {/* The bottom padding clears the mobile tab bar, so page content is never
           hidden behind it. The sidebar owns navigation at md and up, where the
           bar is gone and the padding drops back to normal. */}
-      <div className="flex-1 p-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] md:p-6 md:pb-6">{children}</div>
+      <div
+        className={cn(
+          'flex-1 p-4 md:p-6 md:pb-6',
+          isSignedIn ? 'pb-[calc(env(safe-area-inset-bottom)+5rem)]' : 'pb-6',
+        )}
+      >
+        {children}
+      </div>
       <LegalFooter />
       <BottomNav />
     </>

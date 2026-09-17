@@ -14,7 +14,7 @@
  * cookie is not optional: without it this screen would sign out the reader it
  * just let back in.
  */
-import { Form, redirect, type MetaFunction } from 'react-router';
+import { Form, redirect, useNavigation, type MetaFunction } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import type { Route } from './+types/reset-password';
@@ -63,6 +63,7 @@ export async function action({ request }: Route.ActionArgs): Promise<Response | 
 
 export default function ResetPasswordRoute({ loaderData, actionData }: Route.ComponentProps) {
   const { t } = useTranslation();
+  const isSubmitting = useNavigation().state !== 'idle';
 
   // No token in the URL, or one the server refused. Both are the same dead end
   // for the reader, and the way out of both is a new mail.
@@ -97,7 +98,9 @@ export default function ResetPasswordRoute({ loaderData, actionData }: Route.Com
         {actionData?.status === 'invalid-password' && (
           <AuthNotice>{t('account.passwordTooShort', { min: MIN_PASSWORD_LENGTH })}</AuthNotice>
         )}
-        <Button type="submit">{t('account.resetSubmit')}</Button>
+        <Button type="submit" pending={isSubmitting}>
+          {isSubmitting ? t('auth.settingPassword') : t('account.resetSubmit')}
+        </Button>
       </Form>
     </AuthCard>
   );

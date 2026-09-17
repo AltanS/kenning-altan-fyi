@@ -1,21 +1,27 @@
 import { useTranslation } from 'react-i18next';
+import { useRouteLoaderData } from 'react-router';
 import { NavLink } from '#app/components/link';
 import { cn } from '#app/lib/utils';
 import { tabNavigationItems, type NavigationItem } from './app-sidebar';
 
 /**
- * The mobile tab bar. It carries the places you move between while you work:
- * Search, Lists, Favourites and History. Settings and Account live in the
- * top-left navigation drawer (`app-wrapper.tsx`), which shows the same complete
- * map the desktop sidebar does.
+ * The mobile tab bar. It carries the four places you move between while you
+ * work, in this order: Translate, Explain, Lists and Favourites. History,
+ * Explanations, Sources, Settings and Account live in the top-left navigation
+ * drawer (`app-wrapper.tsx`), which shows the same complete map the desktop
+ * sidebar does.
+ *
+ * FOUR TABS, AND HISTORY IS THE ONE THAT LEFT. Explain is a thing this app
+ * does, so it belongs beside Translate; a history is a thing you look back at,
+ * which is a drawer errand. Five tabs on a phone is four narrow labels and one
+ * that truncates.
  *
  * The tabs are equal. There is no raised centre button, because this app has no
  * single flagship verb, and a raised tab would claim one.
  *
- * THE BAR NAMES NO DESTINATION OF ITS OWN, not even the new one: `nav.search`,
- * `nav.lists`, `nav.favourites` and `nav.history` are catalog keys, resolved
- * where each tab is rendered. A key written here would be a second place a
- * destination can be labelled, and the two would eventually disagree.
+ * THE BAR NAMES NO DESTINATION OF ITS OWN: every label is a catalog key,
+ * resolved where each tab is rendered. A key written here would be a second
+ * place a destination can be labelled, and the two would eventually disagree.
  *
  * The entries come from the shared catalog, pre-ordered by each item's
  * `tab.order`, so this file lists no catalog keys or hrefs of its own and the
@@ -39,7 +45,7 @@ function FlatTab({ tab }: { tab: NavigationItem }) {
       end={tab.to === '/'}
       className={({ isActive }) =>
         cn(
-          'relative flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors',
+          'relative flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
           isActive ?
             'bg-primary/5 text-brand-ink after:absolute after:inset-x-5 after:top-0 after:h-0.5 after:rounded-full after:bg-brand-ink after:content-[""]'
           : 'text-muted-foreground hover:text-foreground',
@@ -60,6 +66,12 @@ function FlatTab({ tab }: { tab: NavigationItem }) {
  */
 export function BottomNav() {
   const { t } = useTranslation();
+  // NOTHING AT ALL FOR A SIGNED-OUT READER. Every tab is behind the account
+  // gate, so the bar would be four rows that all end at `/sign-in`, pinned to
+  // the bottom of the screen where they cannot be ignored. `AppWrapper` drops
+  // the bottom padding that reserves room for it in the same state.
+  const rootData = useRouteLoaderData<{ userId: number | null }>('root');
+  if ((rootData?.userId ?? null) === null) return null;
 
   return (
     <nav

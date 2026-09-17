@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { Check, Copy, CopyPlus, Loader2 } from 'lucide-react';
+import { Check, Copy, CopyPlus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Form, useNavigation } from 'react-router';
+import { toast } from 'sonner';
 import { EnrichmentSection } from '#app/components/enrichment-section';
 import { LanguageBar } from '#app/components/language-bar';
+import { ModeSwitch } from '#app/components/mode-switch';
 import { FavoriteToggle } from '#app/components/personal/favorite-toggle';
 import { DictionaryEntries, DidYouMean, PhraseResults } from '#app/components/search-results';
 import { TranslationPane, type TranslationPaneController } from '#app/components/translation-pane';
@@ -154,10 +156,14 @@ function CopyButton({ text, label, icon }: CopyButtonProps) {
       await navigator.clipboard.writeText(text);
       setIsCopied(true);
     };
-    // A refused clipboard, which a browser permission prompt can produce,
-    // leaves the answer on screen and the button unchanged. There is nothing to
-    // tell the reader that they could not act on themselves.
-    void copy().catch(() => undefined);
+    // A REFUSED CLIPBOARD SAYS SO, AND SAYS WHAT TO DO INSTEAD. A browser
+    // permission prompt can deny this, and the button used to swallow that
+    // silently: the reader pressed copy, nothing changed, and nothing on screen
+    // explained why. The answer is selectable text on the card, so the toast
+    // names the one recovery there is rather than apologising.
+    void copy().catch(() => {
+      toast.error(t('search.copyFailed'));
+    });
   };
 
   return (
@@ -210,6 +216,15 @@ interface ResultFieldProps {
    */
   body: ReactNode;
   /**
+   * Whether a newer search is in flight over this answer.
+   *
+   * IT DIMS THE CARD RATHER THAN EMPTYING IT. Keeping the previous answer on
+   * screen is what makes a second search feel instant; leaving it looking
+   * CURRENT is what makes the reader copy the wrong word. Dimmed and breathing,
+   * it reads as the last answer rather than as this one.
+   */
+  isStale: boolean;
+  /**
    * The star, on the single-word branch only.
    *
    * `null` on the phrase branch, and that is a statement about the product
@@ -243,37 +258,45 @@ interface ResultFieldProps {
  * from the alternatives also resets both buttons. That is a fresh state rather
  * than an effect that watches a prop and corrects itself afterwards.
  */
-function ResultField({ text, allText, hasAlternatives, body, favorite }: ResultFieldProps) {
+function ResultField({ text, allText, hasAlternatives, body, favorite, isStale }: ResultFieldProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="rounded-2xl border p-5">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-medium">{t('search.resultLabel')}</p>
-        <div className="flex items-center gap-1">
-          {favorite}
-          {/* THE ANSWER, AND THEN EVERY CANDIDATE. The first button copies the
-              one word the card is answering with, which is what the star saves
-              and what the device history logs. The second appears only when
-              there is more than one row, and is the only place the joined list
-              still exists. */}
-          <CopyButton text={text} label={t('search.copy')} icon={<Copy className="size-4" aria-hidden="true" />} />
-          {hasAlternatives && (
-            <CopyButton
-              text={allText}
-              label={t('translation.copyAll')}
-              icon={<CopyPlus className="size-4" aria-hidden="true" />}
-            />
-          )}
+    // THE STALE TREATMENT SITS ON A WRAPPER, NOT ON THE CARD. The card's own
+    // class list is the recipe both translator cards share (DESIGN.md section
+    // 3), and `tests/unit/search-panes-language-bar.test.ts` reads it as a
+    // literal to prove the input card and this one still match. Folding a
+    // conditional into it would make that check unable to see either card, so
+    // the one rule it enforces would quietly stop being enforced.
+    <div className={isStale ? 'pulse-soft opacity-60' : undefined}>
+      <div className="rounded-2xl border p-5">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-medium">{t('search.resultLabel')}</p>
+          <div className="flex items-center gap-1">
+            {favorite}
+            {/* THE ANSWER, AND THEN EVERY CANDIDATE. The first button copies
+                the one word the card is answering with, which is what the star
+                saves and what the device history logs. The second appears only
+                when there is more than one row, and is the only place the
+                joined list still exists. */}
+            <CopyButton text={text} label={t('search.copy')} icon={<Copy className="size-4" aria-hidden="true" />} />
+            {hasAlternatives && (
+              <CopyButton
+                text={allText}
+                label={t('translation.copyAll')}
+                icon={<CopyPlus className="size-4" aria-hidden="true" />}
+              />
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* The pane renders the answer itself, at reading size and selectable:
-          it is the one thing on this screen a reader takes away with them, by
-          copy button or by hand. The card does not draw `text` beside it, and
-          must not: `text` is the SAME answer read out as one string for the
-          button above, so drawing it here would print every answer twice. */}
-      {body}
+        {/* The pane renders the answer itself, at reading size and selectable:
+            it is the one thing on this screen a reader takes away with them, by
+            copy button or by hand. The card does not draw `text` beside it, and
+            must not: `text` is the SAME answer read out as one string for the
+            button above, so drawing it here would print every answer twice. */}
+        {body}
+      </div>
     </div>
   );
 }
@@ -411,20 +434,32 @@ export function SearchPanes({
         {/* Identical to the result card below, deliberately: see this
             component's own comment on why neither is tinted. */}
         <div className="rounded-2xl border p-5">
-          <label htmlFor="search-word" className="text-sm font-medium">
-            {t('search.fieldLabel')}
-          </label>
-          <Textarea
-            ref={inputRef}
-            id="search-word"
-            name="q"
-            rows={4}
-            defaultValue={q}
-            placeholder={t('search.placeholder')}
-            autoComplete="off"
-            className="mt-2"
-            onKeyDown={handleKeyDown}
-          />
+          {/* THE TWO THINGS THIS APP DOES, AT THE TOP OF THE CARD, and in the
+              same place on `/explain`. It is first because it answers the
+              question the card then asks: what kind of thing am I typing here.
+              It carries the pair across and deliberately not the query: a word
+              to translate is not a question to ask about one. */}
+          <ModeSwitch active="translate" from={pair.source} to={pair.target} className="mb-4 sm:max-w-sm" />
+          {/* THE LABEL, THE BOX AND THE NOTE ARE ONE FIELD, so their spacing is
+              the column's `gap-2` rather than a margin hand-set on each of
+              them. Three separate `mt-*` values are three places the rhythm of
+              this card can be changed independently, which is how it drifts. */}
+          <div className="flex flex-col gap-2">
+            <label htmlFor="search-word" className="text-sm font-medium">
+              {t('search.fieldLabel')}
+            </label>
+            <Textarea
+              ref={inputRef}
+              id="search-word"
+              name="q"
+              rows={4}
+              defaultValue={q}
+              placeholder={t('search.placeholder')}
+              autoComplete="off"
+              onKeyDown={handleKeyDown}
+            />
+            <p className="text-sm text-muted-foreground">{t('search.note')}</p>
+          </div>
           {/* THE MIC AND THE SUBMIT SHARE ONE ROW, microphone on the left and
               the primary action on the right. They used to stack, submit
               above `Listen`, which put a secondary control under the primary
@@ -438,14 +473,15 @@ export function SearchPanes({
               itself; sharing the row with the mic control means a full-width
               button would push the mic beneath it, the exact stacking this
               tidy removes. Both controls keep the shared 44px tap height. */}
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <VoiceInput inputRef={inputRef} formRef={formRef} sourceLanguage={direction.from} />
-            <Button type="submit" disabled={isSearching} className="h-11">
-              {isSearching && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+          <div className="mt-4 flex w-full items-center justify-between gap-2">
+            <VoiceInput inputRef={inputRef} formRef={formRef} sourceLanguage={direction.from} className="shrink-0" />
+            {/* The primary action takes whatever the mic leaves on a phone and
+                shrinks back to its own width from `sm` up, where a button
+                stretched across the card reads as a banner. */}
+            <Button type="submit" pending={isSearching} className="h-11 flex-1 sm:flex-none">
               {isSearching ? t('search.submitting') : t('search.submit')}
             </Button>
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">{t('search.note')}</p>
         </div>
       </Form>
 
@@ -466,6 +502,7 @@ export function SearchPanes({
                 button rather than one still reading "Copied". */}
             <ResultField
               key={resultText}
+              isStale={isSearching}
               text={resultText}
               allText={translation.allText}
               hasAlternatives={translation.alternatives.length > 0}

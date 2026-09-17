@@ -35,6 +35,18 @@ export * from './schema/translation-runs';
 // reasons are written out in full at the top of the file.
 export * from './schema/phrase-translations';
 
+// Explanations: one free-text question about words, answered as a structured
+// document by a model. The run record AND the cache, like the phrase table
+// above, and deliberately NOT dictionary data: the reasons are written out in
+// full at the top of the file.
+export * from './schema/explanations';
+
+// Explanation asks: which reader asked which question, and when. The reader
+// half of the explain feature, kept OUT of the readerless ledger above on
+// purpose. One row per distinct ask per reader, moved rather than duplicated by
+// a repeat. Reached through `getRawDb()`.
+export * from './schema/explanation-asks';
+
 // Reader votes on an enrichment and on a single translation edge, plus the
 // per-headword re-enrichment cooldown. All three describe the shared
 // dictionary, and all three are reached through `getRawDb()`.

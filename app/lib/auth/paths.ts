@@ -15,3 +15,15 @@ export const SIGN_IN_PATH = '/sign-in';
 
 /** Where a reader creates one. */
 export const SIGN_UP_PATH = '/sign-up';
+
+/**
+ * The front door itself: what this product does, and the two doors above.
+ *
+ * WHERE A SIGNED-OUT VISITOR WITH NOTHING TYPED IS SENT. `/` renders the app
+ * shell, and a stranger inside it meets a sidebar, a language bar and a mode
+ * switch that all refuse them, so the landing branch of `routes/translate.tsx`
+ * hops here instead. It lives beside the two door paths because it is one of
+ * them in every way that matters: the same three screens make up the whole
+ * surface somebody without an account can see.
+ */
+export const WELCOME_PATH = '/welcome';

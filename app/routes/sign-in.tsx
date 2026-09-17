@@ -19,7 +19,7 @@
  * here would let a crafted link bounce a reader onto somebody else's site with
  * a fresh session in their browser.
  */
-import { Form, redirect, type MetaFunction } from 'react-router';
+import { Form, redirect, useNavigation, type MetaFunction } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import type { Route } from './+types/sign-in';
@@ -94,6 +94,11 @@ function safeNext(raw: string): string {
 
 export default function SignInRoute({ loaderData, actionData }: Route.ComponentProps) {
   const { t } = useTranslation();
+  // ONE NAVIGATION STATE IS ENOUGH HERE, and that is a fact about the screen
+  // rather than a shortcut. The resend form and the sign-in form are two
+  // BRANCHES of this component: whichever one is on screen is the only form
+  // there is, so a post in flight can only belong to it.
+  const isSubmitting = useNavigation().state !== 'idle';
 
   if (actionData?.status === 'resent') {
     return <AuthCard title={t('account.checkInboxTitle')} description={t('account.checkInboxBody')} />;
@@ -108,7 +113,9 @@ export default function SignInRoute({ loaderData, actionData }: Route.ComponentP
         <Form method="post" className="flex flex-col gap-4">
           <input type="hidden" name="intent" value="resend" />
           <input type="hidden" name="email" value={actionData.email} />
-          <Button type="submit">{t('account.resendAction')}</Button>
+          <Button type="submit" pending={isSubmitting}>
+            {isSubmitting ? t('auth.sendingAgain') : t('account.resendAction')}
+          </Button>
         </Form>
       </AuthCard>
     );
@@ -132,7 +139,9 @@ export default function SignInRoute({ loaderData, actionData }: Route.ComponentP
         <AuthField name="password" label={t('account.passwordLabel')} type="password" autoComplete="current-password" />
         {actionData?.status === 'invalid-email' && <AuthNotice>{t('account.invalidEmail')}</AuthNotice>}
         {actionData?.status === 'failed' && <AuthNotice>{t('account.signInFailed')}</AuthNotice>}
-        <Button type="submit">{t('account.signInAction')}</Button>
+        <Button type="submit" pending={isSubmitting}>
+          {isSubmitting ? t('auth.signingIn') : t('account.signInAction')}
+        </Button>
       </Form>
 
       <div className="flex flex-col gap-2 border-t pt-5 text-sm text-muted-foreground">

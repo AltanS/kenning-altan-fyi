@@ -382,9 +382,12 @@ address and password, nothing revealed and nothing to write down. A reader who
 forgets their password uses `/forgot-password` to request a mailed reset link;
 no screen in this flow shows a secret the app cannot show again.
 
-- **Mobile:** A fixed bottom tab bar (`app/components/bottom-nav.tsx`) links to
-  Search, Lists, and History. A left-side slide-out drawer holds the full site
-  map, including Settings and Account.
+- **Mobile:** A fixed bottom tab bar (`app/components/bottom-nav.tsx`) carries
+  four tabs, in this order: Translate, Explain, Lists and Favourites. A
+  left-side slide-out drawer holds the full site map, History and Explanations
+  included, plus Settings and Account. History left the bar when Explain
+  arrived: Explain is a thing this app does, and a history is a thing you look
+  back at.
 - **Desktop (`md` and up):** A collapsible sidebar
   (`app/components/app-sidebar.tsx`) displays the full site map, placing
   configuration options below a divider rule.
@@ -393,9 +396,18 @@ All three navigation views read from ONE catalog exported by `app-sidebar.tsx`.
 Update labels and paths in that single file. This shared source prevents routing
 mismatches between menus.
 
-The bottom bar provides three equal, flat tabs. The raised center button from
+The bottom bar provides four equal, flat tabs. The raised center button from
 openplate was removed because this app has no single primary action that users
 tap repeatedly.
+
+**A signed-out reader gets the footer group and nothing else.** Every primary
+destination is behind the account gate, so offering the rows would put six
+links on screen that all end at `/sign-in`. `visiblePrimaryNavigationItems`
+drops them from the sidebar and the drawer, `BottomNav` renders nothing at all,
+and `AppWrapper` drops the bottom padding that reserves room for the bar. The
+flag on the catalog entry, `requiresAccount`, describes the destination and
+gates nothing: `accountMiddleware` is still the only thing that refuses
+anybody.
 
 ---
 

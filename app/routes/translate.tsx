@@ -25,7 +25,7 @@ import { searchHeadwords, searchPhrase } from '#app/lib/dictionary/search.server
 import { listSearchHistory } from '#app/models/search-history.server';
 import { resolveUser } from '#app/middleware/auth';
 import type { AuthenticatedUser } from '#app/middleware/helpers';
-import { SIGN_IN_PATH } from '#app/lib/auth/paths';
+import { SIGN_IN_PATH, WELCOME_PATH } from '#app/lib/auth/paths';
 import { getRawDb } from '#drizzle/db';
 
 // `meta()` runs outside the React tree, so it has no `t`. It goes through the
@@ -111,6 +111,16 @@ export async function loader({ request }: Route.LoaderArgs) {
   //   throw is a `Response` the router turns into an ordinary 302. Nothing here
   //   touches the device's own store: the gate blocks the screen, and a
   //   visitor's local lists and history are untouched by the redirect.
+  //
+  //   THE OPEN BRANCH IS NOW A FRONT DOOR OF ITS OWN (M199). An empty `q` used
+  //   to render the landing pitch inside the whole app shell, so a stranger met
+  //   a sidebar, a language bar and a mode switch they could not use. The
+  //   screen they are owed is `/welcome`, one card in the `_public` layout, and
+  //   this line is the hop to it. The signed-out visitor therefore reaches no
+  //   dictionary query at all now, not even the worked example's.
+  const signedInUser = await resolveUser(request);
+  if (signedInUser === null && q === '') throw redirect(WELCOME_PATH);
+
   const user = q === '' ? null : await requireSignedIn(request);
 
   // WHO IS READING, ASKED SEPARATELY AND ONLY ON THE OPEN BRANCH.
@@ -132,7 +142,10 @@ export async function loader({ request }: Route.LoaderArgs) {
   //   is a read of one reader's own rows and nothing else: it decides no spend,
   //   queues no job and gates nothing, which is the property the paragraph
   //   above is about.
-  const reader = user ?? (await resolveUser(request));
+  //   IT IS THE READ THE HOP ABOVE ALREADY MADE, reused rather than repeated.
+  //   Resolving twice would cost a second indexed row read on every rendered
+  //   search for nothing.
+  const reader = user ?? signedInUser;
   const signedIn = reader !== null;
 
   const db = getRawDb();

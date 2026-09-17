@@ -101,6 +101,15 @@ export default [
   route('/api/translation-phrase', 'routes/api.translation-phrase.ts'),
   route('/api/translation-phrase/retry', 'routes/api.translation-phrase.retry.ts'),
 
+  // The same two halves for a typed QUESTION (M198). Both carry
+  // `authMiddleware` in the file, for the reason the phrase pair does: no public
+  // surface serves an explanation, so an ungated read here would be a way to
+  // reach this installation's paid answers without ever signing in. The retry
+  // path sits under the `/api/explain` prefix as a SECOND segment, and nothing
+  // dynamic stands above it, so there is no segment for it to be swallowed by.
+  route('/api/explain', 'routes/api.explain.ts'),
+  route('/api/explain/retry', 'routes/api.explain.retry.ts'),
+
   // =============================================================================
   // App Shell (sidebar, mobile drawer, bottom tab bar)
   // =============================================================================
@@ -111,23 +120,21 @@ export default [
     // classifies a route: `app/lib/route-classification.ts` records the same
     // fact in one readable place, and a unit test fails when a route file
     // exists in neither.
-    index('routes/translate.tsx'),
-    // `/translate` renders the SAME module as the index route, under a second
-    // id. The stage verification hits `/translate`, and a redirect to `/`
-    // would be a second round trip on every linkable results URL. React
-    // Router's typegen emits ONE `+types/translate` whose `Matches` is a
-    // union of both ids. `/search` WAS this same route's id before today's
-    // rename, and it turned out an open tab, a bookmark and a `?next=` in
-    // flight all still pointed at it, so it now redirects below rather than
-    // 404ing.
     //
-    // BOTH IDS ARE PUBLIC HERE, AND NEITHER IS OPEN. The account rule for this
-    // screen is keyed on the REQUEST, not on the path: an empty `q` is the
-    // landing page and a non-empty `q` needs a session, decided at the top of
-    // the one loader both ids share. Gating the alias from here instead would
-    // gate `/translate?q=` and leave `/?q=`, the primary URL, wide open,
-    // which is the exact hole M184 exists to close.
-    route('/translate', 'routes/translate.tsx', { id: 'translate-alias' }),
+    // IT IS A SHORT LIST SINCE M199. The front door a stranger meets is
+    // `/welcome`, in the `_public` layout at the foot of this file, and it is
+    // a small card with no sidebar, no language bar and no mode switch. Until
+    // then a signed-out visitor was handed the whole app shell around a
+    // screen on which every control refused them.
+    //
+    // THE INDEX IS STILL HERE, AND IT IS NO LONGER OPEN. A route can only sit
+    // in ONE layout, and `/` has to keep the app shell for the reader who is
+    // signed in, so it cannot move into the gated block the way the alias
+    // below did. Its rule is therefore the request-keyed one at the top of
+    // `routes/translate.tsx`'s loader, and it now refuses a signed-out caller
+    // twice over: an empty `q` goes to `/welcome`, any other `q` goes to
+    // `/sign-in?next=` so a shared result link still lands on its result.
+    index('routes/translate.tsx'),
     // `/search` is the route id `/translate` carried until earlier today. A
     // rename is invisible to a tab already open, a bookmark, or a `?next=`
     // already in flight from the account gate, so all three landed on a 404
@@ -173,6 +180,42 @@ export default [
     // shape for it. See `routes/_app.gated.tsx` for why the middleware cannot
     // sit on `_app.tsx` itself.
     layout('routes/_app.gated.tsx', { id: '_app_gated' }, [
+      // `/translate` renders the SAME module as the index route above, under a
+      // second id. React Router's typegen emits ONE `+types/translate` whose
+      // `Matches` is a union of both ids. `/search` WAS this route's id until
+      // M187, and an open tab, a bookmark and a `?next=` in flight all still
+      // pointed at it, so it redirects rather than 404ing (see the public half
+      // above).
+      //
+      // THE ALIAS IS GATED FROM HERE SINCE M199, AND THE INDEX IS NOT. That
+      // asymmetry is deliberate and it is not a hole. `/translate` has no
+      // public half left to preserve: the screen a signed-out visitor is owed
+      // is `/welcome`, and nobody reaches the alias without already knowing
+      // the product. The index cannot follow it in, because a route sits in
+      // one layout and `/` must stay inside the app shell for the reader who
+      // is signed in. The rule that refuses a stranger at `/` therefore stays
+      // in the shared loader, where it is keyed on the REQUEST: this layout is
+      // a SECOND gate over one of the two ids, never the only one. Deleting
+      // the loader rule and trusting this line would reopen `/?q=`, which is
+      // the exact hole M184 exists to close.
+      route('/translate', 'routes/translate.tsx', { id: 'translate-alias' }),
+      // The translator's sibling (M198): a free-text question about words, in,
+      // and a structured explanation out. GATED BY THIS LAYOUT since M199. It
+      // sat in the public half until then, on the argument that its empty-`q`
+      // state was a landing screen a stranger could read for free; `/welcome`
+      // is that screen now, and it says the same thing in one card instead of
+      // in the whole app shell. The request-keyed rule inside `explain.tsx`'s
+      // own loader is left exactly as it was: it is redundant under this
+      // layout and it is harmless, and it is the thing that still holds if the
+      // route is ever moved back out.
+      route('/explain', 'routes/explain.tsx'),
+      // What this reader has asked, and one page per question (M198). The rows
+      // live in `explanation_asks`, which carries the reader; the ANSWERS live
+      // in the readerless `explanations` ledger and are joined on the cache key
+      // the two already share. Gated like every other personal screen, and here
+      // the gate is doing real work: these rows are free text a person typed.
+      route('/explanations', 'routes/explanations.tsx'),
+      route('/explanations/:id', 'routes/explanations.$id.tsx'),
       route('/entry/:headwordId', 'routes/entry.$headwordId.tsx'),
       route('/attribution', 'routes/attribution.tsx'),
       route('/lists', 'routes/lists.tsx'),
@@ -218,6 +261,18 @@ export default [
   ]),
 
   layout('routes/_public.tsx', { id: '_public' }, [
+    // The front door (M199). One card: what this product does, then the two
+    // doors. It is in `_public` and not in the app shell on purpose, and that
+    // is the whole change: a stranger used to be handed the sidebar, the
+    // language bar, the mode switch and the input card, and could operate none
+    // of them. This layout has no navigation at all, so there is nothing on
+    // screen here that refuses the reader looking at it.
+    //
+    // ITS LOADER SENDS A SIGNED-IN READER TO `/`. It refuses nobody: it
+    // answers a question the reader has already finished, exactly as
+    // `/sign-in` and `/sign-up` do.
+    route('/welcome', 'routes/welcome.tsx'),
+
     // The three legal documents, all under `/legal/` rather than at the root.
     // One prefix keeps them together in a sitemap, in a footer and in a link
     // somebody pastes into a support thread, and it leaves the root namespace

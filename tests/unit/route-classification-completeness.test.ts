@@ -34,7 +34,7 @@ import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { CLASSIFIED_ROUTE_FILES, ROUTE_CLASSIFICATION } from '../../app/lib/route-classification';
+import { CLASSIFIED_ROUTE_FILES, PUBLIC_ROUTE_FILES, ROUTE_CLASSIFICATION } from '../../app/lib/route-classification';
 
 /** Resolved from this module's own location, so the working directory is irrelevant. */
 const ROUTES_DIR = resolve(import.meta.dirname, '../../app/routes');
@@ -120,11 +120,34 @@ describe('route classification completeness', () => {
     assert.equal(ROUTE_CLASSIFICATION['api.enrichment-vote.ts'].access, 'gated-inline');
   });
 
-  it('keeps translate.tsx in its own category, and out of the public list', () => {
-    // `translate.tsx` is half public and half gated, decided per request. Calling
-    // it `public` would be a lie that reopens `/?q=`; calling it `gated-layout`
-    // would be a lie that breaks the landing page. It has its own category so
-    // that neither lie is expressible.
-    assert.equal(ROUTE_CLASSIFICATION['translate.tsx'].access, 'landing-loader-split');
+  it('keeps the two explanation screens gated', () => {
+    // THE ROWS ARE FREE TEXT A PERSON TYPED, which makes these two the screens
+    // on this product with the most to lose from a missing gate: a search log
+    // says which words somebody looked up, an ask log says what they wanted to
+    // understand, in their own sentence. Both sit under `_app.gated`, and the
+    // detail screen is gated a second time by its own query, which matches the
+    // reader AND the id so another account's row reads as a 404.
+    assert.equal(ROUTE_CLASSIFICATION['explanations.tsx'].access, 'gated-layout');
+    assert.equal(ROUTE_CLASSIFICATION['explanations.$id.tsx'].access, 'gated-layout');
+    assert.ok(!PUBLIC_ROUTE_FILES.includes('explanations.tsx'));
+    assert.ok(!PUBLIC_ROUTE_FILES.includes('explanations.$id.tsx'));
+  });
+
+  it('keeps translate.tsx gated, and keeps the front door beside it public', () => {
+    // `translate.tsx` was `landing-loader-split` until M199: half public, half
+    // gated, decided per request. The public half is `/welcome` now, so the
+    // file is gated for every signed-out caller and the honest category is
+    // `gated-inline`. It is NOT `gated-layout`: the `_app.gated` block reaches
+    // the `/translate` alias only, and `/` is gated by the rule inside the one
+    // loader they share. Calling it `gated-layout` here is how somebody comes
+    // to delete that rule and reopen `/?q=`.
+    assert.equal(ROUTE_CLASSIFICATION['translate.tsx'].access, 'gated-inline');
+    assert.equal(ROUTE_CLASSIFICATION['explain.tsx'].access, 'gated-layout');
+
+    // And the door it sends a stranger to has to stay open, or the redirect is
+    // a loop: `/welcome` refuses nobody, it only forwards a reader who is
+    // already signed in.
+    assert.equal(ROUTE_CLASSIFICATION['welcome.tsx'].access, 'public');
+    assert.ok(PUBLIC_ROUTE_FILES.includes('welcome.tsx'));
   });
 });

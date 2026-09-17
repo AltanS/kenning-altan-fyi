@@ -1,0 +1,15 @@
+{
+  "meta": {
+    "title": "Willkommen",
+    "description": "Schlage ein Wort in vier Sprachen nach oder frage, wie sich zwei Wörter unterscheiden."
+  },
+  "body": "Schlage ein Wort in vier Sprachen nach oder frage, wie sich zwei Wörter unterscheiden.",
+  "createAction": "Konto erstellen",
+  "signInAction": "Anmelden",
+  "example": {
+    "term": "awkward",
+    "translation": "unangenehm, peinlich, verlegen",
+    "sentence": "This is a bit awkward.",
+    "sentenceTranslation": "Das ist ein bisschen unangenehm."
+  }
+}

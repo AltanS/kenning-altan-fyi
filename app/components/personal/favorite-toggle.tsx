@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useRouteLoaderData } from 'react-router';
+import { toast } from 'sonner';
 import { Button } from '#app/components/ui/button';
 import { favoriteId, isFavorite, putFavorite, removeFavorite } from '#app/lib/local-store';
 import { reportError } from '#app/lib/report-error';
@@ -110,7 +111,14 @@ export function FavoriteToggle({ headwordId, senseId, lemma, translationSnapshot
       } catch (cause) {
         // The state is left as it was, so the star goes on showing what the
         // device actually holds rather than what the tap intended.
+        //
+        // AND THE READER IS TOLD. `reportError` alone sent this to the
+        // operator's console and nothing to the person whose word was not
+        // saved: the star snapped back to empty and looked like a mis-tap.
+        // A failed write is a data change that did not happen, which DESIGN.md
+        // section 7 says must be reported.
         reportError(cause, { scope: 'favorite-toggle-write' });
+        toast.error(t('favourites.saveFailed'));
       } finally {
         setIsWriting(false);
       }

@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useFetcher } from 'react-router';
 import { TranslationVotes } from '#app/components/translation-votes';
 import { Button } from '#app/components/ui/button';
+import { Skeleton } from '#app/components/ui/skeleton';
 import type { LanguageCode } from '#app/lib/dictionary/detect-language';
 import type { TranslationPanel, TranslationRefusal, TranslationRow } from '#app/lib/translation/panel.server';
 import {
@@ -16,12 +16,14 @@ import {
   translationPaneRows,
   translationPaneText,
   translationPaneView,
+  translationPaneWaitPhase,
   translationPaneEndpoints,
   translationPaneSeedKey,
   TRANSLATION_POLL_INTERVAL_MS,
   type TranslationPaneState,
   type TranslationPaneTarget,
   type TranslationPaneView,
+  type TranslationWaitPhase,
 } from '#app/lib/translation/pane-state';
 
 /**
@@ -52,6 +54,15 @@ const QUIET_LINE = 'text-sm text-muted-foreground';
 export interface TranslationPaneController {
   /** The one value the pane renders from. */
   view: TranslationPaneView;
+  /**
+   * Which of the three waiting sentences a `translating` pane is showing.
+   *
+   * IT IS NOT A SECOND STATE VALUE, and the one-state-value rule above survives
+   * it. `view` still decides which branch renders; this only decides which
+   * sentence that one branch prints, and it is meaningless on every other
+   * branch, where it answers `first` and nothing reads it.
+   */
+  waitPhase: TranslationWaitPhase;
   /**
    * Every row of the answer, in the order the server sent them. Empty for every
    * view but `ready`.
@@ -262,6 +273,7 @@ export function useTranslationPane({ panel, target }: UseTranslationPaneParams):
 
   return {
     view: translationPaneView(state),
+    waitPhase: translationPaneWaitPhase(state),
     rows: translationPaneRows(state),
     primary: translationPanePrimary(state, chosenId),
     alternatives: translationPaneAlternatives(state, chosenId),
@@ -318,8 +330,13 @@ export function translationBudgetKey(reason: TranslationRefusal | null): string 
  * has no way to know whether it means "computed", "recent" or "unreliable", so
  * the marker carries the sentence with it: `title` for a pointer, and a press
  * that reveals the same line for a touch screen, which has no hover at all.
+ *
+ * IT IS EXPORTED, AND `ExplanationCard` IS THE ONLY OTHER CALLER (M198). An
+ * explanation is written by a model start to finish, so it carries the same
+ * disclosure, and a second copy of it would be a second sentence about the same
+ * fact: DESIGN.md section 9 rule 7 says one phrasing per idea.
  */
-function GeneratedMarker() {
+export function GeneratedMarker() {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const hint = t('translation.generatedHint');
@@ -331,7 +348,10 @@ function GeneratedMarker() {
         title={hint}
         aria-expanded={isOpen}
         onClick={() => setIsOpen((previous) => !previous)}
-        className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+        // A 44px tap target on a phone and the card's own compact height from
+        // `sm` up: this marker sits inline with the word, so a permanent 44px
+        // box would push every answer line apart on a desktop card.
+        className="inline-flex min-h-11 items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:min-h-0"
       >
         {t('translation.generated')}
       </button>
@@ -379,6 +399,43 @@ function TranslationLine({ row, word, votes }: { row: TranslationRow; word: Reac
       </div>
       {row.note !== null && <p className={`mt-1 ${QUIET_LINE}`}>{row.note}</p>}
     </>
+  );
+}
+
+/** The sentence each waiting phase prints, as a table over the union. */
+const WAIT_PHASE_KEYS = {
+  first: 'translation.translating',
+  second: 'translation.translatingStill',
+  third: 'translation.translatingLonger',
+} satisfies Record<TranslationWaitPhase, string>;
+
+/**
+ * What a waiting pane draws: the shape of the answer, and a line that changes
+ * as the wait grows.
+ *
+ * A SKELETON RATHER THAN A SPINNER ALONE (DESIGN.md section 7). Three short
+ * bars stand where the word, its part of speech and its note will be, so the
+ * card keeps its height and the answer does not shove the page down when it
+ * lands. They are `aria-hidden`: a screen reader is told the state by the
+ * sentence under them, and three empty boxes announced as content would be
+ * noise.
+ *
+ * THE LINE IS PHASED, AND EVERY PHASE IS TRUE WHEN IT IS SHOWN. One sentence
+ * held for most of a minute reads as a frozen screen; a progress bar would be a
+ * number this app cannot know. `pane-state.ts` owns the thresholds.
+ */
+function TranslatingView({ phase }: { phase: TranslationWaitPhase }) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="mt-2 flex flex-col gap-3">
+      <div className="flex flex-col gap-2" aria-hidden="true">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-3 w-44" />
+      </div>
+      <p className={QUIET_LINE}>{t(WAIT_PHASE_KEYS[phase])}</p>
+    </div>
   );
 }
 
@@ -482,12 +539,7 @@ export function TranslationPane({ controller, to }: TranslationPaneProps) {
   }
 
   if (view === 'translating') {
-    return (
-      <p className={`mt-2 flex items-center gap-2 ${QUIET_LINE}`}>
-        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-        {t('translation.translating')}
-      </p>
-    );
+    return <TranslatingView phase={controller.waitPhase} />;
   }
 
   if (view === 'stalled') {
@@ -498,8 +550,8 @@ export function TranslationPane({ controller, to }: TranslationPaneProps) {
     return (
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <p className={QUIET_LINE}>{t('translation.failed')}</p>
-        <Button type="button" variant="outline" size="sm" onClick={controller.retry} disabled={controller.isRetrying}>
-          {t('translation.retry')}
+        <Button type="button" variant="outline" size="sm" onClick={controller.retry} pending={controller.isRetrying}>
+          {controller.isRetrying ? t('translation.retrying') : t('translation.retry')}
         </Button>
       </div>
     );

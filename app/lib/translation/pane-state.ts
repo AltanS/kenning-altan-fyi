@@ -36,24 +36,106 @@ export const TRANSLATION_POLL_INTERVAL_MS = 3000;
  */
 export const TRANSLATION_STALL_AFTER_MS = 90_000;
 
+/**
+ * When the waiting line changes, in milliseconds of polling.
+ *
+ * TWO THRESHOLDS, NOT A COUNTDOWN. A model call here settles in a few seconds
+ * or in most of a minute, and nothing on the server can say which, so a
+ * progress bar would be an invented number. Three sentences, each true when it
+ * is shown, are what a reader can act on: the first says work started, the
+ * second says it is still being written, the third says a long word is a long
+ * wait. `TRANSLATION_STALL_AFTER_MS` above is the fourth and last change, and
+ * it is the one that stops the polling.
+ *
+ * THEY ARE READ OFF THE TICK COUNTER, NOT OFF A WALL CLOCK, which is the same
+ * `elapsedMs` the stall rule uses. That counter advances one poll interval at a
+ * time, so a phase turns over at the first tick past its threshold rather than
+ * exactly on it. Aging the pane from a second timer would give this machine two
+ * ideas of how long it has been waiting.
+ */
+export const TRANSLATION_PHASE_SECOND_MS = 8_000;
+
+/** The third and last waiting line. See `TRANSLATION_PHASE_SECOND_MS`. */
+export const TRANSLATION_PHASE_THIRD_MS = 25_000;
+
+/** Which of the three waiting sentences a `translating` pane is showing. */
+export type TranslationWaitPhase = 'first' | 'second' | 'third';
+
+/**
+ * The waiting phase for an elapsed count.
+ *
+ * IT IS PURE AND TAKES A NUMBER, so the thresholds can be driven directly by a
+ * unit test in a repo with no DOM, exactly as the rest of this module is.
+ *
+ * @param elapsedMs Milliseconds spent polling the current `translating` panel.
+ * @returns Which of the three sentences belongs on screen.
+ */
+export function waitPhaseFor(elapsedMs: number): TranslationWaitPhase {
+  if (elapsedMs >= TRANSLATION_PHASE_THIRD_MS) return 'third';
+  if (elapsedMs >= TRANSLATION_PHASE_SECOND_MS) return 'second';
+  return 'first';
+}
+
+/**
+ * The waiting phase this pane is in.
+ *
+ * IT ANSWERS `first` FOR EVERY SETTLED PANE, and that is deliberate rather than
+ * a fallback: nothing renders a waiting line on a pane that is not waiting, and
+ * a phase that went on climbing after an answer arrived would be a second clock
+ * running behind a finished screen.
+ *
+ * @param state Where the pane stands.
+ * @returns Which of the three sentences belongs on screen.
+ */
+export function translationPaneWaitPhase<Panel extends PanePanel = TranslationPanel>(
+  state: TranslationPaneState<NoInfer<Panel>>,
+): TranslationWaitPhase {
+  return state.panel.state === 'translating' ? waitPhaseFor(state.elapsedMs) : 'first';
+}
+
+/**
+ * The six states every waiting pane in this app reports, and the ONLY field this
+ * machine reads off a panel.
+ *
+ * WHY THE MACHINE IS GENERIC OVER THE PANEL AT ALL (M198). There are two panes
+ * now: the translator's, whose `ready` carries dictionary rows, and the explain
+ * screen's, whose `ready` carries a structured document. Everything else about
+ * them is the same, the same six server states, the same ninety second stall
+ * rule, the same "only a terminal poll may overwrite" rule and the same refusal
+ * copy. Copying the reducer for the second pane would have been two stall rules
+ * and two ideas of what "translating" means, drifting within a milestone, which
+ * is the mistake `useTranslationPane` already refused to make for the phrase
+ * branch. So the ready PAYLOAD is the type parameter and nothing else is.
+ *
+ * THE CONSTRAINT IS DERIVED FROM `TranslationPanel`, not written out a second
+ * time, so a seventh state added there cannot quietly leave a second pane
+ * behind.
+ */
+export type PanePanelState = TranslationPanel['state'];
+
+/** The least a panel has to be for this machine to run on it. */
+export interface PanePanel {
+  state: PanePanelState;
+}
+
 /** Everything the pane holds: the server's answer, and how long it has waited for a better one. */
-export interface TranslationPaneState {
+export interface TranslationPaneState<Panel extends PanePanel = TranslationPanel> {
   /** The most recent panel the SERVER produced, from the loader, a poll or a retry. */
-  panel: TranslationPanel;
+  panel: Panel;
   /** Milliseconds spent polling since the current `translating` panel was adopted. */
   elapsedMs: number;
 }
 
 /** The four things that can happen to the pane. */
-export type TranslationPaneAction =
+export type TranslationPaneAction<Panel extends PanePanel = TranslationPanel> =
   /** A poll interval fired. It is the tick that ages the pane, not a wall clock read. */
   | { type: 'tick' }
   /** A poll came back with a panel. */
-  | { type: 'polled'; panel: TranslationPanel }
+  | { type: 'polled'; panel: Panel }
   /** A poll threw, or answered with a status this pane will not read. */
   | { type: 'poll-failed' }
   /** The retry route answered. Its panel is the reader's own request and is always adopted. */
-  | { type: 'adopted'; panel: TranslationPanel };
+  | { type: 'adopted'; panel: Panel };
 
 /**
  * The one value the pane renders from.
@@ -142,7 +224,7 @@ export function translationPaneSeedKey(target: TranslationPaneTarget): string {
 }
 
 /** The pane as it stands the moment the page renders, before any poll. */
-export function initialTranslationPaneState(panel: TranslationPanel): TranslationPaneState {
+export function initialTranslationPaneState<Panel extends PanePanel>(panel: Panel): TranslationPaneState<Panel> {
   return { panel, elapsedMs: 0 };
 }
 
@@ -156,7 +238,7 @@ export function initialTranslationPaneState(panel: TranslationPanel): Translatio
  * poll forever. A poll answering `no-entry` is a stale id, which must not wipe
  * an answer already on screen.
  */
-function isTerminal(panel: TranslationPanel): boolean {
+function isTerminal(panel: PanePanel): boolean {
   return panel.state === 'ready' || panel.state === 'failed' || panel.state === 'budget';
 }
 
@@ -172,10 +254,18 @@ function isTerminal(panel: TranslationPanel): boolean {
  * @param action What just happened.
  * @returns The next state, or the same object when nothing changed.
  */
-export function translationPaneReducer(
-  state: TranslationPaneState,
-  action: TranslationPaneAction,
-): TranslationPaneState {
+export function translationPaneReducer<Panel extends PanePanel = TranslationPanel>(
+  // `NoInfer` ON BOTH PARAMETERS, AND THE DEFAULT IS WHAT DOES THE WORK.
+  // Without it TypeScript infers `Panel` from whichever argument it sees first,
+  // so a state holding a `translating` panel narrows `Panel` to that ONE member
+  // and the `polled` action is then rejected for carrying a `ready` one, which
+  // is the whole transition. Pinning both to the default keeps the translator's
+  // call sites, and its tests, reading exactly as they did; the explain pane
+  // passes `<ExplainPanel>` explicitly, which is the one place the payload is
+  // genuinely something else.
+  state: TranslationPaneState<NoInfer<Panel>>,
+  action: TranslationPaneAction<NoInfer<Panel>>,
+): TranslationPaneState<Panel> {
   switch (action.type) {
     case 'tick':
       // Only a waiting pane ages. Ticking a settled one would eventually push it
@@ -204,7 +294,9 @@ export function translationPaneReducer(
  * It is mapped rather than thrown, because a pane is not the place to take a
  * screen down over a state nobody can reach.
  */
-export function translationPaneView(state: TranslationPaneState): TranslationPaneView {
+export function translationPaneView<Panel extends PanePanel = TranslationPanel>(
+  state: TranslationPaneState<NoInfer<Panel>>,
+): TranslationPaneView {
   const { panel } = state;
   if (panel.state === 'ready') return 'ready';
   if (panel.state === 'failed') return 'failed';
@@ -216,8 +308,13 @@ export function translationPaneView(state: TranslationPaneState): TranslationPan
 }
 
 /** Whether the pane should still be asking. It stops the moment it stalls or settles. */
-export function isTranslationPanePolling(state: TranslationPaneState): boolean {
-  return translationPaneView(state) === 'translating';
+export function isTranslationPanePolling<Panel extends PanePanel = TranslationPanel>(
+  state: TranslationPaneState<NoInfer<Panel>>,
+): boolean {
+  // Explicit, because `translationPaneView` pins its own parameter with
+  // `NoInfer` for the reason written on the reducer above, so it cannot pick the
+  // type up from this call.
+  return translationPaneView<Panel>(state) === 'translating';
 }
 
 /** The rows to render, or an empty list for every state that has none. */

@@ -154,7 +154,19 @@ const namespaces = readdirSync(join(REPO_ROOT, LOCALES_DIRECTORY, REFERENCE_LOCA
   .toSorted();
 
 /** Namespaces the app ships today. A missing one is a packaging bug. */
-const REQUIRED_NAMESPACES = ['common', 'legal'];
+const REQUIRED_NAMESPACES = ['common', 'legal', 'welcome'];
+
+/**
+ * The size the reference catalog of a LARGE namespace has to clear, so that a
+ * discovery which read nothing cannot pass every assertion below.
+ *
+ * IT IS NOT APPLIED TO EVERY NAMESPACE. `welcome` is one screen, a sentence
+ * and two buttons, and a floor of twenty would be a test demanding that copy
+ * be padded. The floor's job is to prove the READER works, and two catalogs
+ * over it prove that; every namespace, including the small one, still has to
+ * be non-empty.
+ */
+const SUBSTANTIAL_NAMESPACES = new Set(['common', 'legal']);
 
 const catalogs = new Map(
   locales.flatMap((locale) =>
@@ -179,9 +191,10 @@ describe('i18n locale catalogs', () => {
     // A discovery that reads nothing would pass every assertion below.
     for (const namespace of namespaces) {
       const reference = catalogFor(REFERENCE_LOCALE, namespace);
+      const floor = SUBSTANTIAL_NAMESPACES.has(namespace) ? 20 : 1;
       assert.ok(
-        reference.values.size >= 20,
-        `expected at least 20 keys in ${reference.file}, flattened ${reference.values.size}`,
+        reference.values.size >= floor,
+        `expected at least ${floor} key(s) in ${reference.file}, flattened ${reference.values.size}`,
       );
     }
   });

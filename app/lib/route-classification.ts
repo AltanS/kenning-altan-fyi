@@ -41,11 +41,19 @@ export type RouteAccess =
   /** Reachable by anyone, signed in or not, with no account check anywhere in the file. */
   | 'public'
   /**
-   * `translate.tsx`, and only `translate.tsx`. One file, two route ids, and a rule
-   * keyed on the REQUEST inside the one loader they share: an empty `q` is the
-   * public landing page, any non-empty `q` requires an account. Its own
-   * category because neither `public` nor `gated-layout` is true of it, and
-   * calling it either one is how the hole reopens.
+   * A rule keyed on the REQUEST inside the file's own loader, where an empty
+   * `q` is a PUBLIC landing page and any non-empty `q` requires an account.
+   *
+   * NO FILE IS THIS TODAY. `translate.tsx` and `explain.tsx` both were until
+   * M199, which gave a visitor with no account a front door of their own at
+   * `/welcome`. There is no public landing state left on either screen, so
+   * `translate.tsx` is `gated-inline` and `explain.tsx` is `gated-layout`.
+   *
+   * The category stays for the reason `unrouted` does. It is the shape of a
+   * real mistake: `translate.tsx` is still one file under TWO route ids, `/`
+   * and `/translate`, and a path-keyed rule gated the alias and left the
+   * primary URL open once already. If a public landing state ever comes back
+   * to a half-gated screen, it is this and not `public`.
    */
   | 'landing-loader-split'
   /** Gated by `middleware` on a layout it is nested under in `app/routes.ts`. */
@@ -91,7 +99,8 @@ export const ROUTE_CLASSIFICATION = {
   // ── The app shell ──────────────────────────────────────────────────────
   '_app.tsx': {
     access: 'public',
-    reason: 'The shell itself. It carries no middleware on purpose, because `/` inside it must render for a stranger.',
+    reason:
+      'The shell itself. It carries no middleware on purpose: `/`, `/account`, `/offline` and `/sign-out` all sit directly under it and each has to answer a caller with no session, so the gate belongs on the `_app.gated` block beside them rather than here.',
   },
   '_auth-shell.tsx': {
     access: 'public',
@@ -103,9 +112,19 @@ export const ROUTE_CLASSIFICATION = {
     reason: 'The pathless layout that carries `authMiddleware`. Everything nested under it inherits the gate.',
   },
   'translate.tsx': {
-    access: 'landing-loader-split',
+    access: 'gated-inline',
     reason:
-      'Served at `/` and at `/translate`. Empty `q` is public, any non-empty `q` requires an account, decided in the one shared loader.',
+      'Served at `/` and at `/translate`, and the rule for both is the request-keyed one at the top of the one loader they share: an empty `q` hops to `/welcome` and any other `q` to `/sign-in?next=`, so no signed-out caller is served either way. `/translate` also sits under `_app.gated` since M199, as a second gate; `/` cannot, because a route sits in one layout and the index must keep the app shell for the reader who is signed in. Do not delete the loader rule and trust the layout: that reopens `/?q=`, which is the hole M184 closed.',
+  },
+  'explain.tsx': {
+    access: 'gated-layout',
+    reason:
+      'Under `_app.gated` since M199. It was `landing-loader-split` until then, and the request-keyed rule in its own loader is deliberately left in place: redundant under the layout, harmless, and the thing that still holds if the route is ever moved back out.',
+  },
+  'welcome.tsx': {
+    access: 'public',
+    reason:
+      'The front door, and the one screen a visitor with no account is meant to see. Its loader sends a reader who ALREADY holds a session on to `/`: it refuses nobody, it answers a finished question, exactly as `sign-in.tsx` does.',
   },
   'search-redirect.ts': {
     access: 'public',
@@ -164,6 +183,16 @@ export const ROUTE_CLASSIFICATION = {
   'lists.$listId.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },
   'lists.$listId.review.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },
   'review.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },
+  'explanations.tsx': {
+    access: 'gated-layout',
+    reason:
+      'Under `_app.gated`. The rows are free text this reader typed, so the gate is the whole point rather than a formality.',
+  },
+  'explanations.$id.tsx': {
+    access: 'gated-layout',
+    reason:
+      'Under `_app.gated`, and gated a second time by the query: `getExplanationAsk` matches the user AND the id, so another account\'s row reads as a 404. Its loader resolves the panel READ-ONLY and can never enqueue.',
+  },
   'favourites.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },
   'history.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },
   'settings.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },
@@ -224,6 +253,16 @@ export const ROUTE_CLASSIFICATION = {
     reason:
       'It exports `middleware = [authMiddleware]`. It starts a billed phrase run, so it is the half of the phrase pair that spends money.',
   },
+  'api.explain.ts': {
+    access: 'gated-inline',
+    reason:
+      'It exports `middleware = [authMiddleware]`, which under `/api/` refuses with a 401 in JSON. It never enqueues, but no public surface serves an explanation, so reading one needs an account.',
+  },
+  'api.explain.retry.ts': {
+    access: 'gated-inline',
+    reason:
+      'It exports `middleware = [authMiddleware]`. It starts a billed explain run, so it is the half of the explain pair that spends money.',
+  },
   'api.v1.transcribe.ts': {
     access: 'gated-inline',
     reason:
@@ -274,9 +313,12 @@ export const CLASSIFIED_ROUTE_FILES: readonly string[] = Object.keys(ROUTE_CLASS
 /**
  * The files an anonymous request can reach in full.
  *
- * `landing-loader-split` is deliberately NOT in here: half of that file is
+ * `landing-loader-split` is deliberately NOT in here: half of such a file is
  * public and half of it is not, and a list that called it either would be a
- * lie in one direction or the other.
+ * lie in one direction or the other. No file is that category today, and the
+ * filter stays keyed on `public` rather than on "everything but the gated
+ * ones" so that the next one to arrive is excluded without anybody
+ * remembering to exclude it.
  */
 export const PUBLIC_ROUTE_FILES: readonly string[] = Object.entries(ROUTE_CLASSIFICATION)
   .filter(([, classification]) => classification.access === 'public')

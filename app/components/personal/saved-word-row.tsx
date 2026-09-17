@@ -6,12 +6,17 @@ import { LANGUAGE_NAMES } from '#app/lib/dictionary/language-pair';
 /**
  * A language as the reader should see it named.
  *
+ * EXPORTED, because the kept-explanation row on `/favourites` names its pair
+ * with the same sentence and must name the languages the same way. A second
+ * lookup there would be a second fallback rule, and the two would disagree on
+ * the day a language is added.
+ *
  * NATIVE, AND NEVER TRANSLATED, which is `LANGUAGE_NAMES`'s own rule: a reader
  * finds their own language in a list they cannot otherwise read. A code that is
  * not served falls back to the code itself rather than to a lookup miss, which
  * a stored row from an older build could produce.
  */
-function languageName(code: string): string {
+export function languageName(code: string): string {
   return Object.entries(LANGUAGE_NAMES).find(([served]) => served === code)?.[1] ?? code;
 }
 
@@ -75,7 +80,11 @@ export function SavedWordRow({ term, answer, from, to, href, ariaLabel, trailing
   return (
     <li className="border-b last:border-b-0">
       <div className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-primary/5">
-        <Link to={href} aria-label={ariaLabel} className="min-w-0 flex-1 hover:underline">
+        <Link
+          to={href}
+          aria-label={ariaLabel}
+          className="min-w-0 flex-1 rounded-md outline-none hover:underline focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
           {/* The word and the answer as ONE line, so the arrow between them is
               part of a translated sentence rather than a glyph this file
               invented. The pair sits under it, quieter, because it answers a

@@ -17,7 +17,7 @@
  * so the honest recovery is the resend button on the same screen; a retry queue
  * would be a second thing that can be wrong about whether a mail went out.
  */
-import { Form, redirect, type MetaFunction } from 'react-router';
+import { Form, redirect, useNavigation, type MetaFunction } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import type { Route } from './+types/sign-up';
@@ -86,6 +86,9 @@ export async function action({ request }: Route.ActionArgs): Promise<SignUpResul
 
 export default function SignUpRoute({ actionData }: Route.ComponentProps) {
   const { t } = useTranslation();
+  // The resend form and the create form are two BRANCHES of this component,
+  // never both on screen, so one navigation state names the form in flight.
+  const isSubmitting = useNavigation().state !== 'idle';
 
   if (actionData?.status === 'mailed' || actionData?.status === 'resent' || actionData?.status === 'mail-failed') {
     return (
@@ -95,8 +98,8 @@ export default function SignUpRoute({ actionData }: Route.ComponentProps) {
         <Form method="post" className="flex flex-col gap-4">
           <input type="hidden" name="intent" value="resend" />
           <input type="hidden" name="email" value={actionData.email} />
-          <Button type="submit" variant="outline">
-            {t('account.resendAction')}
+          <Button type="submit" variant="outline" pending={isSubmitting}>
+            {isSubmitting ? t('auth.sendingAgain') : t('account.resendAction')}
           </Button>
         </Form>
       </AuthCard>
@@ -136,7 +139,9 @@ export default function SignUpRoute({ actionData }: Route.ComponentProps) {
         {actionData?.status === 'invalid-password' && (
           <AuthNotice>{t('account.passwordTooShort', { min: MIN_PASSWORD_LENGTH })}</AuthNotice>
         )}
-        <Button type="submit">{t('account.createAction')}</Button>
+        <Button type="submit" pending={isSubmitting}>
+          {isSubmitting ? t('auth.creatingAccount') : t('account.createAction')}
+        </Button>
       </Form>
     </AuthCard>
   );

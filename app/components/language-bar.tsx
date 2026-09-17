@@ -15,6 +15,16 @@ import {
 } from '#app/lib/dictionary/language-pair';
 import { persistLanguagePair } from '#app/lib/local-store';
 
+/**
+ * The label over each select.
+ *
+ * THE SAME SMALL UPPERCASE TREATMENT THE ANSWER SECTIONS USE, so a label reads
+ * as a label rather than as the first line of the control. `mb-1` and nothing
+ * else for spacing: the grid owns the horizontal gaps, and a label that set its
+ * own would drift out of the column it names.
+ */
+const LABEL_RECIPE = 'mb-1 text-[11px] font-semibold uppercase tracking-[0.11em] text-brand-ink';
+
 /** What the bar needs from the screen around it. */
 export interface LanguageBarProps {
   /** The pair this page was rendered with, resolved from the URL, then the cookie, then the default. */
@@ -25,6 +35,31 @@ export interface LanguageBarProps {
   q: string;
   /** The one search form. The bar submits it and writes into it, and owns neither. */
   formRef: RefObject<HTMLFormElement | null>;
+  /**
+   * What the two selects are called on THIS screen.
+   *
+   * THE TWO SIDES MEAN DIFFERENT THINGS ON DIFFERENT SCREENS, and the label is
+   * the only place that difference can live. On the translator the target is the
+   * language to translate INTO; on `/explain` it is the language the answer is
+   * WRITTEN IN. The bar is one component either way, so the sentence above it is
+   * what tells them apart.
+   *
+   * OMITTED MEANS THE TRANSLATOR'S OWN PAIR, not "no labels". Two unnamed
+   * dropdowns over a text box is a guess a reader has to make, and the guess is
+   * wrong half the time: the screen reader was told what they were and the
+   * person looking at them was not.
+   */
+  labels?: { source: string; target: string };
+  /**
+   * Whether "Detect language" is offered.
+   *
+   * TRUE ON THE TRANSLATOR AND FALSE WHERE A QUESTION IS ASKED. Detection reads
+   * the typed text to decide which side of the dictionary it belongs to, and a
+   * question is written in the reader's OWN language about words in another, so
+   * the text and the words it asks about are on opposite sides. Detection would
+   * read the question.
+   */
+  allowDetect?: boolean;
   className?: string;
 }
 
@@ -66,10 +101,19 @@ export interface LanguageBarProps {
  * pair, and a new key is React's own way of saying that the old selection is
  * finished rather than stale.
  */
-export function LanguageBar({ pair, direction, q, formRef, className }: LanguageBarProps) {
+export function LanguageBar({ pair, direction, q, formRef, labels, allowDetect = true, className }: LanguageBarProps) {
   const { t } = useTranslation();
   const sourceId = useId();
   const targetId = useId();
+  const sourceLabelText = labels?.source ?? t('search.fromLabel');
+  const targetLabelText = labels?.target ?? t('search.intoLabel');
+  // Radix renders each trigger as a button, and a `<label htmlFor>` on a button
+  // focuses it on click but is not reliably read as its name. `aria-labelledby`
+  // is, so the visible label does both jobs and the `aria-label` that used to
+  // carry the name alone is gone: two names on one control is how a screen
+  // reader comes to announce something the screen does not say.
+  const sourceLabelId = `${sourceId}-label`;
+  const targetLabelId = `${targetId}-label`;
   const [source, setSource] = useState<SourceSelection>(pair.source);
   const [target, setTarget] = useState<LanguageCode>(pair.target);
   // Whether the last state change came from the reader rather than from the
@@ -131,7 +175,10 @@ export function LanguageBar({ pair, direction, q, formRef, className }: Language
   // detected direction is only knowable after a search has run, which is why
   // both uses below are guarded on there being a query.
   const resolvedSource = source === DETECT ? direction.from : source;
-  const hasResolvedSource = source !== DETECT || q !== '';
+  // A bar with no detection option ALWAYS has a resolved source, so its swap
+  // button is never disabled: there is no state left in which the source side
+  // has no language to move across.
+  const hasResolvedSource = !allowDetect || source !== DETECT || q !== '';
 
   // The trigger says WHAT WAS DETECTED, not merely that detection is on. The
   // chip this bar replaces showed the reader which side of the dictionary
@@ -167,7 +214,22 @@ export function LanguageBar({ pair, direction, q, formRef, className }: Language
           as two boxes that happen to be near it, and the swap button keeps its
           own width in the middle. A phone gets the same row as a desktop, one
           line shorter of nothing. */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-2">
+        {/* THE LABELS ARE CELLS OF THE SAME GRID, so each one sits exactly over
+            the select it names at every width. A separate flex row above would
+            line up by coincidence and stop lining up the first time a track
+            changed, which is the misalignment DESIGN.md section 3 describes.
+            The middle cell is empty and `aria-hidden`: the swap button carries
+            its own accessible name and a blank cell above it would be announced
+            as a heading over nothing. */}
+        <label id={sourceLabelId} htmlFor={sourceId} className={LABEL_RECIPE}>
+          {sourceLabelText}
+        </label>
+        <span aria-hidden="true" className={LABEL_RECIPE} />
+        <label id={targetLabelId} htmlFor={targetId} className={LABEL_RECIPE}>
+          {targetLabelText}
+        </label>
+
         <Select
           value={source}
           onValueChange={(next) => {
@@ -195,14 +257,16 @@ export function LanguageBar({ pair, direction, q, formRef, className }: Language
           <SelectTrigger
             id={sourceId}
             className="h-11 w-full min-w-0 *:data-[slot=select-value]:block *:data-[slot=select-value]:truncate data-[size=default]:h-11"
-            aria-label={t('search.sourceLabel')}
+            aria-labelledby={sourceLabelId}
           >
             <SelectValue>{sourceLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {/* Detection first, because it is the default and the answer for a
-                reader who does not know what they are looking at. */}
-            <SelectItem value={DETECT}>{t('search.detectLanguage')}</SelectItem>
+                reader who does not know what they are looking at. It is absent
+                where the typed text is a QUESTION rather than the words being
+                asked about: see `allowDetect`. */}
+            {allowDetect && <SelectItem value={DETECT}>{t('search.detectLanguage')}</SelectItem>}
             {LANGUAGE_OPTIONS.map((option) => (
               <SelectItem key={option.code} value={option.code}>
                 {option.name}
@@ -239,7 +303,7 @@ export function LanguageBar({ pair, direction, q, formRef, className }: Language
           <SelectTrigger
             id={targetId}
             className="h-11 w-full min-w-0 *:data-[slot=select-value]:block *:data-[slot=select-value]:truncate data-[size=default]:h-11"
-            aria-label={t('search.targetLabel')}
+            aria-labelledby={targetLabelId}
           >
             <SelectValue />
           </SelectTrigger>

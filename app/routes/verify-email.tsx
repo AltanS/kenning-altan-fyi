@@ -13,7 +13,7 @@
  * it is on this screen rather than behind a link for the same reason it is on
  * the sign-up screen: the reader who needs it is already stuck.
  */
-import { Form, type MetaFunction } from 'react-router';
+import { Form, useNavigation, type MetaFunction } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import type { Route } from './+types/verify-email';
@@ -55,6 +55,7 @@ export async function action({ request }: Route.ActionArgs): Promise<{ status: '
 
 export default function VerifyEmailRoute({ loaderData, actionData }: Route.ComponentProps) {
   const { t } = useTranslation();
+  const isSubmitting = useNavigation().state !== 'idle';
 
   if (loaderData.verified) {
     return (
@@ -75,7 +76,9 @@ export default function VerifyEmailRoute({ loaderData, actionData }: Route.Compo
       <Form method="post" className="flex flex-col gap-5">
         <AuthField name="email" label={t('account.emailLabel')} type="email" autoComplete="email" />
         {actionData?.status === 'invalid-email' && <AuthNotice>{t('account.invalidEmail')}</AuthNotice>}
-        <Button type="submit">{t('account.resendAction')}</Button>
+        <Button type="submit" pending={isSubmitting}>
+          {isSubmitting ? t('auth.sendingAgain') : t('account.resendAction')}
+        </Button>
       </Form>
     </AuthCard>
   );

@@ -19,7 +19,7 @@
 
 import { logStartHandler, processDataHandler, generateReportHandler } from './dummy';
 import { enrichHeadwordHandler } from './enrichment';
-import { translateHeadwordHandler, translatePhraseHandler } from './translation';
+import { explainTermsHandler, translateHeadwordHandler, translatePhraseHandler } from './translation';
 
 /**
  * Structured operation handlers organized by domain.
@@ -37,10 +37,11 @@ export const operationHandlers = {
   translation: {
     translateHeadword: translateHeadwordHandler,
     translatePhrase: translatePhraseHandler,
+    explainTerms: explainTermsHandler,
   },
 } as const;
 
 // Re-export individual handlers for direct access if needed
 export { logStartHandler, processDataHandler, generateReportHandler } from './dummy';
 export { enrichHeadwordHandler } from './enrichment';
-export { translateHeadwordHandler, translatePhraseHandler } from './translation';
+export { explainTermsHandler, translateHeadwordHandler, translatePhraseHandler } from './translation';

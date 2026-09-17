@@ -50,6 +50,82 @@ truncating would translate a sentence the reader did not type and present it as
 their answer. This reverses M193 decision 8, which said a phrase creates
 nothing.
 
+### Explain (M198 proposal)
+
+A third sibling of the translation pipeline: a free-text QUESTION about words
+in, a structured explanation out. Same guard order, same pane states, same
+run-record-is-the-cache table shape, same read/trigger split as the phrase path.
+
+The code: `drizzle/schema/explanations.ts`, `app/models/explanations.server.ts`,
+`app/lib/llm/explain-schema.ts`, `app/prompts/explain/`,
+`app/lib/translation/explain-panel.server.ts` and its enqueue, payload and
+pane-endpoint siblings, `app/workflows/operations/translation/explain-terms.ts`
+with its template, the routes `explain.tsx`, `explanations.tsx`,
+`explanations.$id.tsx`, `api.explain.ts` and `api.explain.retry.ts`, the reader's
+own half in `drizzle/schema/explanation-asks.ts` and
+`app/models/explanation-asks.server.ts`, and on the screen
+`app/components/mode-switch.tsx`, `explain-panes.tsx`, `explain-pane.tsx`,
+`explanation-card.tsx`, `explanation-body.tsx`, `copy-text-button.tsx` and
+`explain-landing-hint.tsx`. Tests: `tests/unit/explain-schema.test.ts`,
+`tests/unit/explain-panel-gate.test.ts`, `tests/unit/explain-waiting.test.ts`,
+`tests/unit/explanation-text.test.ts` and
+`tests/unit/explanation-asks-schema.test.ts`.
+
+Four things to know. The ANSWER SHAPE is the feature: `explanationSchema` names
+five parts, and its refinement is the only thing that can check that every
+contrast row is as wide as the term header, so a crooked table is a failed run
+rather than a crooked card. It has ITS OWN QUEUE, `explain-terms`, unlike the
+phrase job which shares the word job's, because an explain call is the slowest
+this app makes; a new queue needs its `stately` policy set in
+`initializeWorkflows` or its singleton key dedupes nothing, silently. The PANE
+STATE MACHINE is shared, not copied: `translationPaneReducer` is generic over
+the ready payload and `NoInfer` pins it to the translator's own type unless a
+caller says otherwise. And NOTHING IS LOGGED TO THE SEARCH HISTORY: a question
+is not a search, and its table carries no reader at all.
+
+Prompt v2 added `references`, up to three places the reader can go and read a
+proper explanation. `title` and `locator` are required, `url` is not, and the
+prompt says why: a model reliably knows that a word has a Duden entry and does
+not reliably know its URL, so a guessed address is refused rather than risked.
+`references` is `.default([])` at the schema, which is load-bearing: every row
+written under v1 is re-parsed with the current schema on every read, and a
+required field would turn every answer already paid for into a row that "does
+not decode".
+
+EVERY ASKED QUESTION IS STORED FOR THE READER, and the ledger still names
+nobody. `explanation_asks` (`drizzle/schema/explanation-asks.ts`,
+`app/models/explanation-asks.server.ts`) is the second table: one row per
+`(user, from, to, question_normalized)`, upserted by `explain.tsx`'s loader after
+the panel resolves and whatever the panel says, so a repeat MOVES `asked_at`
+rather than adding a row. It is modelled on `search_history` down to its indexes.
+The only thing that stops the write is the length cap, because a question over it
+opens no run and could never be answered. `/explanations` lists this reader's
+asks, twenty at a time, with the latest answer's first 140 characters beside each
+one; `/explanations/:id` renders one, through the SAME `useExplainPane`
+controller the inline card uses, so a pending, failed or refused run polls and
+retries there too. Its loader resolves the panel READ-ONLY and can never enqueue:
+opening an old question must not spend money. Every value on that page comes from
+the stored row and only the id comes from the URL.
+
+A local "saved explanations" collection was proposed here first and was retired
+before it shipped: storing by default is strictly better than a keep button
+almost nobody presses, and the device store then held a second copy of an answer
+the server already had. `SCHEMA_VERSION` stays at 3 and the blob carries five
+collections, not six. `explanations` is a shared ledger with no reader on it, so
+it cannot answer "what have I asked"; it is not, and must not become, the place
+that does.
+
+The answer DOCUMENT is rendered by `app/components/explanation-body.tsx`, which
+both screens use. Its `variant` changes the lead size and the heading level and
+NOTHING else, because a reader opening a question they asked last week must meet
+the answer they already read. `app/lib/translation/explanation-text.ts` is the
+same document as plain text for the copy buttons; it names no section, because it
+has no `t` and an English heading over German prose is worse than a blank line.
+
+**The v1 API and the CLI command follow once the output shape is approved.**
+There is deliberately no `/api/v1/explain` and no `pnpm cli explain` in this
+pass.
+
 ### Favourites, history and translation votes (M194)
 
 The code: `app/lib/local-store/favorites.ts` and the `favorites` collection in
@@ -297,23 +373,35 @@ request, not on the path.** Signup is open (M191, [ADR-0011](.adr/0011-plain-acc
 invite and no bootstrap token, so a route decision never needs to ask who
 minted a way in. The contract, in full:
 
-- `/` is public and must stay a `200` for a signed-out stranger, carrying a
-  real worked example. It is the one screen that shows the product without
-  costing a language-model call. Do not gate it.
-- Everything past it needs an account: a typed search, entry pages, lists,
-  history, review, attribution, settings, and `POST /api/v1/transcribe`. That
-  last one was ungated on purpose before M184, and the reversal is deliberate.
+- `/welcome` is the front door, and it must stay a `200` for a signed-out
+  stranger: one card naming the product, with `/sign-up` and `/sign-in` on it.
+  It is in the `_public` layout, NOT in the app shell. Do not gate it, and do
+  not put navigation on it.
+- `/` was that screen until M199, and it is not any more. A stranger there met
+  the whole app shell, a sidebar offering lists, favourites and history, a
+  language bar, an input card and a mode switch, and could use none of it. A
+  signed-out visit to `/` with nothing typed now hops to `/welcome`, and with a
+  query it hops to `/sign-in?next=`, so a shared result link still lands on its
+  result. The worked example survives, on `/` for the reader who is signed in.
+- Everything past the front door needs an account: a typed search, `/explain`,
+  entry pages, lists, history, review, attribution, settings, and
+  `POST /api/v1/transcribe`. That last one was ungated on purpose before M184,
+  and the reversal is deliberate.
 - `/` and `/translate` are two route ids over ONE file, and the product's real
-  URL is `/?q=<word>`. So the rule for that file lives at the top of its loader
-  and reads the REQUEST: an empty `q` is the landing page, any other `q` needs
-  an account. A path-keyed rule gated `/search` (this route's old name) and
-  left `/?q=` wide open once already. Do not write another one.
+  URL is `/?q=<word>`. `/translate` sits under `app/routes/_app.gated.tsx`
+  since M199 and `/` cannot, because a route sits in exactly one layout and the
+  index has to keep the app shell for the reader who is signed in. So the rule
+  for `/` lives at the top of the loader both ids share and reads the REQUEST:
+  an empty `q` hops to `/welcome`, any other `q` to `/sign-in?next=`. Do not
+  delete that rule because the alias is gated by a layout, and do not replace
+  it with a path-keyed one. A path-keyed rule gated `/search` (this route's old
+  name) and left `/?q=` wide open once already.
 - The screens with no public half are gated by nesting under
   `app/routes/_app.gated.tsx`, which carries `accountMiddleware`. That is the
   only app-screen gate. `authMiddleware` also demanded a linked `users` row,
   which almost no account had, and it is gone with that table (ADR-0010).
-- The front door stays open. `/account`, `/sign-in`, `/sign-up` and `/offline`
-  are never gated, because a gate in front of the sign-in page is a gate nobody
+- The front door stays open. `/welcome`, `/account`, `/sign-in`, `/sign-up`
+  and `/offline` are never gated, because a gate in front of the sign-in page is a gate nobody
   can ever pass. `/healthcheck` and `/legal/*` stay public too, and
   `tests/integration/public-surface-*.test.ts` says so in executable form.
 - The doors are `/sign-in` and `/sign-up`. They were `/sync/login` and
@@ -321,12 +409,14 @@ minted a way in. The contract, in full:
   redirect that keeps the query string, from the era when a signup URL carried
   an invite token that had to survive the hop; nothing survives that hop
   today, since there is nothing left to carry.
-- **The home page and `/account` carry both doors.** This reverses the older
-  rule that neither screen may ask anybody to sign up. That rule belonged to an
+- **`/welcome` and `/account` carry both doors.** This reverses the older rule
+  that no screen may ask anybody to sign up. That rule belonged to an
   anonymous-by-default product, and M184 ended it: an account is now required
-  for every search, so a home page with no way in is a wall, not restraint.
+  for every search, so a front door with no way in is a wall, not restraint.
   `/sign-up` is the primary action and `/sign-in` the secondary one on both
-  screens, and the shell header carries the same pair.
+  screens, and the shell header carries the same pair. The home page carried
+  the pair too until M199, which moved the signed-out visitor off it
+  altogether.
 - **An account is an account, and sync is a consequence of holding one.** No
   user-facing screen presents sync as something to set up.
 - **An account is an email address and a password** (M191). Signup is open, and

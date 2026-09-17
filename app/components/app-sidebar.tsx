@@ -3,10 +3,12 @@ import {
   BookMarked,
   Download,
   History,
+  MessagesSquare,
   ScrollText,
   Search,
   Settings,
   ShieldCheck,
+  Sparkles,
   Star,
   UserRound,
   type LucideIcon,
@@ -62,6 +64,18 @@ export type NavigationItem = {
    * never have the row in the DOM at all, not merely hidden with CSS.
    */
   requiresSuperadmin?: boolean;
+  /**
+   * Present on every destination behind the account gate.
+   *
+   * IT DESCRIBES THE DESTINATION, IT DOES NOT GATE IT. The gate is
+   * `accountMiddleware` on `_app.gated.tsx`, on the server, and that is still
+   * the only thing that refuses anybody. This flag exists so the three
+   * navigation surfaces stop OFFERING a signed-out reader six rows that all
+   * end at `/sign-in`: every control on the screen refused them, and the only
+   * way to learn that was to press one, which is the same defect `/welcome`
+   * fixed for the home page.
+   */
+  requiresAccount?: true;
 };
 
 /**
@@ -78,13 +92,35 @@ export type NavigationItem = {
  * looked back over.
  */
 export const navigationItems: NavigationItem[] = [
-  { labelKey: 'nav.search', to: '/', icon: Search, group: 'primary', tab: { order: 1 } },
-  { labelKey: 'nav.lists', to: '/lists', icon: BookMarked, group: 'primary', tab: { order: 2 } },
-  { labelKey: 'nav.favourites', to: '/favourites', icon: Star, group: 'primary', tab: { order: 3 } },
-  { labelKey: 'nav.history', to: '/history', icon: History, group: 'primary', tab: { order: 4 } },
+  { labelKey: 'nav.search', to: '/', icon: Search, group: 'primary', tab: { order: 1 }, requiresAccount: true },
+  {
+    labelKey: 'nav.explain',
+    to: '/explain',
+    icon: MessagesSquare,
+    group: 'primary',
+    tab: { order: 2 },
+    requiresAccount: true,
+  },
+  // The kept explanations, beside Explain because that is where they are made.
+  // No `tab`: four tabs is the bar, and a saved-answer list is a place you go
+  // back to rather than one you work in.
+  { labelKey: 'nav.explanations', to: '/explanations', icon: Sparkles, group: 'primary', requiresAccount: true },
+  { labelKey: 'nav.lists', to: '/lists', icon: BookMarked, group: 'primary', tab: { order: 3 }, requiresAccount: true },
+  {
+    labelKey: 'nav.favourites',
+    to: '/favourites',
+    icon: Star,
+    group: 'primary',
+    tab: { order: 4 },
+    requiresAccount: true,
+  },
+  // NO `tab` SINCE THE EXPLAIN TABS LANDED. The bar holds four, and the fifth
+  // had to be the one a reader consults rather than works in. History keeps its
+  // sidebar and drawer row, so nothing became unreachable.
+  { labelKey: 'nav.history', to: '/history', icon: History, group: 'primary', requiresAccount: true },
   { labelKey: 'nav.settings', to: '/settings', icon: Settings, group: 'footer' },
   { labelKey: 'nav.account', to: '/account', icon: UserRound, group: 'footer' },
-  // No `tab`: the mobile bar stays three tabs. Sources is a licence
+  // No `tab`: the mobile bar stays four tabs. Sources is a licence
   // obligation the reader consults once, not a place they go every day.
   { labelKey: 'nav.attribution', to: '/attribution', icon: ScrollText, group: 'footer' },
   // The operator link, last in the catalog and last in the footer group.
@@ -129,6 +165,25 @@ export const primaryNavigationItems: NavigationItem[] = navigationItems.filter((
 
 /** The separated group at the bottom of the drawer and the sidebar. */
 export const footerNavigationItems: NavigationItem[] = navigationItems.filter((item) => item.group === 'footer');
+
+/**
+ * The day-to-day destinations as a reader in this session should actually see
+ * them.
+ *
+ * A ROW BEHIND THE ACCOUNT GATE IS DROPPED FOR A SIGNED-OUT READER, not merely
+ * dimmed, and the reasoning is `visibleFooterNavigationItems`'s: a row that is
+ * in the DOM is a row a keyboard and a screen reader can reach, and reaching it
+ * only leads to `/sign-in`. Signed out, this answers an empty list today,
+ * because every primary destination needs an account; that is a fact about the
+ * catalog rather than a shortcut, so the filter is written out and stays
+ * correct if a public destination is ever added.
+ *
+ * @param isSignedIn - the root loader's `userId`, read as a presence check. A
+ *   display convenience: `accountMiddleware` is the actual gate.
+ */
+export function visiblePrimaryNavigationItems(isSignedIn: boolean): NavigationItem[] {
+  return primaryNavigationItems.filter((item) => item.requiresAccount !== true || isSignedIn);
+}
 
 /**
  * The footer group as a reader with `isSuperadmin` should actually see it.
@@ -258,8 +313,11 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const activeHref = activeNavigationHref(location.pathname);
   // Read through the root loader, the same source `AccountSlot` reads: a
   // display convenience, never a gate. See `visibleFooterNavigationItems`.
-  const rootData = useRouteLoaderData<{ isSuperadmin: boolean }>('root');
+  const rootData = useRouteLoaderData<{ isSuperadmin: boolean; userId: number | null }>('root');
   const footerItems = visibleFooterNavigationItems(rootData?.isSuperadmin ?? false);
+  // A PRESENCE CHECK, NEVER A CREDENTIAL. `userId` says which rows are worth
+  // offering; `accountMiddleware` is what refuses anybody.
+  const primaryItems = visiblePrimaryNavigationItems((rootData?.userId ?? null) !== null);
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -272,14 +330,18 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>{t('nav.groupLabel')}</SidebarGroupLabel>
-          <SidebarMenu>
-            {primaryNavigationItems.map((item) => (
-              <NavigationRow key={item.to} item={item} isActive={activeHref === item.to} />
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
+        {/* Absent, not empty, for a signed-out reader: a labelled group with
+            no rows in it is a heading over nothing. */}
+        {primaryItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>{t('nav.groupLabel')}</SidebarGroupLabel>
+            <SidebarMenu>
+              {primaryItems.map((item) => (
+                <NavigationRow key={item.to} item={item} isActive={activeHref === item.to} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       {/* Settings and Account are things you set once, not places you go every
           day, so they sit below a rule rather than as two more equal rows. */}

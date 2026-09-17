@@ -6,12 +6,16 @@
  * here, the PWA keeps working fully offline in either language without a
  * separate cache entry for the translations.
  *
- * TWO namespaces. `common` is the whole UI and is loaded on every page. `legal`
- * is the second, and it earned its place the way the rule above says one has
- * to: the imprint, privacy and terms pages carry more prose than the rest of
- * the app put together, none of it is read on any other screen, and a
+ * THREE namespaces. `common` is the whole UI and is loaded on every page.
+ * `legal` is the second, and it earned its place the way the rule above says
+ * one has to: the imprint, privacy and terms pages carry more prose than the
+ * rest of the app put together, none of it is read on any other screen, and a
  * translation run over the legal documents must not be able to disturb a nav
- * label. Route components ask for it explicitly with `useTranslation('legal')`.
+ * label. `welcome` is the third, on the same argument: it is the copy of the
+ * one screen a visitor with no account sees, it is read nowhere else, and a
+ * rewrite of the front door must not be able to reach a nav label either.
+ * Route components ask for either one explicitly, as `useTranslation('legal')`
+ * or `useTranslation('welcome')`.
  *
  * Detection is pinned to the COOKIE ONLY. The server renders from that same
  * cookie and nothing else (see `app/i18n/language-prefs.ts`), so any additional
@@ -29,19 +33,21 @@ import enCommon from '../locales/en/common.json';
 import deCommon from '../locales/de/common.json';
 import enLegal from '../locales/en/legal.json';
 import deLegal from '../locales/de/legal.json';
+import enWelcome from '../locales/en/welcome.json';
+import deWelcome from '../locales/de/welcome.json';
 
 void i18next
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources: {
-      en: { common: enCommon, legal: enLegal },
-      de: { common: deCommon, legal: deLegal },
+      en: { common: enCommon, legal: enLegal, welcome: enWelcome },
+      de: { common: deCommon, legal: deLegal, welcome: deWelcome },
     },
     fallbackLng: DEFAULT_LANGUAGE,
     supportedLngs: [...SUPPORTED_LANGUAGES],
     defaultNS: 'common',
-    ns: ['common', 'legal'],
+    ns: ['common', 'legal', 'welcome'],
     detection: {
       order: ['cookie'],
       lookupCookie: LANGUAGE_COOKIE,

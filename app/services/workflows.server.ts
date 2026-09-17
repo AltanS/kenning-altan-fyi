@@ -11,7 +11,7 @@ import { CONFIG } from '#config';
 import { createComponentLogger } from '#app/lib/logger';
 import { registerAllWorkflows } from '#app/workflows';
 import { ENRICHMENT_QUEUE } from '#app/lib/enrichment/limits';
-import { TRANSLATION_QUEUE } from '#app/lib/translation/limits';
+import { EXPLAIN_QUEUE, TRANSLATION_QUEUE } from '#app/lib/translation/limits';
 
 const log = createComponentLogger('WorkflowService');
 
@@ -58,6 +58,13 @@ export async function initializeWorkflows(): Promise<WorkflowOrchestrator> {
       // sharing a pool would put that wait behind a set of study notes nobody
       // asked for yet. The polling interval is shorter for the same reason.
       { name: TRANSLATION_QUEUE, workers: 2, pollingIntervalMs: 1000 },
+      // Its own pool again, and ONE worker. An explain call is the slowest this
+      // app makes, so sharing the translation pool would let one explanation hold
+      // a reader's single-word translation behind it. One worker, because two
+      // concurrent explanations are two of the most expensive calls this
+      // installation can make running at once, and the day's cap is half the
+      // other two.
+      { name: EXPLAIN_QUEUE, workers: 1, pollingIntervalMs: 1000 },
     ],
     defaultTimeout: 30000,
     defaultRetryLimit: 3,
@@ -102,6 +109,13 @@ export async function initializeWorkflows(): Promise<WorkflowOrchestrator> {
   // an already-deployed one.
   await boss.createQueue(TRANSLATION_QUEUE, { name: TRANSLATION_QUEUE, policy: 'stately' });
   await boss.updateQueue(TRANSLATION_QUEUE, { name: TRANSLATION_QUEUE, policy: 'stately' });
+
+  // And the explain queue, the third of three, for exactly the same reason and
+  // with exactly the same pair of calls. A queue registered in the list above
+  // but MISSING from this block would take jobs and dedupe none of them, which
+  // is silent: the singleton key is stored on the row and enforces nothing.
+  await boss.createQueue(EXPLAIN_QUEUE, { name: EXPLAIN_QUEUE, policy: 'stately' });
+  await boss.updateQueue(EXPLAIN_QUEUE, { name: EXPLAIN_QUEUE, policy: 'stately' });
 
   // Register all templates and operation handlers from app/workflows/
   registerAllWorkflows(orchestrator);

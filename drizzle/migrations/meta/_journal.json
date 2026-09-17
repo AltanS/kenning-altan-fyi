@@ -169,6 +169,20 @@
       "when": 1788767885635,
       "tag": "0023_shiny_sabretooth",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789630835145,
+      "tag": "0024_abnormal_dazzler",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1789640312161,
+      "tag": "0025_clammy_firedrake",
+      "breakpoints": true
     }
   ]
 }

@@ -39,6 +39,8 @@ import enCommon from '../locales/en/common.json';
 import deCommon from '../locales/de/common.json';
 import enLegal from '../locales/en/legal.json';
 import deLegal from '../locales/de/legal.json';
+import enWelcome from '../locales/en/welcome.json';
+import deWelcome from '../locales/de/welcome.json';
 
 /** A translation catalog: nested objects bottoming out in strings. */
 type Catalog = { readonly [key: string]: string | Catalog };
@@ -49,12 +51,12 @@ type Catalog = { readonly [key: string]: string | Catalog };
  * from the rest of the UI.
  */
 const CATALOGS = {
-  en: { common: enCommon, legal: enLegal },
-  de: { common: deCommon, legal: deLegal },
+  en: { common: enCommon, legal: enLegal, welcome: enWelcome },
+  de: { common: deCommon, legal: deLegal, welcome: deWelcome },
 } satisfies Record<LanguageCode, Record<Namespace, Catalog>>;
 
 /** The namespaces `i18n.ts` registers, and the only ones a key may name. */
-const NAMESPACES = ['common', 'legal'] as const;
+const NAMESPACES = ['common', 'legal', 'welcome'] as const;
 
 /** One of the registered namespaces. */
 type Namespace = (typeof NAMESPACES)[number];

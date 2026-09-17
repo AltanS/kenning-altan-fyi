@@ -11,7 +11,7 @@
  * limit here is stricter than sign-in's: the abuse this stops is not guessing a
  * password, it is using this form as a way to send a stranger mail.
  */
-import { Form, type MetaFunction } from 'react-router';
+import { Form, useNavigation, type MetaFunction } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import type { Route } from './+types/forgot-password';
@@ -46,6 +46,7 @@ export async function action({ request }: Route.ActionArgs): Promise<ForgotResul
 
 export default function ForgotPasswordRoute({ actionData }: Route.ComponentProps) {
   const { t } = useTranslation();
+  const isSubmitting = useNavigation().state !== 'idle';
 
   if (actionData?.status === 'mailed') {
     return (
@@ -62,7 +63,9 @@ export default function ForgotPasswordRoute({ actionData }: Route.ComponentProps
       <Form method="post" className="flex flex-col gap-5">
         <AuthField name="email" label={t('account.emailLabel')} type="email" autoComplete="email" />
         {actionData?.status === 'invalid-email' && <AuthNotice>{t('account.invalidEmail')}</AuthNotice>}
-        <Button type="submit">{t('account.forgotSubmit')}</Button>
+        <Button type="submit" pending={isSubmitting}>
+          {isSubmitting ? t('auth.sendingLink') : t('account.forgotSubmit')}
+        </Button>
       </Form>
     </AuthCard>
   );

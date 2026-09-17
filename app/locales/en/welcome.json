@@ -1,0 +1,15 @@
+{
+  "meta": {
+    "title": "Welcome",
+    "description": "Look up a word in four languages, or ask how two words differ."
+  },
+  "body": "Look up a word in four languages, or ask how two words differ.",
+  "createAction": "Create account",
+  "signInAction": "Sign in",
+  "example": {
+    "term": "Feierabend",
+    "translation": "the end of the working day",
+    "sentence": "Ich mache jetzt Feierabend.",
+    "sentenceTranslation": "I am finishing work for today."
+  }
+}

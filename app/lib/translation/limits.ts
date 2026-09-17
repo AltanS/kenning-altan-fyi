@@ -122,3 +122,52 @@ export const PHRASE_MAX_CHARS = 200;
  * failed or refused run does not spend the day's allowance.
  */
 export const MAX_PHRASE_RUNS_PER_DAY = 200;
+
+/**
+ * The pg-boss queue explain jobs are sent to.
+ *
+ * ITS OWN QUEUE, NOT THE `translation` ONE, AND THE POLICY IS THE POINT. A
+ * singleton key only dedupes on a queue whose policy says so, and both queues
+ * are given `stately` in `initializeWorkflows`. A queue of its own is taken here
+ * rather than a third namespaced key on `translation` because an explain call
+ * answers a whole question and is the slowest call this app makes: sharing the
+ * word job's two workers would let one explanation hold a reader's single-word
+ * translation behind it, which is the exact thing the translation queue was
+ * split off from `enrichment` to avoid.
+ *
+ * A NEW QUEUE MUST BE REGISTERED IN THREE PLACES or it silently does nothing:
+ * the worker list and the `createQueue`/`updateQueue` pair, both in
+ * `app/services/workflows.server.ts`, and the template's own `queue` field.
+ */
+export const EXPLAIN_QUEUE = 'explain-terms';
+
+/**
+ * The longest question this installation will answer, in characters, measured
+ * on the text as typed.
+ *
+ * IT IS A REFUSAL, NEVER A TRUNCATION, for the reason `PHRASE_MAX_CHARS` gives
+ * one paragraph up: cutting a question at 300 characters would answer a question
+ * the reader did not ask and present it as the answer to the one they did.
+ *
+ * THREE HUNDRED, HALF AS MUCH AGAIN AS A PHRASE. A question carries its own
+ * framing on top of the words it is about, "what is the difference between X and
+ * Y, and when would I use each", so the same cap that fits a sentence to
+ * translate is tight for a sentence that asks about one.
+ */
+export const EXPLAIN_MAX_QUESTION_CHARS = 300;
+
+/**
+ * How many explain runs this installation will start in one UTC day.
+ *
+ * ONE HUNDRED, HALF THE PHRASE AND WORD CAPS, and the asymmetry is deliberate.
+ * An explanation is the longest answer this app asks a model for: it carries an
+ * answer, up to three terms with examples, a contrast table, pitfalls and
+ * related words, so one run costs several times a phrase run in output tokens.
+ * The money cap alone would let a cheap model run this feature all day, and this
+ * cap is what bounds the CALLS, the same job `MAX_PHRASE_RUNS_PER_DAY` does for
+ * a sentence.
+ *
+ * Counted from `explanations`, over rows that are `pending` or `ok`, so a failed
+ * or refused run does not spend the day's allowance.
+ */
+export const MAX_EXPLAIN_RUNS_PER_DAY = 100;
