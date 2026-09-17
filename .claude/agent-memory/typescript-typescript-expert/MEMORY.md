@@ -84,3 +84,20 @@
 - [The install entry is a catalog action, not a destination](project_install_entry_is_a_catalog_action.md) — `useInstallPrompt` starts unavailable, so the row is absent before mount rather than dead
 - [translate.altan.fyi renamed to Kenning](project_translate_kenning_rename.md) — APP_NAME in app/lib/app-name.ts is the single source; historical launch-check docs keep the old domain
 - [A parallel visual rebrand can be mid-edit, uncommitted, in the same tree](project_translate_dirty_tree_parallel_rebrand.md) — check git status before touching anything, don't revert files outside your task's scope
+- [Explain is the third sibling](project_explain_is_the_third_sibling_m198.md) — M198 copies the phrase path but takes its OWN panel union, its own `explain-terms` queue and its own refusal copy
+- [The pane reducer is generic, pinned by NoInfer](project_pane_reducer_is_generic_with_noinfer.md) — without NoInfer, `Panel` narrows to one union member and the `polled` transition stops compiling
+- [A jsonb column needs `.$type<JsonValue>()`](project_jsonb_column_needs_a_type_for_the_lint_gate.md) — a bare one selects as `unknown`, which the anti-slop gate refuses at every reader
+- [A synced collection has nine seams](project_synced_collection_has_nine_seams.md) — nine enumerations plus two literal key-set assertions and BLOB-CONTENTS.md; miss one and the rows strand
+- [A new explain-schema field must be defaulted](project_explain_references_default_is_load_bearing.md) — the stored jsonb is re-parsed on EVERY read, so a required field makes every cached answer re-run and re-charge
+- [`/welcome` is the front door](project_welcome_is_the_front_door_m199.md) — M199 gated `/translate` and `/explain` by layout; the INDEX cannot follow and keeps the loader rule
+- [A new locale namespace touches four places](project_a_new_locale_namespace_touches_four_places.md) — i18n.ts AND meta-title.ts; the locales test's 20-key floor now applies to common and legal only
+- [Button's `pending` is the one busy signal](project_button_pending_is_the_one_busy_signal.md) — spinner, disabled and aria-busy together; ignored under `asChild` because Slot takes one child
+- [The two translator cards' class list must stay a literal](project_search_panes_card_recipe_must_stay_a_literal.md) — a unit test greps `className="..."`; a conditional class goes on a wrapper
+- [`requiresAccount` drives the signed-out rail](project_nav_catalog_carries_requires_account.md) — `visiblePrimaryNavigationItems`, `BottomNav` returns null, and AppWrapper's bottom padding follows it
+- [The 8s/25s waiting phases ride the poll tick](project_translation_wait_phases_ride_the_tick_counter.md) — `elapsedMs` advances 3s at a time, so a threshold turns at the first tick past it; never add a second timer
+- [The ask log is the reader half of explain](project_the_ask_log_is_the_reader_half_of_explain.md) — explanation_asks carries the reader, explanations stays readerless, and a unit test guards the absence
+- [ExplanationBody is the one rendering](project_explanation_body_is_the_one_rendering.md) — its variant may change only the lead size and heading level; explanationToText names no section
+- [The language bar always shows labels](project_language_bar_labels_and_allow_detect.md) — label cells inside the same grid, aria-labelledby not aria-label, and allowDetect=false on /explain
+- [The clipboard has a fallback, behind a port](project_clipboard_has_a_fallback_port.md) — plain-http origins have no `navigator.clipboard`; `copyText` never throws and the CHOICE is what a unit test drives
+- [A terminal write always writes `error`](project_a_terminal_write_always_writes_error.md) — pg-boss retries on the SAME row, so a conditional spread leaves a timeout message beside a good answer
+- [The header account slot needs two `min-w-0`s](project_header_account_slot_truncation.md) — `truncate` cannot act on a flex item that may not shrink; the percentage cap goes on the cell
