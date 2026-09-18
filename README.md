@@ -2,9 +2,13 @@
 
 A vocabulary and translation web app. You type a word or a phrase. The app
 returns a translation, a plain explanation, and example sentences. You can
-collect terms into learning lists. The front page is public, and it shows a
-real worked example from the dictionary. Everything past it needs an account: a
-typed search, entry pages, lists, history, review, and voice input. Signup is
+collect terms into learning lists. The front door is public: a signed-out visit
+to `/` lands on `/welcome`, which names the product and offers sign-up and
+sign-in, and a signed-in reader sees a real worked example from the dictionary
+on `/`. The public explanation pages at
+`/browse/explanations` are open as well: answered questions their askers did
+not hide, readable without an account. A typed search, entry pages, lists,
+history, review, and voice input all need one. Signup is
 open: create an account with an email address and a password, because every
 explanation the app writes costs the operator a language-model call, and the
 account is what the spending caps are measured against. Your lists and history

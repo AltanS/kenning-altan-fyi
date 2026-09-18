@@ -3,10 +3,11 @@ import { redirect } from 'react-router';
 /**
  * `/super` lands on `/super/llm`.
  *
- * Two operator screens are left under this prefix and only one of them is a
- * reason to come here: `llm` edits the model configuration enrichment reads,
- * `whoami-ip` answers a question you already know you are asking. So the bare
- * prefix is a hop to the first rather than an index listing two links.
+ * Three operator screens live under this prefix: `llm` edits the model
+ * configuration enrichment reads, `explanations` is the moderation queue for
+ * the public browse pages, and `whoami-ip` answers a question you already
+ * know you are asking. So the bare prefix is a hop to the first rather than
+ * an index listing three links.
  *
  * A TEMPORARY REDIRECT, unlike the `/sync/*` hops. Those record a rename that
  * is final; this one records today's shape of a small admin surface, and a

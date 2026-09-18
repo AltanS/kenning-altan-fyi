@@ -21,10 +21,13 @@ import { getRawDb } from '#drizzle/db';
  *   outcome is a JSON body with a `state` discriminant, never a redirect,
  *   because the caller is a fetcher inside an already-rendered answer.
  *
- * A VOTE IS RECORDED AND NOTHING ELSE (M194 decision 8): no answer is re-run,
- * hidden or re-ordered because of its score. The rows are the signal, and the
- * operator's list at `/super/llm` is the whole of what is built on top of them.
- * A future milestone that adds a consequence here adds the guards with it.
+ * A VOTE IS RECORDED AND IT RANKS: no answer is re-run or hidden because of its
+ * score. The public list at `/browse/explanations` orders by net score once the
+ * two sides are `VOTE_MARGIN_THRESHOLD` apart and falls through to recency
+ * below that, the same margin M196 gave the translation ranking. Beyond the
+ * order, the rows are the signal, and the operator's list at `/super/llm` is
+ * the whole of what is built on top of them. A future milestone that adds a
+ * consequence here adds the guards with it.
  *
  * THIS ROUTE TAKES AN EXPLANATION ID FROM THE CLIENT, AND THAT IS CORRECT.
  *   M200's authorship mutations must never accept one, because granting or

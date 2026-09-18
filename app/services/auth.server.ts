@@ -291,8 +291,16 @@ export async function changePassword(input: {
  * left unlocked on a table.
  *
  * THE DELETE ITSELF IS ONE STATEMENT, and that is the erasure guarantee:
- * `user_tokens` and `sync_blobs` both cascade, so there is no cleanup job to
- * forget to run and no window in which an orphaned document survives its owner.
+ * `user_tokens`, `sync_blobs`, `user_profiles`, `explanation_asks`,
+ * `explanation_authorship`, `explanation_votes` and `explanation_reports` all
+ * cascade off `users`, so there is no cleanup job to forget to run and no
+ * window in which an orphaned document survives its owner. Because an
+ * explanation with no authorship row is never listed, the answers this
+ * reader's own questions opened leave the public browse pages in that same
+ * statement, while the text itself stays in the shared ledger naming nobody.
+ * `explanation_moderation.hidden_by_user_id` is `set null` rather than a
+ * cascade, deliberately: deleting the operator who hid something must not
+ * un-hide it.
  *
  * @param input.userId the signed-in user.
  * @param input.password the current password, as typed.

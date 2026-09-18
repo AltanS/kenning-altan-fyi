@@ -184,7 +184,7 @@
     "languageBody": "Wähle die Sprache für die Schaltflächen und Texte in der App. Das ändert nichts an den Sprachen, die du übersetzt.",
     "languageFieldLabel": "App-Sprache",
     "publicNameTitle": "Öffentlicher Name",
-    "publicNameBody": "Der Name, der neben Erklärungen angezeigt wird, die du signierst. Er wird hier gespeichert; auf dem Bildschirm wird er noch nicht verwendet.",
+    "publicNameBody": "Der Name, der neben einer Frage angezeigt wird, bei der du deinen Namen angeben möchtest. Er erscheint auf den öffentlichen Seiten nur bei Fragen, bei denen du ihn aktivierst.",
     "publicNameLabel": "Öffentlicher Name",
     "publicNameSave": "Speichern",
     "publicNameClear": "Löschen",

@@ -325,9 +325,8 @@ export default [
   // the whole org surface below it are gone, so `_super.tsx` now carries the
   // account resolution and the superadmin check itself.
   layout('routes/_super.tsx', { id: '_super' }, [
-    // `/super` is a hop, not a screen. Two screens are left here and one of
-    // them is the reason an operator ever visits, so a bare `/super` lands on
-    // it rather than on a 404.
+    // `/super` is a hop, not a screen. Three screens live here now, and a bare
+    // `/super` redirects to `/super/llm` rather than answering a 404.
     route('/super', 'routes/super/index-redirect.ts'),
     // The model configuration enrichment reads out of `app_settings`.
     route('/super/llm', 'routes/super/llm.tsx'),

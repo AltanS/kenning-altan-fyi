@@ -21,6 +21,19 @@
  *   which carries a question, two languages, a model and a status, and carries
  *   no reader either.
  *
+ *   WHERE THE READER IS RECORDED, SO THIS FILE IS NOT READ AS MORE THAN IT
+ *   SAYS. The job and the model that answers it still never learn who asked,
+ *   and M200 did not change that. What M200 did change is the inference: a
+ *   reader who follows the rule above to "therefore nothing about the asker is
+ *   recorded anywhere" would now be wrong. A signed-in reader whose request
+ *   OPENS a ledger row also gets a row in `explanation_authorship`, written by
+ *   `enqueueExplain` in the same transaction as the ledger row and before any
+ *   job is sent. That row exists by default, not by a decision the reader
+ *   takes; the name shown beside a public question is the part they switch on.
+ *   See `app/lib/translation/explain-enqueue.server.ts`,
+ *   `app/models/explanation-authorship.server.ts` and
+ *   `drizzle/schema/explanation-authorship.ts`.
+ *
  * THE QUESTION AS TYPED IS NOT IN THE PAYLOAD, AND THAT IS NOT A PRIVACY POINT.
  *   The job reads it from its own row, which already holds it. Carrying it here
  *   too would mean the queue and the row could disagree about what was asked,

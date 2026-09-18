@@ -184,7 +184,7 @@
     "languageBody": "Choose the language for the buttons and labels in the app. This does not change the languages you translate.",
     "languageFieldLabel": "App language",
     "publicNameTitle": "Public name",
-    "publicNameBody": "The name shown beside explanations you choose to sign. It is stored here now; nothing on screen uses it yet.",
+    "publicNameBody": "The name shown beside a question you choose to put your name on. It appears on the public pages only for questions where you switch it on.",
     "publicNameLabel": "Public name",
     "publicNameSave": "Save",
     "publicNameClear": "Clear",

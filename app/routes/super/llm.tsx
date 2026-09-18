@@ -667,9 +667,10 @@ export default function SuperLlm({ loaderData, actionData }: Route.ComponentProp
       <section className={CARD_CLASS}>
         <h2 className={SECTION_LABEL_CLASS}>Down-voted explanations</h2>
         {/* WHAT THIS LIST SHOWS, AND WHAT IT DELIBERATELY CANNOT SHOW. A reader
-            votes on one written answer, and the vote is recorded and nothing
-            else: no answer is re-run, hidden or re-ordered because of its score.
-            This page is therefore the only place the signal is readable at all.
+            votes on one written answer, and the vote is recorded and it ranks:
+            no answer is re-run or hidden because of its score, and the public
+            list at `/browse/explanations` orders by net score only once the two
+            sides are two apart. This page is where the raw counts are readable.
 
             IT NAMES THE QUESTION AND NEVER THE PERSON. The query groups the
             account column away before anything is selected, and it joins the

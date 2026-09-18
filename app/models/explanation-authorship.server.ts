@@ -13,10 +13,14 @@
  * through `resolveOwnAuthorship` first, which already proved ownership three
  * ways; this is the second check that stops a future caller who forgets.
  *
- * `resolvePublicByline` IS THE ONE FUNCTION ANY READER OF A BYLINE CALLS. The
- * name is never copied onto another row, and it is never cached anywhere: it is
- * a join, so clearing a public name in `/settings` changes what every past
- * explanation shows at once, with no per-row write and nothing to backfill.
+ * `resolvePublicByline` IS WHAT A SINGLE-ROW READ CALLS, and it is not the only
+ * reader of a byline. The public list computes the same byline inside its own
+ * SQL, joining `explanation_authorship` and `user_profiles` inline
+ * (`app/models/explanation-browse.server.ts`), and an integration test pins the
+ * two readings to agree on every row the list returns. The name is never copied
+ * onto another row, and it is never cached anywhere: it is a join, so clearing
+ * a public name in `/settings` changes what every past explanation shows at
+ * once, with no per-row write and nothing to backfill.
  *
  * NOTHING HERE LOGS. This module holds an account id beside the id of a row that
  * carries free text a person typed, which is exactly the pair `explanations`

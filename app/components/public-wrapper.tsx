@@ -48,7 +48,9 @@ export default function PublicWrapper({
         </div>
         <div className="flex items-center gap-3">
           {/* NO ACCOUNT MENU, AND NO SIGN-IN LINK. This wrapper is the chrome
-              for the `/legal/*` pages and the 404 page. It carried a profile
+              for the `/legal/*` pages, the public browse pages at
+              `/browse/explanations` and `/browse/explanations/:id`, and the 404
+              page. It carried a profile
               and dashboard dropdown until M189 (ADR-0010). Both pointed at
               org screens that no longer exist, and the menu itself read a
               `users` row this product never provisioned. The account surface

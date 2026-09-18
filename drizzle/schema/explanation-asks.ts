@@ -11,6 +11,16 @@
  * answer indistinguishable from its author, and would put a person beside every
  * row an operator reads while debugging a run.
  *
+ * A THIRD TABLE NAMES THE ASKER TOO, AND IT IS NARROWER THAN THIS ONE (M200).
+ * This table records the ask whatever the panel answered, one served straight
+ * from the cache included.
+ * `drizzle/schema/explanation-authorship.ts` records only the ledger row a
+ * reader's own request OPENED, and it is the table the public pages read: an
+ * answer with no row there is never listed. Removing a question deletes both,
+ * `withdrawOwnAuthorship` before `removeExplanationAsk`, and deleting the
+ * account cascades both away in the one statement. The ledger itself still
+ * carries neither.
+ *
  * WHY THE ASK IS STORED AT ALL, when the kept-explanation collection in the
  * device store was the earlier answer. A reader who asks a question and comes
  * back the next day had to have kept it deliberately, on a screen where keeping

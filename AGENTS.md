@@ -50,7 +50,7 @@ truncating would translate a sentence the reader did not type and present it as
 their answer. This reverses M193 decision 8, which said a phrase creates
 nothing.
 
-### Explain (M198 proposal)
+### Explain (M198)
 
 A third sibling of the translation pipeline: a free-text QUESTION about words
 in, a structured explanation out. Same guard order, same pane states, same
@@ -125,6 +125,90 @@ has no `t` and an English heading over German prose is worse than a blank line.
 **The v1 API and the CLI command follow once the output shape is approved.**
 There is deliberately no `/api/v1/explain` and no `pnpm cli explain` in this
 pass.
+
+### Public explanations, authorship, votes and a browse page (M199/M200)
+
+M199 and M200 here are the TRACKER milestone numbers for this feature, not the
+`/welcome` front-door rewrite the Accounts section below also calls M199.
+
+The code, M199: the `user_profiles` table in
+`drizzle/schema/user-profiles.ts`, `app/models/user-profiles.server.ts`,
+`app/lib/authorship/public-name.ts`, and the public-name and
+default-visibility cards in `app/routes/settings.tsx`. M200:
+`drizzle/schema/explanation-authorship.ts`, `explanation_votes` in
+`drizzle/schema/votes.ts`, `drizzle/schema/explanation-reports.ts` and
+`drizzle/schema/explanation-moderation.ts`; the models
+`app/models/explanation-authorship.server.ts`,
+`app/models/explanation-votes.server.ts`,
+`app/models/explanation-reports.server.ts`,
+`app/models/explanation-moderation.server.ts` and
+`app/models/explanation-browse.server.ts`; the two helpers
+`app/lib/authorship/resolve-own-authorship.server.ts` and
+`app/lib/authorship/withdraw-own-authorship.server.ts`; the routes
+`browse.explanations.tsx`, `browse.explanations.$id.tsx`,
+`super/explanations.tsx` and `api.explanation-vote.ts`, with the per-item
+controls on `explanations.$id.tsx`; and on the screen
+`app/components/explanation-votes.tsx` and the ask-time notice in
+`app/components/explain-panes.tsx`. Tests:
+`tests/unit/explanation-listing-no-user-filter.test.ts`,
+`tests/unit/public-name.test.ts`, and under `tests/integration/` the six
+`explanation-authorship-*` files, `explanation-votes.test.ts`,
+`explanation-browse-listing.test.ts`, `explanation-browse-detail-404s.test.ts`,
+`explanation-report-and-moderation.test.ts`,
+`public-surface-browse-explanations.test.ts`,
+`user-profiles-independent-fields.test.ts` and
+`settings-profile-actions.test.ts`.
+
+Six rules.
+
+**The link is the default, and the name is the opt-in.** `enqueueExplain`
+writes an `explanation_authorship` row in the same transaction as the ledger row
+it opens, with `listed` set to the opposite of that reader's own
+`user_profiles.hide_new_explanations_by_default` and `show_name` false. A reader
+with no profile row is listed. A byline appears only once they switch
+`show_name` on for that one question and hold a public name, which is joined
+live rather than copied, so clearing the name clears every past byline at once.
+
+**Only a request that OPENS a row writes the link.** A reader served from the
+cache, and a reader joined to a job already running, write none; a deduped
+request deletes the pending row it opened and the link cascades away with it.
+The reader's own `explanation_asks` row is written either way, so "what have I
+asked" and "what did I cause to be written" are deliberately different sets.
+
+**Removing a question withdraws by DELETE, keyed on the question.**
+`withdrawOwnAuthorship` runs before `removeExplanationAsk` and deletes every
+authorship row this reader holds over that `(from, to, question_normalized)`
+triple, the pending and failed attempts included. It does not set
+`listed = false`: afterwards nothing in the database ties the account to the
+question. The answer stays in `explanations`, naming nobody.
+
+**One visibility predicate serves both public pages, and absence means NOT
+listed.** `app/models/explanation-browse.server.ts` takes the latest answered
+row per question, INNER JOINs `explanation_authorship` on `listed = true`, and
+requires no `explanation_moderation` row for the key. The list and the detail
+page are the same builder with one extra filter, so a row cannot be on the list
+and 404 on its own page. Every row written before M200 carries no authorship row
+and is therefore not public.
+
+**Moderation is keyed on the question, a report is per row, and the report form
+is inline.** `explanation_moderation` holds the `(from, to,
+question_normalized)` triple and no foreign key onto the ledger, because the
+ledger is append only and a per-row flag would be lost the moment a retry opened
+a new row; no row means visible. `explanation_reports` points at one answer, one
+row per reader per answer, a reason of at most 500 characters, replaced on a
+repeat, and a report hides nothing by itself. The form is inline at the foot of
+`/browse/explanations/:id`, and a signed-out visitor is refused. The operator
+triages at `/super/explanations`, which reads neither the authorship table nor
+the profile table, and selects no reporter's account.
+
+**No per-user public page, ever, and the pages are indexable.** Neither browse
+function takes a reader and there is no slot for one;
+`tests/unit/explanation-listing-no-user-filter.test.ts` fails the build if any
+public listing filters by a user id. The pages carry no robots tag, because
+moderation and the report control shipped in the same milestone rather than
+after it. A vote needs an account and goes through
+`POST /api/explanation-vote`; the public pages show totals only, and a score
+reorders the list at a margin of two before recency takes over.
 
 ### Favourites, history and translation votes (M194)
 
@@ -383,9 +467,9 @@ minted a way in. The contract, in full:
   signed-out visit to `/` with nothing typed now hops to `/welcome`, and with a
   query it hops to `/sign-in?next=`, so a shared result link still lands on its
   result. The worked example survives, on `/` for the reader who is signed in.
-- Everything past the front door needs an account: a typed search, `/explain`,
-  entry pages, lists, history, review, attribution, settings, and
-  `POST /api/v1/transcribe`. That last one was ungated on purpose before M184,
+- Everything past the front door needs an account, except the public pages
+  named below: a typed search, `/explain`, entry pages, lists, history, review,
+  attribution, settings, and `POST /api/v1/transcribe`. That last one was ungated on purpose before M184,
   and the reversal is deliberate.
 - `/` and `/translate` are two route ids over ONE file, and the product's real
   URL is `/?q=<word>`. `/translate` sits under `app/routes/_app.gated.tsx`
@@ -404,6 +488,9 @@ minted a way in. The contract, in full:
   and `/offline` are never gated, because a gate in front of the sign-in page is a gate nobody
   can ever pass. `/healthcheck` and `/legal/*` stay public too, and
   `tests/integration/public-surface-*.test.ts` says so in executable form.
+  `/browse/explanations` and `/browse/explanations/:id` joined them in M200: a
+  stranger reads the answered questions their askers left listed, and both
+  loaders are read only, so nothing there can queue a job or spend money.
 - The doors are `/sign-in` and `/sign-up`. They were `/sync/login` and
   `/sync/setup` until M189. The old paths still answer, with a permanent
   redirect that keeps the query string, from the era when a signup URL carried
@@ -487,10 +574,12 @@ and nothing read them. `apiKeys` stands alone, carrying its own `isSuperadmin`
 flag rather than joining through a user row to an organization, and
 screen-level superadmin is `users.is_superadmin`.
 
-`/super/*` holds two screens and nothing else: `llm`, which edits the model
-selection enrichment reads out of `app_settings`, and `whoami-ip`, which echoes
-the IP the server resolved so a `TRUST_PROXY` hop count can be checked against a
-live proxy. A bare `/super` redirects to `/super/llm`. On the hosted instance
+`/super/*` holds three screens and nothing else: `llm`, which edits the model
+selection enrichment reads out of `app_settings`; `explanations`, the moderation
+queue for the public browse pages, where a reported answer is triaged and a
+question is hidden or un-hidden; and `whoami-ip`, which echoes the IP the server
+resolved so a `TRUST_PROXY` hop count can be checked against a live proxy. A
+bare `/super` redirects to `/super/llm`. On the hosted instance
 `/super` is fenced twice: Bay's `vpn_routes` restricts it to the operator's
 tailnet, and the superadmin session check runs as an independent second layer.
 

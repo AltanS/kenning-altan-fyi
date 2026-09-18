@@ -11,9 +11,13 @@
  *   THE `userId` BELOW DOES NOT WEAKEN THAT RULE. It lives on
  *   `ExplainEnqueueRequest`, the caller's request object, which never leaves
  *   this process: it is read once, inside the transaction, to write the
- *   authorship row, and it is never on the job payload pg-boss carries to the
- *   worker. `explainJobPayloadSchema.parse` below is built field by field and is
- *   not handed the request, so the boundary is enforced rather than remembered.
+ *   `explanation_authorship` row (`drizzle/schema/explanation-authorship.ts`),
+ *   and it is never on the job payload pg-boss carries to the worker.
+ *   `explainJobPayloadSchema.parse` below is built field by field and is not
+ *   handed the request, so the boundary is enforced rather than remembered.
+ *   That row's `listed` comes from the reader's own standing preference and
+ *   nothing else, and its `show_name` stays false until the reader chooses to
+ *   be named on that one question.
  *
  * THE ROW IS WRITTEN BEFORE THE ENQUEUE, IN THE SAME REQUEST.
  *   The pane resolves what to show from the LATEST row for a key. A job queued

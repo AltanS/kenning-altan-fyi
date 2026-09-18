@@ -24,6 +24,15 @@ import { LegalPageLinks } from './page-links';
  * We cannot waive it, so the terms say so and point at `/attribution`, which
  * renders every source, its licence and its version from the database.
  *
+ * SECTION 6 HAS ONE EXCEPTION, AND IT IS WHERE A READER'S OWN WORDS BECOME
+ * PUBLIC. Lists, notes and revision progress stay the reader's. A question typed
+ * on `/explain` that starts a new answer does not: unless the reader hides it,
+ * it is published with its answer on `/browse/explanations` under CC0, and
+ * hiding it later takes it off those pages without undoing a copy somebody
+ * already made. `s6Body2` is that sentence. `listed` in
+ * `drizzle/schema/explanation-authorship.ts` is the switch it describes, and
+ * `app/models/explanation-browse.server.ts` is the query that honours it.
+ *
  * The party is the legal person in `operator.ts`, named on the imprint page and
  * linked from the lead, never a product name.
  */
@@ -79,6 +88,7 @@ export function TermsContent() {
       <section className="mb-8">
         <H2 variant="sectionHeader">{t('terms.s6Heading')}</H2>
         <P className="mt-4">{t('terms.s6Body')}</P>
+        <P className="mt-4">{t('terms.s6Body2')}</P>
       </section>
 
       <section className="mb-8">

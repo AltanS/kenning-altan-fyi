@@ -181,8 +181,13 @@ export type SelectTranslationVote = InferSelectModel<typeof translationVotes>;
 //   is the automated guard, so a reader who arrives at either table's header
 //   finds the check as well as the rule.
 //
-// WHAT A VOTE DOES, TODAY: it is recorded, and nothing else. No explanation is
-// re-run, hidden or re-ordered because of its score (M194 decision 8).
+// WHAT A VOTE DOES, TODAY: it is recorded, and it ranks. No explanation is
+// re-run or hidden because of its score. The public list at
+// `/browse/explanations` orders by net score once the two sides are
+// `VOTE_MARGIN_THRESHOLD` apart, and by recency below that margin, which is the
+// same bounded amendment M196 made to M194 decision 8 for translations. Hiding
+// stays an explicit decision: the asker's own `listed` flag, or the operator's
+// moderation row.
 // =============================================================================
 
 export const explanationVotes = pgTable(

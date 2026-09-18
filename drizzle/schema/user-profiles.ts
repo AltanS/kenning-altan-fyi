@@ -49,10 +49,14 @@ export const userProfiles = pgTable(
      * now on, starts out hidden from the public pages instead of the
      * system's usual default of public.
      *
-     * STORED HERE, ENFORCED NOWHERE YET. This column exists so M200 has
-     * somewhere to read from; nothing in this milestone reads it back on the
-     * write path that generates an explanation. See `app/routes/settings.tsx`
-     * for the copy that says so.
+     * READ ON THE WRITE PATH SINCE M200. `enqueueExplain` reads this row in
+     * the same transaction as the ledger row it opens, and hands the opposite
+     * of this column to `explanation_authorship.listed`, so a reader who
+     * switches it on publishes no new question from that moment. It is never
+     * retroactive: an explanation already written keeps the visibility it was
+     * written with, and `/explanations/:id` is where that one item is changed.
+     * `/explain` tells a signed-in reader which way this is set before they
+     * ask, with a link to `/settings`.
      */
     hideNewExplanationsByDefault: boolean('hide_new_explanations_by_default').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),

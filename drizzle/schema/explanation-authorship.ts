@@ -35,10 +35,14 @@
  * `user_profiles`. The initial `listed` value the write path supplies comes from
  * that same profile row, never from a value a client sent.
  *
- * THE INDEX ON `user_id` SERVES A SCREEN THAT DOES NOT EXIST YET, "which
- * explanations did this reader author". Nothing in M200 queries that direction.
- * It is here because the foreign key needs the reader column anyway and an index
- * added later would be a migration for a read the table was always going to get.
+ * THE INDEX ON `user_id` SERVES A WRITE, NOT A SCREEN. `deleteOwnAuthorshipForKey`
+ * puts the reader's own id in the `WHERE` clause when they remove a question,
+ * and it is the only statement here that reaches rows by the reader alone; the
+ * two per-item setters name the primary key as well. It must never grow a
+ * public read: "which explanations did this reader author" is a permanently
+ * forbidden query, and `tests/unit/explanation-listing-no-user-filter.test.ts`
+ * is the guard that fails the build if a public listing ever filters by a
+ * reader.
  *
  * EVERY READ OR WRITE GOES THROUGH `getRawDb()`.
  */

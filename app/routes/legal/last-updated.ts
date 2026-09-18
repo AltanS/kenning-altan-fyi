@@ -14,7 +14,7 @@
  */
 
 /** The date all three legal pages print. ISO, UTC, one source. */
-export const LEGAL_LAST_UPDATED = '2026-09-04';
+export const LEGAL_LAST_UPDATED = '2026-09-18';
 
 /**
  * Formats the ISO date for a reader.

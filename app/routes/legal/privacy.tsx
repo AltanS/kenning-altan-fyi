@@ -35,6 +35,31 @@ import { OPERATOR } from './operator';
  *   - voice: `app/routes/api.v1.transcribe.ts` stores no clip.
  *   - the abuse counters: `app/lib/abuse/rate-limit.server.ts` (peppered hash,
  *     hourly counts) and `app/lib/abuse/budget.server.ts` (daily spend rows).
+ *   - the explain ledger, one row per attempt at one question, carrying no
+ *     account id, no session id and no address: `drizzle/schema/explanations.ts`
+ *     and `app/models/explanations.server.ts`.
+ *   - the reader's own list of what they asked:
+ *     `drizzle/schema/explanation-asks.ts`.
+ *   - the private link between an account and the answer its question opened:
+ *     `drizzle/schema/explanation-authorship.ts`, written inside the
+ *     transaction in `app/lib/translation/explain-enqueue.server.ts` and
+ *     deleted by `app/lib/authorship/withdraw-own-authorship.server.ts`.
+ *   - the public name, and whether new questions start out hidden, both the
+ *     reader's own: `drizzle/schema/user-profiles.ts`.
+ *   - the votes: `explanationVotes` in `drizzle/schema/votes.ts`. The reports
+ *     and the operator's hides: `drizzle/schema/explanation-reports.ts` and
+ *     `drizzle/schema/explanation-moderation.ts`.
+ *   - what a public page may show, in one predicate:
+ *     `app/models/explanation-browse.server.ts`, read by
+ *     `app/routes/browse.explanations.tsx` and
+ *     `app/routes/browse.explanations.$id.tsx`.
+ *   - what the queued job and the model that answers it receive:
+ *     `app/lib/translation/explain-job-payload.ts`, a `z.strictObject` holding
+ *     a folded question, two language codes, a prompt version and a row id, and
+ *     no reader.
+ *   - deletion in one statement: `deleteAccount` in
+ *     `app/services/auth.server.ts`. The ask log, the authorship link, the
+ *     votes, the reports and the profile row all cascade off `users`.
  *
  * A change to any of those files is a change to this page.
  *
@@ -87,6 +112,7 @@ export function PrivacyContent() {
           <li>{t('privacy.s1Item3')}</li>
           <li>{t('privacy.s1Item4')}</li>
           <li>{t('privacy.s1Item5')}</li>
+          <li>{t('privacy.s1Item6')}</li>
         </ul>
       </section>
 
@@ -112,6 +138,10 @@ export function PrivacyContent() {
         <P className="mt-4">{t('privacy.s5Body1')}</P>
         <P className="mt-4">{t('privacy.s5Body2')}</P>
         <P className="mt-4">{t('privacy.s5Body3')}</P>
+        <P className="mt-4">{t('privacy.s5Body4')}</P>
+        <P className="mt-4">{t('privacy.s5Body5')}</P>
+        <P className="mt-4">{t('privacy.s5Body6')}</P>
+        <P className="mt-4">{t('privacy.s5Body7')}</P>
       </section>
 
       <section className="mb-8">

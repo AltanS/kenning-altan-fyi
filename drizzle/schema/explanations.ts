@@ -50,6 +50,31 @@ import { languages } from './dictionary';
 //   second reader asking the same thing is served this row rather than a second
 //   paid call.
 //
+// 3b. WHAT IS JOINABLE TO A ROW HERE, WHICH IS NOT WHAT SECTION 3 SAYS (M200)
+//   Section 3 is about THIS TABLE'S COLUMNS, and it stays true: no column here
+//   names a person, and none is added. What changed is the feature around it, so
+//   a reader who takes section 3 as "nothing anywhere links a person to a row"
+//   would now be wrong.
+//   `drizzle/schema/explanation-authorship.ts` holds one row per ledger row that
+//   a signed-in reader's request OPENED, written by `enqueueExplain` in the same
+//   transaction as the row itself and before the job is sent. It is a default
+//   rather than a decision: `listed` starts at the opposite of that reader's own
+//   `hide_new_explanations_by_default`, and a reader with no profile row starts
+//   listed. THE NAME IS THE OPT-IN. `show_name` starts false, and a name appears
+//   beside a question only when the reader switches it on for that one item and
+//   holds a public name, which is joined live rather than copied, so clearing
+//   the name clears every past byline at once.
+//   ONLY A REQUEST THAT OPENS A ROW WRITES THE LINK. A reader served from the
+//   cache, or joined to a job already running, writes none; a deduped request
+//   deletes the row it opened and the link cascades away with it. The link also
+//   goes when the reader removes the question or deletes the account, and a row
+//   with no link is never public.
+//   `explanation_votes` (`drizzle/schema/votes.ts`) and `explanation_reports`
+//   point AT a row here by its id and cascade off it.
+//   `explanation_moderation` points at the cache KEY instead and carries no
+//   foreign key onto this table at all, because an operator hides a QUESTION and
+//   this table is append only.
+//
 // APPEND ONLY, AND DELIBERATELY NO UNIQUE KEY ON THE CACHE TRIPLE
 //   A run is a record of one moment: a reader retrying after a failure, a later
 //   prompt version and a different model are each a NEW fact. A unique key on
