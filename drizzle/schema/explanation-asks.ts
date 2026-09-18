@@ -13,7 +13,11 @@
  *
  * A THIRD TABLE NAMES THE ASKER TOO, AND IT IS NARROWER THAN THIS ONE (M200).
  * This table records the ask whatever the panel answered, one served straight
- * from the cache included.
+ * from the cache included, with one exception: a question longer than
+ * `EXPLAIN_MAX_QUESTION_CHARS` is refused before any run can open, and
+ * `explain.tsx`'s loader writes no row for it. That length cap is the only
+ * thing that stops the write, and it is the same length cap `refuseExplain`
+ * applies.
  * `drizzle/schema/explanation-authorship.ts` records only the ledger row a
  * reader's own request OPENED, and it is the table the public pages read: an
  * answer with no row there is never listed. Removing a question deletes both,

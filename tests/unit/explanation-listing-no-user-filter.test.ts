@@ -31,8 +31,11 @@
  *
  * SEVEN DETECTORS, EACH CLOSING A DIFFERENT DOOR.
  *   1. An ALLOWED SET OF PARAMETER KEYS. Every key an exported `*Params`
- *      interface declares, and every key an exported function destructures, has
- *      to be one of `from`, `to`, `limit`, `offset`, `id`.
+ *      declaration holds, an `interface` and a `type` alias alike, and every key
+ *      an exported function destructures, has to be one of `from`, `to`,
+ *      `limit`, `offset`, `id`. An `extends` clause fails on sight: its
+ *      inherited keys are declared somewhere else and a text scan of this module
+ *      will never see them, so the scan must not pretend it read them.
  *   2. A reader-named PARAMETER, still checked by name, because detector 1 sees
  *      only destructured keys and a positional `userId: number` is neither.
  *   3. TWO BANNED TOKENS in the listing module: `publicNameFolded` and
@@ -48,16 +51,21 @@
  *      is checked.
  *   6. The vote table's account column, anywhere in the listing module. A
  *      listing that reads it is a listing that can be grouped by reader.
- *   7. An ALLOWED SET OF ROUTE KEYS. Every `searchParams.get(...)` key and every
- *      `params.<name>` a browse route reads has to be one of `from`, `to`,
- *      `page`, `id`.
+ *   7. An ALLOWED SET OF ROUTE KEYS. Every key a browse route reads with
+ *      `searchParams.get`, `.getAll` or `.has` has to be one of `from`, `to`,
+ *      `page`, and every `params.<name>` it reads has to be one of those three
+ *      or `id`. `Object.fromEntries(url.searchParams)` is banned outright,
+ *      because it hands every key over at once and leaves no key for an
+ *      allow-list to read.
  *
- * COMMENTS ARE STRIPPED BEFORE DETECTORS 1, 3 AND 4 RUN. Those three ban a
+ * COMMENTS ARE STRIPPED BEFORE DETECTORS 1, 3, 4 AND 7 RUN. Those four ban a
  * TOKEN rather than a position, and a module is encouraged to name the thing it
  * must not do in a comment saying why. A whole-file grep would turn that
  * explanation into a failure, which teaches the next author to delete the
  * explanation. `stripComments` removes block comments and end-of-line ones, and
- * leaves a line holding a quote before the `//` alone rather than guessing.
+ * leaves a line holding a quote before the `//` alone rather than guessing. It
+ * is a heuristic and not a parser, and both directions it can be wrong in are
+ * written over the function itself.
  *
  * IT PROVES ITSELF FIRST. Every detector is run over synthetic source that
  * SHOULD trip it and synthetic source that should not, and the walk asserts it
@@ -86,8 +94,17 @@ const READER_NAME_PATTERN = /user|account|author/i;
  */
 const ALLOWED_PARAM_KEYS = new Set(['from', 'to', 'limit', 'offset', 'id']);
 
-/** Every key a browse route may read out of a URL. `page` is the window, and it never reaches the model. */
+/**
+ * Every key a browse route may read off a `params` object. `id` addresses the detail page.
+ *
+ * THE THREE QUERY KEYS ARE ON THIS SET TOO, and that is not slack. The scan
+ * behind it is `\bparams\.(\w+)`, which also reads a local helper's own options
+ * object, and the list route has one that carries `from`, `to` and `page`.
+ */
 const ALLOWED_ROUTE_KEYS = new Set(['from', 'to', 'page', 'id']);
+
+/** Every key a browse route may read out of the query string. `page` is the window, and it never reaches the model. */
+const ALLOWED_QUERY_KEYS = new Set(['from', 'to', 'page']);
 
 /**
  * Names the listing module may not carry at all.
@@ -151,9 +168,14 @@ function read(file: string): string {
 /**
  * The source with its comments removed.
  *
- * A line whose text before the `//` already holds a quote is left whole: the
- * `//` may be inside a string, and a guard that guesses wrong deletes real code
- * and stops matching it.
+ * IT IS A HEURISTIC AND NOT A PARSER, AND IT IS WRONG IN TWO DIRECTIONS. A line
+ * whose text before the `//` already holds a quote is left whole, because the
+ * `//` may be inside a string: a token named in a real comment on such a line is
+ * therefore OVER-reported, which is the safe direction for a guard.
+ * The other direction is not safe and is written down so nobody has to
+ * rediscover it: a `//` that is part of a regex literal truncates its line, so
+ * whatever code follows on that line is dropped before detectors 1, 3, 4 and 7
+ * ever run.
  */
 function stripComments(source: string): string {
   return source
@@ -168,12 +190,19 @@ function stripComments(source: string): string {
     .join('\n');
 }
 
-/** The text between the parenthesis at `openIndex` and its matching close. */
-function readBalanced(source: string, openIndex: number): string {
+/** The bracket pairs the balanced reader below can walk. */
+const BRACKETS = {
+  paren: { open: '(', close: ')' },
+  brace: { open: '{', close: '}' },
+} as const;
+
+/** The text between the bracket at `openIndex` and its matching close. */
+function readBalanced(source: string, openIndex: number, bracket: keyof typeof BRACKETS = 'paren'): string {
+  const { open, close } = BRACKETS[bracket];
   let depth = 0;
   for (let cursor = openIndex; cursor < source.length; cursor += 1) {
-    if (source[cursor] === '(') depth += 1;
-    else if (source[cursor] === ')') {
+    if (source[cursor] === open) depth += 1;
+    else if (source[cursor] === close) {
       depth -= 1;
       if (depth === 0) return source.slice(openIndex + 1, cursor);
     }
@@ -207,18 +236,69 @@ function exportedSignatures(source: string): string[] {
   return signatures;
 }
 
-/** The body of every exported `*Params` interface. */
-function paramsInterfaceBodies(source: string): string[] {
-  const bodies: string[] = [];
-  for (const match of source.matchAll(/export interface \w*Params\s*\{([\s\S]*?)\n\}/g)) {
-    bodies.push(match[1] ?? '');
-  }
-  return bodies;
+/** One exported `*Params` declaration, split at the brace that opens its object body. */
+interface ParamsDeclaration {
+  /** What stands between the name and the body: ` = ` for a `type` alias, ` extends Base ` for an interface. */
+  head: string;
+  /** The object body, between the braces. */
+  body: string;
 }
 
-/** The property names an interface body declares. */
+/**
+ * Every exported `*Params` declaration, an `interface` and a `type` alias alike.
+ *
+ * THE FIRST VERSION MATCHED `export interface \w*Params {` AND NOTHING ELSE. A
+ * review showed what that costs: a `type` alias and an `extends` clause each
+ * dropped the whole declaration, and the self-check below stayed green because
+ * the module still had one interface and five keys, just not the one that had
+ * changed. So the keyword is a group, `(interface|type)`, and everything up to
+ * the opening brace is captured rather than skipped.
+ *
+ * The body is read by COUNTING BRACES rather than by looking for a `}` in the
+ * first column, because a one-line alias has neither.
+ *
+ * A `*Params` alias with no object body at all, `= SomeOtherType;`, makes
+ * `[^{]*` run forward to the next brace in the file and report that block's
+ * keys. That is loud and wrong rather than silent and wrong, which is the
+ * direction this guard is built to fail in.
+ */
+function paramsDeclarations(source: string): ParamsDeclaration[] {
+  const declarations: ParamsDeclaration[] = [];
+  for (const match of source.matchAll(/export\s+(interface|type)\s+\w*Params\b([^{]*)\{/g)) {
+    const open = (match.index ?? 0) + match[0].length - 1;
+    declarations.push({ head: match[2] ?? '', body: readBalanced(source, open, 'brace') });
+  }
+  return declarations;
+}
+
+/** The body of every exported `*Params` declaration. */
+function paramsDeclarationBodies(source: string): string[] {
+  return paramsDeclarations(source).map((declaration) => declaration.body);
+}
+
+/**
+ * Detector 1's other half: a declaration whose keys are not written where it stands.
+ *
+ * `interface ListPublicExplanationsParams extends ReaderScope` declares its
+ * inherited keys in another file, and no scan of this one can read them. The
+ * clause itself is therefore the failure, not any key: a public listing's
+ * parameter list has to be readable in the place it is declared.
+ */
+function inheritedParamsClauses(source: string): string[] {
+  return paramsDeclarations(source)
+    .filter((declaration) => /\bextends\b/.test(declaration.head))
+    .map((declaration) => declaration.head.trim());
+}
+
+/**
+ * The property names a declaration body holds.
+ *
+ * A KEY CAN FOLLOW A SEPARATOR RATHER THAN A LINE BREAK. A one-line alias writes
+ * `{ from: string | null; byline: string | null }`, and a line-anchored match
+ * reads the first key off it and misses every later one.
+ */
 function declaredKeys(body: string): string[] {
-  return [...body.matchAll(/^\s*(?:readonly\s+)?(\w+)\s*\??\s*:/gm)].map((match) => match[1] ?? '');
+  return [...body.matchAll(/(?:^|[;,])\s*(?:readonly\s+)?(\w+)\s*\??\s*:/gm)].map((match) => match[1] ?? '');
 }
 
 /**
@@ -244,19 +324,22 @@ function destructuredKeys(signature: string): string[] {
 function listingParamKeys(source: string): string[] {
   const stripped = stripComments(source);
   return [
-    ...paramsInterfaceBodies(stripped).flatMap((body) => declaredKeys(body)),
+    ...paramsDeclarationBodies(stripped).flatMap((body) => declaredKeys(body)),
     ...exportedSignatures(stripped).flatMap((signature) => destructuredKeys(signature)),
   ];
 }
 
-/** Detector 1: a parameter key that is not on the allow-list. */
+/** Detector 1: a parameter key that is not on the allow-list, or a declaration whose keys cannot be read here. */
 function findDisallowedParamKeys(source: string): string[] {
-  return listingParamKeys(source).filter((key) => !ALLOWED_PARAM_KEYS.has(key));
+  return [
+    ...listingParamKeys(source).filter((key) => !ALLOWED_PARAM_KEYS.has(key)),
+    ...inheritedParamsClauses(stripComments(source)),
+  ];
 }
 
 /** Detector 2: a reader-named parameter, or a reader-named field on a parameter object. */
 function findReaderNamedDeclarations(source: string): string[] {
-  return [...exportedSignatures(source), ...paramsInterfaceBodies(source)]
+  return [...exportedSignatures(source), ...paramsDeclarationBodies(source)]
     .filter((text) => READER_NAME_PATTERN.test(text))
     .map((text) => text.trim());
 }
@@ -295,11 +378,31 @@ function findVoterColumn(source: string): string[] {
   return source.includes(VOTER_COLUMN) ? [VOTER_COLUMN] : [];
 }
 
-/** Every key a route reads out of the query string. */
+/**
+ * Every key a route reads out of the query string.
+ *
+ * ALL THREE READERS, NOT ONLY `get`. The first version matched
+ * `searchParams.get('literal')` alone, and `searchParams.getAll('byline')` and
+ * `searchParams.has('author')` read the same query string straight past it.
+ */
 function searchParamKeys(source: string): string[] {
-  return [...stripComments(source).matchAll(/searchParams\.get\(\s*['"`]([^'"`]+)['"`]\s*\)/g)].map(
-    (match) => match[1] ?? '',
+  return [...stripComments(source).matchAll(/searchParams\.(get|getAll|has)\(\s*['"`]([^'"`]+)['"`]\s*\)/g)].map(
+    (match) => match[2] ?? '',
   );
+}
+
+/**
+ * Every read that takes the WHOLE query string rather than a named key.
+ *
+ * `Object.fromEntries(url.searchParams)` hands over every key at once, so an
+ * allow-list of key names has nothing left to read: the route can then be given
+ * a new filter with no change this guard can see. The same goes for any other
+ * `fromEntries` over a `URLSearchParams`.
+ */
+function findWholeQueryStringReads(source: string): string[] {
+  return argumentsOf(stripComments(source), 'fromEntries(')
+    .filter((text) => /searchParams|URLSearchParams/.test(text))
+    .map((text) => `reads the whole query string: fromEntries(${text.trim()})`);
 }
 
 /** Every key a route reads off a `params` object, the path's own and any other. */
@@ -307,15 +410,16 @@ function pathParamKeys(source: string): string[] {
   return [...stripComments(source).matchAll(/\bparams\.(\w+)/g)].map((match) => match[1] ?? '');
 }
 
-/** Detector 7: a browse route reading a key that is not on the allow-list. */
+/** Detector 7: a browse route reading a key that is not on the allow-list, or reading the query string whole. */
 function findDisallowedRouteKeys(source: string): string[] {
   const hits: string[] = [];
   for (const key of searchParamKeys(source)) {
-    if (!ALLOWED_ROUTE_KEYS.has(key)) hits.push(`reads ?${key}= out of the URL`);
+    if (!ALLOWED_QUERY_KEYS.has(key)) hits.push(`reads ?${key}= out of the URL`);
   }
   for (const key of pathParamKeys(source)) {
     if (!ALLOWED_ROUTE_KEYS.has(key)) hits.push(`reads params.${key}`);
   }
+  hits.push(...findWholeQueryStringReads(source));
   return hits;
 }
 
@@ -383,6 +487,23 @@ export interface ListThingsParams {
 export async function listThings(db: Db, params: ListThingsParams): Promise<void> {}
 `;
 
+/** A `type` alias. The first version of detector 1 matched `export interface` only and read nothing here. */
+const BAD_TYPE_ALIAS = `
+export type ListPublicExplanationsParams = { from: string | null; byline: string | null };
+`;
+
+/** The same alias with only allowed keys, and on one line, so the brace-counting body read is exercised both ways. */
+const GOOD_TYPE_ALIAS = `
+export type ListPublicExplanationsParams = { from: string | null; to: string | null; limit: number };
+`;
+
+/** An `extends` clause. `ReaderScope` may declare anything at all, and nothing in this file can read it. */
+const BAD_EXTENDS = `
+export interface ListPublicExplanationsParams extends ReaderScope {
+  from: string | null;
+}
+`;
+
 const BAD_FILTERS = `
 const rows = db
   .select({ name: userProfiles.publicName })
@@ -429,6 +550,44 @@ export async function loader({ request, params }) {
   const from = url.searchParams.get('from');
   const page = params.id;
   return listPublicExplanations(db, { from, to: null, limit: 20, offset: 0 });
+}
+`;
+
+/** `getAll` reads the same query string `get` does, and the first version of detector 7 matched `get` alone. */
+const BAD_GET_ALL_ROUTE = `
+export async function loader({ request }) {
+  const url = new URL(request.url);
+  const bylines = url.searchParams.getAll('byline');
+  return bylines;
+}
+`;
+
+/** `has` never reads a value, and narrowing a list by whether a key is present is still narrowing it. */
+const BAD_HAS_ROUTE = `
+export async function loader({ request }) {
+  const url = new URL(request.url);
+  if (url.searchParams.has('author')) return null;
+  return {};
+}
+`;
+
+/** The whole query string at once, which leaves an allow-list of key names nothing to read. */
+const BAD_FROM_ENTRIES_ROUTE = `
+export async function loader({ request }) {
+  const url = new URL(request.url);
+  const query = Object.fromEntries(url.searchParams);
+  return query;
+}
+`;
+
+/** The three keys a browse page is allowed to read, each by name. */
+const GOOD_QUERY_ROUTE = `
+export async function loader({ request }) {
+  const url = new URL(request.url);
+  const from = url.searchParams.get('from');
+  const to = url.searchParams.get('to');
+  const page = url.searchParams.get('page');
+  return { from, to, page };
 }
 `;
 
@@ -504,8 +663,8 @@ describe('the public explanation listing is never filtered by a reader', () => {
         'this module, not that the module is clean.',
     );
     assert.ok(
-      paramsInterfaceBodies(model).length >= 1,
-      `parsed no exported *Params interface out of ${modelFiles[0]}, so the allow-list would run over nothing.`,
+      paramsDeclarationBodies(model).length >= 1,
+      `parsed no exported *Params declaration out of ${modelFiles[0]}, so the allow-list would run over nothing.`,
     );
     assert.ok(
       listingParamKeys(model).length >= 5,
@@ -539,6 +698,22 @@ describe('the public explanation listing is never filtered by a reader', () => {
       'a signature that takes its params object whole was flagged. The interface check already covers it, and ' +
         'demanding inline destructuring would reject a correct implementation for its shape.',
     );
+  });
+
+  it('reads a `type` alias, and fails an `extends` clause rather than pretending to read it', () => {
+    assert.deepEqual(
+      findDisallowedParamKeys(BAD_TYPE_ALIAS),
+      ['byline'],
+      'a `type` alias declaring a byline parameter was not read at all. The declaration shape must not decide ' +
+        'whether the allow-list runs.',
+    );
+    assert.deepEqual(
+      findDisallowedParamKeys(BAD_EXTENDS),
+      ['extends ReaderScope'],
+      'a Params declaration inheriting from another type passed. Its keys are written somewhere else, so this ' +
+        'scan cannot say what they are and must not report that it found none.',
+    );
+    assert.deepEqual(findDisallowedParamKeys(GOOD_TYPE_ALIAS), []);
   });
 
   it('flags a reader-named parameter and passes a language-shaped one', () => {
@@ -579,6 +754,26 @@ describe('the public explanation listing is never filtered by a reader', () => {
   it('allows only the four URL keys a browse page reads', () => {
     assert.deepEqual(findDisallowedRouteKeys(BAD_ROUTE), ['reads ?authorId= out of the URL']);
     assert.deepEqual(findDisallowedRouteKeys(GOOD_ROUTE), []);
+  });
+
+  it('reads getAll, has and a whole-query-string read, not only get', () => {
+    assert.deepEqual(
+      findDisallowedRouteKeys(BAD_GET_ALL_ROUTE),
+      ['reads ?byline= out of the URL'],
+      '`searchParams.getAll` walked past the URL allow-list. It reads the same query string `get` reads.',
+    );
+    assert.deepEqual(
+      findDisallowedRouteKeys(BAD_HAS_ROUTE),
+      ['reads ?author= out of the URL'],
+      '`searchParams.has` walked past the URL allow-list. A branch on whether a key is present narrows the page ' +
+        'just as a value does.',
+    );
+    assert.deepEqual(
+      findDisallowedRouteKeys(BAD_FROM_ENTRIES_ROUTE),
+      ['reads the whole query string: fromEntries(url.searchParams)'],
+      'a route took the whole query string at once. No allow-list of key names can see what it then reads.',
+    );
+    assert.deepEqual(findDisallowedRouteKeys(GOOD_QUERY_ROUTE), []);
   });
 
   it('flags a route reading a reader-named key and passes one reading a language', () => {
@@ -674,7 +869,8 @@ describe('the public explanation listing is never filtered by a reader', () => {
       assert.deepEqual(
         hits,
         [],
-        `${file} ${hits.join(', ')}, which is not on the allow-list [${[...ALLOWED_ROUTE_KEYS].join(', ')}].\n` +
+        `${file} ${hits.join(', ')}. The query string may carry [${[...ALLOWED_QUERY_KEYS].join(', ')}] and a ` +
+          `params object may carry [${[...ALLOWED_ROUTE_KEYS].join(', ')}].\n` +
           'A public browse page is addressed by a language pair, a window and a row id. A new key belongs in this ' +
           'allow-list first, with a reason.',
       );
