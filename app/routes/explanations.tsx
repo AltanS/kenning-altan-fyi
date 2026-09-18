@@ -10,6 +10,7 @@ import { languageName } from '#app/components/personal/saved-word-row';
 import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import { formatRelativeTime } from '#app/lib/relative-time';
 import type { TitleHandle } from '#app/lib/route-title';
+import { withdrawOwnAuthorship } from '#app/lib/authorship/withdraw-own-authorship.server';
 import { resolveUser } from '#app/middleware/auth';
 import {
   EXPLANATION_ASKS_MAX_ROWS,
@@ -124,12 +125,16 @@ const explanationsFormSchema = z.object({
 });
 
 /**
- * Removes one ask.
+ * Removes one ask, and the reader's claim on the answer it resolved to.
  *
- * THE READER IS PART OF THE WHERE CLAUSE, inside the model, so a submitted id
+ * THE READER IS PART OF THE WHERE CLAUSE, inside both models, so a submitted id
  * that belongs to somebody else deletes nothing and answers the same way a
  * removal of a row that was already gone does. There is nothing here to tell the
  * two apart with.
+ *
+ * THE DETAIL PAGE DOES THE SAME TWO WRITES IN THE SAME ORDER. Its own action
+ * carries the argument for that order; this row offers the same control, so it
+ * cannot do less.
  */
 export async function action({ request }: Route.ActionArgs) {
   const user = await resolveUser(request);
@@ -138,6 +143,9 @@ export async function action({ request }: Route.ActionArgs) {
   const parsed = explanationsFormSchema.safeParse(Object.fromEntries(await request.formData()));
   if (!parsed.success) return { success: false, error: 'invalid-form' };
 
+  // Withdraw first: a failure between the two leaves the ask in place with
+  // nothing public attached, which is the safe half to be left holding.
+  await withdrawOwnAuthorship(getRawDb(), { userId: user.id, askId: parsed.data.id });
   await removeExplanationAsk(user.id, parsed.data.id);
   return { success: true };
 }

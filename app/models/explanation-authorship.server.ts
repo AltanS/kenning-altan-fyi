@@ -22,10 +22,10 @@
  * carries free text a person typed, which is exactly the pair `explanations`
  * exists to keep apart. It writes no log line at any level.
  */
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import type { DictionaryDb } from '#app/lib/dictionary/queries.server';
-import { explanationAuthorship, userProfiles } from '#drizzle/schema';
+import { explanationAuthorship, explanations, userProfiles } from '#drizzle/schema';
 
 /** What one authorship write names. The row id is minted by the caller's own insert. */
 export interface InsertExplanationAuthorshipParams {
@@ -147,6 +147,62 @@ export async function setListed(db: DictionaryDb, params: SetListedParams): Prom
     .returning({ explanationId: explanationAuthorship.explanationId });
 
   return updated.length > 0;
+}
+
+/** Whose claims to drop, and which question they were about. */
+export interface DeleteOwnAuthorshipForKeyParams {
+  userId: number;
+  /** `explanations.from_language_code`, as the ask stored it. Raw, never defaulted. */
+  fromLanguage: string;
+  /** `explanations.to_language_code`, as the ask stored it. Raw, never defaulted. */
+  toLanguage: string;
+  questionNormalized: string;
+}
+
+/**
+ * Drops every claim one reader holds over one question.
+ *
+ * IT IS KEYED ON THE QUESTION AND NOT ON ONE ROW, because a question can have
+ * opened more than one ledger row: a first attempt that failed and the retry
+ * that answered it are two rows under one key, and this reader authored both.
+ * Naming a single row would leave the other one behind, listed, ready to turn
+ * public the moment anything reads it.
+ *
+ * `userId` STAYS IN THE `WHERE` CLAUSE, so a row another reader authored under
+ * the same key is not this caller's to drop. The subquery narrows the ledger to
+ * the key; this clause narrows the claims to the person.
+ *
+ * @param db The database handle.
+ * @param params The reader, and the ask's own stored key.
+ * @returns how many rows went, so a caller can tell a withdrawal from a no-op.
+ */
+export async function deleteOwnAuthorshipForKey(
+  db: DictionaryDb,
+  params: DeleteOwnAuthorshipForKeyParams,
+): Promise<number> {
+  const deleted = await db
+    .delete(explanationAuthorship)
+    .where(
+      and(
+        eq(explanationAuthorship.userId, params.userId),
+        inArray(
+          explanationAuthorship.explanationId,
+          db
+            .select({ id: explanations.id })
+            .from(explanations)
+            .where(
+              and(
+                eq(explanations.fromLanguageCode, params.fromLanguage),
+                eq(explanations.toLanguageCode, params.toLanguage),
+                eq(explanations.questionNormalized, params.questionNormalized),
+              ),
+            ),
+        ),
+      ),
+    )
+    .returning({ explanationId: explanationAuthorship.explanationId });
+
+  return deleted.length;
 }
 
 /** A name to write beside one explanation. */

@@ -544,7 +544,7 @@
     "removeTrigger": "Remove",
     "removeLabel": "Remove {{question}}",
     "removeTitle": "Remove this question?",
-    "removeBody": "It leaves your list. The answer itself stays in the shared record, which names nobody.",
+    "removeBody": "It leaves your list. If it was public, it comes off the public pages. The answer itself stays in the shared record, which names nobody.",
     "removeConfirm": "Remove",
     "removePending": "Removing...",
     "removeCancel": "Cancel",
@@ -558,7 +558,8 @@
     "listedLabel": "Show this answer on the public pages",
     "cc0NoticeListed": "This question and its answer are public. They are released under CC0: anyone may copy them, and no credit is needed. Switching this off later does not undo a copy someone already made.",
     "cc0NoticeHidden": "This question and its answer are hidden from the public pages.",
-    "retryCredit": "A public answer is credited to the person whose attempt produced it, not to everyone who asked the same question. If you retry a question that failed for someone else, your attempt can become the credited one."
+    "retryCredit": "A public answer is credited to the person whose attempt produced it, not to everyone who asked the same question. If you retry a question that failed for someone else, your attempt can become the credited one.",
+    "authorshipNotSaved": "That change was not saved. Reload the page and try again."
   },
   "update": {
     "bundleReady": "A newer version of this page is ready.",

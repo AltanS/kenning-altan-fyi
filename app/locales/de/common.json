@@ -544,7 +544,7 @@
     "removeTrigger": "Entfernen",
     "removeLabel": "{{question}} entfernen",
     "removeTitle": "Diese Frage entfernen?",
-    "removeBody": "Sie verschwindet aus deiner Liste. Die Antwort selbst bleibt im gemeinsamen Datensatz, ohne Namen.",
+    "removeBody": "Sie verschwindet aus deiner Liste. War sie öffentlich, wird sie von den öffentlichen Seiten entfernt. Die Antwort selbst bleibt im gemeinsamen Datensatz, ohne Namen.",
     "removeConfirm": "Entfernen",
     "removePending": "Wird entfernt...",
     "removeCancel": "Abbrechen",
@@ -558,7 +558,8 @@
     "listedLabel": "Diese Antwort auf den öffentlichen Seiten anzeigen",
     "cc0NoticeListed": "Diese Frage und ihre Antwort sind öffentlich. Sie stehen unter CC0: Alle dürfen sie kopieren, ohne Namensnennung. Wenn du dies später deaktivierst, macht das bereits erstellte Kopien nicht rückgängig.",
     "cc0NoticeHidden": "Diese Frage und ihre Antwort sind auf den öffentlichen Seiten ausgeblendet.",
-    "retryCredit": "Eine öffentliche Antwort wird der Person zugeschrieben, deren Versuch sie hervorgebracht hat, nicht allen, die dieselbe Frage gestellt haben. Wenn du eine Frage wiederholst, die bei jemand anderem fehlgeschlagen ist, kann dein Versuch derjenige sein, der genannt wird."
+    "retryCredit": "Eine öffentliche Antwort wird der Person zugeschrieben, deren Versuch sie hervorgebracht hat, nicht allen, die dieselbe Frage gestellt haben. Wenn du eine Frage wiederholst, die bei jemand anderem fehlgeschlagen ist, kann dein Versuch derjenige sein, der genannt wird.",
+    "authorshipNotSaved": "Diese Änderung wurde nicht gespeichert. Lade die Seite neu und versuche es erneut."
   },
   "update": {
     "bundleReady": "Eine neuere Version dieser Seite steht bereit.",

@@ -1,4 +1,5 @@
 import type { Route } from './+types/explanations.$id';
+import { useEffect, useId, useRef } from 'react';
 import { ArrowLeft, Copy, Link2, RotateCcw, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { data, useFetcher, useNavigate, type MetaFunction } from 'react-router';
@@ -17,6 +18,7 @@ import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import type { TitleHandle } from '#app/lib/route-title';
 import { storedLanguage } from '#app/lib/dictionary/language-pair';
 import { resolveOwnAuthorship, type OwnAuthorship } from '#app/lib/authorship/resolve-own-authorship.server';
+import { withdrawOwnAuthorship } from '#app/lib/authorship/withdraw-own-authorship.server';
 import { explainBudgetKey } from '#app/components/explanation-card';
 import type { ExplainPaneTarget } from '#app/lib/translation/explain-pane';
 import { resolveExplainPanel, type ExplainPanel } from '#app/lib/translation/explain-panel.server';
@@ -135,9 +137,14 @@ export type ExplanationDetailActionResult =
  * Removes this ask, or changes what the reader shows beside the answer it
  * resolved to.
  *
- * THE ANSWER IN `explanations` STAYS ON A REMOVE. It names nobody, so there is
- * nothing of this reader in it to remove, and it is the installation's record of
- * a run it paid for. What goes is the link between the person and the question.
+ * A REMOVE WITHDRAWS THE AUTHORSHIP FIRST, THEN DROPS THE ASK. The ledger row
+ * itself stays and still names nobody: it is the installation's record of a run
+ * it paid for. The reader's claim on it does not stay. An authorship row left
+ * behind would keep a question they just removed on the public pages, under
+ * their name if they had turned the byline on, with its switches on a page that
+ * now answers 404. The order is the safe one: a failure between the two writes
+ * leaves the ask in place with nothing public attached, and pressing remove
+ * again finishes the job.
  *
  * THE TWO TOGGLES RE-DERIVE THE ROW THEY WRITE TO, INDEPENDENTLY OF THE LOADER.
  * `resolveOwnAuthorship` is called again here with the ask id out of the path,
@@ -158,6 +165,9 @@ export async function action({ request, params }: Route.ActionArgs): Promise<Exp
   const form = parsed.data;
 
   if (form.intent === INTENT.REMOVE) {
+    // Withdraw first. See this action's own comment for why the order is the
+    // safe one to be interrupted in.
+    await withdrawOwnAuthorship(getRawDb(), { userId: user.id, askId: id });
     await removeExplanationAsk(user.id, id);
     return { success: true };
   }
@@ -386,6 +396,18 @@ interface AuthorshipControlsProps {
  * NEITHER SWITCH SENDS A ROW ID. Both send their intent and one boolean; the
  * action derives the row from the ask id in the path. See its own comment.
  *
+ * THE BYLINE SWITCH IS ONLY LOCKED WHEN IT IS ALREADY OFF. A reader who cleared
+ * their public name in `/settings` still has a byline turned on here, and
+ * locking the control outright left them a checked switch they could not
+ * operate, with the opt-in waiting to resurface the moment they chose a new
+ * name. Off is always reachable; on needs a name to show.
+ *
+ * A SAVE THAT DID NOT LAND SAYS SO. Both switches snap back to the stored value
+ * when a submission fails, which on its own reads as a control that ignores the
+ * reader. The `useRef` guard is what makes the message once-per-answer rather
+ * than once-per-render: `t` has to be in the deps, and it changes identity on a
+ * language switch.
+ *
  * THE CC0 NOTICE IS KEYED ON `listed` ALONE, never on the byline. An item is
  * public by that flag whether or not a name is attached, so the disclosure says
  * what is actually true rather than what feels most relevant to disclose.
@@ -394,9 +416,29 @@ function AuthorshipControls({ authorship, hasPublicName }: AuthorshipControlsPro
   const { t } = useTranslation();
   const nameFetcher = useFetcher<ExplanationDetailActionResult>();
   const listedFetcher = useFetcher<ExplanationDetailActionResult>();
+  const reportedName = useRef<object | null>(null);
+  const reportedListed = useRef<object | null>(null);
+
+  const fieldId = useId();
+  const listedId = `${fieldId}-listed`;
+  const showNameId = `${fieldId}-show-name`;
 
   const showName = optimisticFlag(nameFetcher.formData?.get('showName'), authorship.showName);
   const listed = optimisticFlag(listedFetcher.formData?.get('listed'), authorship.listed);
+
+  useEffect(() => {
+    const answer = nameFetcher.data;
+    if (answer === undefined || answer.success !== false || reportedName.current === answer) return;
+    reportedName.current = answer;
+    toast.error(t('explanations.authorshipNotSaved'));
+  }, [nameFetcher.data, t]);
+
+  useEffect(() => {
+    const answer = listedFetcher.data;
+    if (answer === undefined || answer.success !== false || reportedListed.current === answer) return;
+    reportedListed.current = answer;
+    toast.error(t('explanations.authorshipNotSaved'));
+  }, [listedFetcher.data, t]);
 
   function toggleShowName(next: boolean): void {
     const body = new FormData();
@@ -416,23 +458,23 @@ function AuthorshipControls({ authorship, hasPublicName }: AuthorshipControlsPro
     <div className="flex flex-col gap-4 rounded-xl border bg-card p-6">
       <div className="flex items-center gap-3">
         <Switch
+          id={listedId}
           checked={listed}
           onCheckedChange={toggleListed}
           disabled={listedFetcher.state !== 'idle'}
-          aria-label={t('explanations.listedLabel')}
         />
-        <Label>{t('explanations.listedLabel')}</Label>
+        <Label htmlFor={listedId}>{t('explanations.listedLabel')}</Label>
       </div>
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <Switch
+            id={showNameId}
             checked={showName}
             onCheckedChange={toggleShowName}
-            disabled={!hasPublicName || nameFetcher.state !== 'idle'}
-            aria-label={t('explanations.showNameLabel')}
+            disabled={(!hasPublicName && !showName) || nameFetcher.state !== 'idle'}
           />
-          <Label>{t('explanations.showNameLabel')}</Label>
+          <Label htmlFor={showNameId}>{t('explanations.showNameLabel')}</Label>
         </div>
         {!hasPublicName && (
           <p className={QUIET_LINE}>

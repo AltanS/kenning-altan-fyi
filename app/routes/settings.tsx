@@ -238,11 +238,12 @@ function PublicNameCard({ publicName }: { publicName: string | null }) {
 /**
  * Whether this reader's future explanations start out hidden by default.
  *
- * THE COPY DOES NOT CLAIM ENFORCEMENT. This milestone stores the choice;
- * nothing on the write path that generates an explanation reads it back yet.
- * M200 is what makes it take effect, and a control that visibly claimed
- * otherwise would be a UI that lies, which this repo's design principles do
- * not allow.
+ * THE CHOICE IS ENFORCED, AND EXACTLY ONCE. `enqueueExplain` reads this column
+ * inside the transaction that opens a new `explanations` row, and it decides
+ * that row's initial `listed` value (M200). It settles nothing afterwards: an
+ * explanation already written keeps whatever its own switch on
+ * `/explanations/:id` says, so changing this preference is never a bulk edit of
+ * the past.
  *
  * THIS REPO'S FIRST REAL `<Switch>`. The optimistic value comes from
  * `fetcher.formData`, the same rule `app/lib/votes/optimistic.ts` states for
@@ -277,12 +278,12 @@ function DefaultVisibilityCard({ hideNewExplanationsByDefault }: { hideNewExplan
       <p className="mt-2 text-sm text-muted-foreground">{t('settings.hideNewExplanationsByDefaultBody')}</p>
       <div className="mt-4 flex items-center gap-3">
         <Switch
+          id="hide-new-explanations"
           checked={checked}
           onCheckedChange={handleCheckedChange}
           disabled={isSubmitting}
-          aria-label={t('settings.hideNewExplanationsByDefaultLabel')}
         />
-        <Label>{t('settings.hideNewExplanationsByDefaultLabel')}</Label>
+        <Label htmlFor="hide-new-explanations">{t('settings.hideNewExplanationsByDefaultLabel')}</Label>
       </div>
     </div>
   );

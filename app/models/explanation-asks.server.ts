@@ -159,10 +159,12 @@ export async function getExplanationAsk(userId: number, id: number): Promise<Sel
  * Drops one ask. A HARD delete: there is no peer to converge with and nothing
  * for a tombstone to tell, so "remove" here means removed.
  *
- * THE ANSWER IN `explanations` IS UNTOUCHED, and that is correct rather than an
- * oversight. That row is the installation's own record of a paid run and its
- * cache of the reply; it names nobody, so there is nothing of this reader in it
- * to remove. What goes is the link between the person and the question.
+ * THE ANSWER IN `explanations` IS UNTOUCHED, and the ledger row itself names
+ * nobody: it is the installation's own record of a paid run and its cache of
+ * the reply. The reader's claim on that answer lives in a THIRD table,
+ * `explanation_authorship`, and it is not this function's to drop. Every caller
+ * withdraws it first, through `withdrawOwnAuthorship`, so by the time this runs
+ * the only edge left between the person and the question is the ask row below.
  *
  * @returns Whether a row went, so the caller can answer a repeated submit
  *   honestly rather than reporting a removal that removed nothing.
