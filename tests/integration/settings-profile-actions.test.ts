@@ -186,3 +186,52 @@ describe('the walk: set a name, clear it, then flip the switch', () => {
     },
   );
 });
+
+/**
+ * Two separate readers, one folded name, the SQLSTATE 23505 catch at the top
+ * of `action` (settings.tsx).
+ *
+ * TWO INDEPENDENT SESSIONS, NOT THE SHARED WALK ABOVE. The ordered walk
+ * reuses one `session` across its whole describe block, which is wrong for a
+ * collision case: this needs a second, genuinely distinct reader to collide
+ * with the first.
+ */
+describe('the folded name is unique across readers', () => {
+  let sessionA: TestUserSession | null = null;
+  let sessionB: TestUserSession | null = null;
+
+  after(async () => {
+    await sessionA?.dispose();
+    await sessionB?.dispose();
+  });
+
+  it(
+    "refuses a second reader the same folded name, and leaves the first reader's row untouched",
+    { skip: !DB_HOST ? 'DB_HOST not set' : false },
+    async () => {
+      sessionA = await createTestUserSession('name-taken-a');
+      sessionB = await createTestUserSession('name-taken-b');
+
+      const first = await submit({ intent: 'set-name', publicName: 'Shared Reader' }, sessionA.cookie);
+      assert.deepEqual(first, { success: true, intent: 'set-name', publicName: 'Shared Reader' });
+
+      // Differs only in case and surrounding whitespace: the same folded form.
+      const second = await submit({ intent: 'set-name', publicName: '  SHARED READER  ' }, sessionB.cookie);
+      assert.deepEqual(second, { success: false, intent: 'set-name', error: 'name-taken' });
+
+      // THE ASSERTION THAT MATTERS. The collision on `publicNameFolded` did
+      // not corrupt, clear, or otherwise touch the first reader's own row.
+      assert.deepEqual(await readProfile(sessionA.cookie), {
+        isSignedIn: true,
+        profile: { publicName: 'Shared Reader', hideNewExplanationsByDefault: false },
+      });
+
+      // And the refused write left the second reader with no name at all,
+      // never a half-written one.
+      assert.deepEqual(await readProfile(sessionB.cookie), {
+        isSignedIn: true,
+        profile: { publicName: null, hideNewExplanationsByDefault: false },
+      });
+    },
+  );
+});

@@ -198,6 +198,14 @@ function PublicNameCard({ publicName }: { publicName: string | null }) {
         <Label htmlFor="public-name">{t('settings.publicNameLabel')}</Label>
         <div className="flex flex-wrap gap-2">
           <Input
+            // Uncontrolled on purpose: the fetcher, not this component, owns the
+            // pending value. `key` forces a remount, and a fresh `defaultValue`
+            // with it, whenever the underlying name actually changes, which is
+            // the only way an UNCONTROLLED input can pick up a value the loader
+            // just revalidated. React does not re-read `defaultValue` on props
+            // alone, so without this key a Clear or a Save left the field
+            // showing the name the reader had just replaced.
+            key={publicName ?? ''}
             id="public-name"
             name="publicName"
             type="text"

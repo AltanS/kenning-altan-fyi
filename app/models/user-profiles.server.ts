@@ -28,15 +28,29 @@ export interface UserProfileView {
   hideNewExplanationsByDefault: boolean;
 }
 
-/** The all-defaults shape a reader with no row gets. Both fields at their column default. */
-const DEFAULT_PROFILE: UserProfileView = { publicName: null, hideNewExplanationsByDefault: false };
+/**
+ * The all-defaults shape a reader with no row gets. Both fields at their
+ * column default.
+ *
+ * A FRESH LITERAL EVERY CALL, NEVER ONE SHARED INSTANCE. `getActiveModel` in
+ * `app/models/app-settings.server.ts` answers its own "no row yet" case the
+ * same way, by constructing the default rather than handing back a
+ * module-level constant: this type has no field a caller should ever mutate,
+ * but a caller that did (`profile.publicName = '...'`) would otherwise
+ * corrupt the answer every OTHER reader with no row gets for the rest of the
+ * process's life, a defect with no stack trace pointing anywhere near its
+ * cause.
+ */
+function defaultProfile(): UserProfileView {
+  return { publicName: null, hideNewExplanationsByDefault: false };
+}
 
 /**
  * This reader's profile.
  *
  * @param db The database handle.
  * @param userId The reader.
- * @returns the stored row, or {@link DEFAULT_PROFILE} when no row exists yet.
+ * @returns the stored row, or {@link defaultProfile} when no row exists yet.
  */
 export async function getUserProfile(db: DictionaryDb, userId: number): Promise<UserProfileView> {
   const [row] = await db
@@ -48,7 +62,7 @@ export async function getUserProfile(db: DictionaryDb, userId: number): Promise<
     .where(eq(userProfiles.userId, userId))
     .limit(1);
 
-  return row ?? DEFAULT_PROFILE;
+  return row ?? defaultProfile();
 }
 
 export interface SetPublicNameParams {

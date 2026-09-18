@@ -24,8 +24,16 @@ import { APP_NAME } from '#app/lib/app-name';
 export const PUBLIC_NAME_MIN_CHARS = 2;
 export const PUBLIC_NAME_MAX_CHARS = 32;
 
-/** Letters, digits, spaces, and the small set of punctuation a display name needs. No control characters. */
-const ALLOWED_CHARACTERS = /^[a-zA-Z0-9 _.-]+$/;
+/**
+ * Letters, digits, spaces, and the small set of punctuation a display name
+ * needs. No control characters.
+ *
+ * `\p{L}` AND `\p{N}` ARE UNICODE-WIDE, NOT ASCII-ONLY (M199 follow-up). A
+ * real name like "Jörg" or "Müller" is a letter by any reasonable definition,
+ * and an ASCII-only pattern refused both. The operator was asked and chose to
+ * widen this rather than ask readers to spell their own name differently.
+ */
+const ALLOWED_CHARACTERS = /^[\p{L}\p{N} _.-]+$/u;
 
 /**
  * Words nobody may take as their own display name, because each one reads as
@@ -51,6 +59,15 @@ const RESERVED_WORDS = [
 
 /**
  * The stored form of a public name: trimmed and lower-cased.
+ *
+ * CASE IS FOLDED, DIACRITICS ARE NOT: "Jörg" and "Joerg" fold to two
+ * different keys, "jörg" and "joerg", and both names may be taken at once.
+ * `.toLowerCase()` normalizes case only, so widening the character set to
+ * admit accented letters (above) changes nothing here on purpose, a name
+ * that spells a sound with an umlaut is not the same string as one that
+ * spells it with an extra letter, and folding them together would be a
+ * second, silent rule about German transliteration this module has no
+ * business making.
  *
  * @param raw whatever the form field carried.
  * @returns the folded form. This is what the unique index is over.

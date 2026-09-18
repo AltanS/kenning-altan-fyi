@@ -62,6 +62,11 @@ describe('the character set', () => {
     assert.equal(parsePublicName('Reader_One-2.0'), 'Reader_One-2.0');
   });
 
+  it('accepts a real name carrying an accented Unicode letter', () => {
+    assert.equal(parsePublicName('Jörg'), 'Jörg');
+    assert.equal(parsePublicName('Müller'), 'Müller');
+  });
+
   it('refuses a disallowed character', () => {
     assert.equal(parsePublicName('Reader!'), null);
     assert.equal(parsePublicName('Reader@Name'), null);
@@ -71,6 +76,16 @@ describe('the character set', () => {
   it('refuses a control character', () => {
     assert.equal(parsePublicName('Reader\nName'), null);
     assert.equal(parsePublicName('Reader\tName'), null);
+  });
+});
+
+describe('folding preserves diacritics, and only normalizes case', () => {
+  it('folds a name and its shouted form to one key', () => {
+    assert.equal(foldPublicName('Jörg'), foldPublicName('JÖRG'));
+  });
+
+  it('does NOT fold a diacritic and its ASCII transliteration to one key', () => {
+    assert.notEqual(foldPublicName('Jörg'), foldPublicName('Joerg'));
   });
 });
 
