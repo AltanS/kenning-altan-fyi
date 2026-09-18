@@ -64,6 +64,10 @@ const NO_CACHE_RULES: readonly Rule[] = [
     needle: 'AUTH_PATHS.has(url.pathname)',
   },
   {
+    rule: 'the public browse pages must never be cached, an operator can hide one and a cached copy stays readable',
+    needle: "startsWith('/browse/')",
+  },
+  {
     rule: 'the exclusions must be applied in the fetch handler, a classifier nobody calls protects nothing',
     needle: 'isUncacheable(url)',
   },
@@ -88,6 +92,10 @@ const REQUIRED_UNCACHEABLE_PATHS = [
   '/api/translation/99a991dc-8e80-4b65-82e5-effbbaf84269',
   '/api/translation/99a991dc-8e80-4b65-82e5-effbbaf84269/retry',
   '/api/enrichment/99a991dc-8e80-4b65-82e5-effbbaf84269',
+  // The public pages. An operator can take either one down at any moment, and a
+  // cached copy would keep it readable on the device that opened it.
+  '/browse/explanations',
+  '/browse/explanations/99a991dc-8e80-4b65-82e5-effbbaf84269',
 ];
 
 /**
@@ -215,7 +223,7 @@ describe('service worker exclusions', () => {
     assert.deepEqual(overlap, [], `${WORKER_FILE} precaches account screens: ${overlap.join(', ')}`);
   });
 
-  it('refuses to cache the translation poll, the retry and the enrichment poll', () => {
+  it('refuses to cache the translation poll, the retry, the enrichment poll and the browse pages', () => {
     // The last probe is a shell route the worker MUST cache. Without it this
     // case would be green against a classifier that returns true for every
     // input, which caches nothing and breaks the app offline instead.

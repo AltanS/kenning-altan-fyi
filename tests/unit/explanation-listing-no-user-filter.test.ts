@@ -8,6 +8,18 @@
  * browse routes off disk and fails the build when either grows a way to ask
  * "what did this person ask".
  *
+ * IT IS AN ALLOW-LIST, AND THAT CHANGED AFTER A REVIEW. The first version of
+ * this guard banned a list of reader-shaped NAMES, and a deny-list only ever
+ * knows the doors somebody already thought of. The review's own counter-example
+ * is kept below as a synthetic case: a `byline` parameter, a helper matching
+ * `userProfiles.publicNameFolded` handed in as the `extra` condition, and a
+ * route reading `?byline=`. Not one of those names matches `/user|account|author/i`
+ * and the column never appears in a filter position, so every name-shaped
+ * detector passes it, and it is a per-person public page. So the listing module
+ * may now declare only the keys it is supposed to have, and the routes may read
+ * only the keys they are supposed to read: anything new has to be added HERE,
+ * deliberately, before it can be added there.
+ *
  * IT INSPECTS TWO PLACES BY NAME, AND THAT NARROWNESS IS DELIBERATE.
  *   `resolveOwnAuthorship`, `setShowName`, `setListed`, `castExplanationVote`
  *   and `readVoteForAccount` all correctly take a reader: they are ownership
@@ -17,23 +29,41 @@
  *   walking the tree rather than from a hardcoded list, so a new browse route
  *   is covered the moment somebody adds it.
  *
- * FOUR DETECTORS, EACH CLOSING A DIFFERENT DOOR.
- *   1. A reader-named PARAMETER. There must be no slot to wire one into later.
- *   2. A reader-named FILTER. `explanationAuthorship.userId` and any
+ * SEVEN DETECTORS, EACH CLOSING A DIFFERENT DOOR.
+ *   1. An ALLOWED SET OF PARAMETER KEYS. Every key an exported `*Params`
+ *      interface declares, and every key an exported function destructures, has
+ *      to be one of `from`, `to`, `limit`, `offset`, `id`.
+ *   2. A reader-named PARAMETER, still checked by name, because detector 1 sees
+ *      only destructured keys and a positional `userId: number` is neither.
+ *   3. TWO BANNED TOKENS in the listing module: `publicNameFolded` and
+ *      `foldPublicName`. That column exists to match a person by the name they
+ *      chose, which is the one lookup a public list must never offer.
+ *   4. The PROFILE COLUMNS the module may name at all: `userProfiles.userId`
+ *      (the join) and `userProfiles.publicName` (the byline select), and no
+ *      third one anywhere in the file.
+ *   5. A reader-named FILTER. `explanationAuthorship.userId` and any
  *      `userProfiles` column are banned from `where`, `orderBy`, `groupBy` and
- *      `having`, which is "search by author" arriving through another door with
- *      no parameter for detector 1 to catch. The join condition and the byline
- *      select sit outside those four positions, so the legitimate uses need no
- *      whitelist: only their POSITION is checked.
- *   3. The vote table's account column, anywhere in the listing module. A
+ *      `having`. The join condition and the byline select sit outside those four
+ *      positions, so the legitimate uses need no whitelist: only their POSITION
+ *      is checked.
+ *   6. The vote table's account column, anywhere in the listing module. A
  *      listing that reads it is a listing that can be grouped by reader.
- *   4. A browse ROUTE reading a reader-named key out of the URL, or passing
- *      one into the listing model.
+ *   7. An ALLOWED SET OF ROUTE KEYS. Every `searchParams.get(...)` key and every
+ *      `params.<name>` a browse route reads has to be one of `from`, `to`,
+ *      `page`, `id`.
+ *
+ * COMMENTS ARE STRIPPED BEFORE DETECTORS 1, 3 AND 4 RUN. Those three ban a
+ * TOKEN rather than a position, and a module is encouraged to name the thing it
+ * must not do in a comment saying why. A whole-file grep would turn that
+ * explanation into a failure, which teaches the next author to delete the
+ * explanation. `stripComments` removes block comments and end-of-line ones, and
+ * leaves a line holding a quote before the `//` alone rather than guessing.
  *
  * IT PROVES ITSELF FIRST. Every detector is run over synthetic source that
  * SHOULD trip it and synthetic source that should not, and the walk asserts it
- * actually found the module and the routes. A guard that silently stopped
- * matching would otherwise be indistinguishable from a codebase that is clean.
+ * actually found the module, the routes, the signatures, the parameter keys and
+ * the URL keys it claims to be checking. A guard that silently stopped matching
+ * would otherwise be indistinguishable from a codebase that is clean.
  *
  * NO DATABASE. This reads files.
  */
@@ -47,6 +77,29 @@ const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
 /** The word forms that name a reader. Case-insensitive: `userId`, `AccountId` and `author` all count. */
 const READER_NAME_PATTERN = /user|account|author/i;
+
+/**
+ * Every key the public listing module may take, and nothing else.
+ *
+ * `from` and `to` are the language filter, `limit` and `offset` are the window,
+ * `id` addresses one row. A new one belongs here first, with a reason.
+ */
+const ALLOWED_PARAM_KEYS = new Set(['from', 'to', 'limit', 'offset', 'id']);
+
+/** Every key a browse route may read out of a URL. `page` is the window, and it never reaches the model. */
+const ALLOWED_ROUTE_KEYS = new Set(['from', 'to', 'page', 'id']);
+
+/**
+ * Names the listing module may not carry at all.
+ *
+ * `publicNameFolded` is the case-folded profile name, and `foldPublicName` is
+ * what writes it. The column exists so a person can be found by the name they
+ * chose, which is the single lookup these pages must never offer.
+ */
+const BANNED_TOKENS = ['publicNameFolded', 'foldPublicName'] as const;
+
+/** The only two profile columns the listing module may name: the join key, and the byline. */
+const ALLOWED_PROFILE_COLUMNS = new Set(['userId', 'publicName']);
 
 /** The four clause positions a listing filter can hide in. */
 const FILTER_TOKENS = ['.where(', '.orderBy(', '.groupBy(', '.having('] as const;
@@ -93,6 +146,26 @@ const browseRouteFiles = walk(join(REPO_ROOT, 'app/routes'))
 
 function read(file: string): string {
   return readFileSync(join(REPO_ROOT, file), 'utf8');
+}
+
+/**
+ * The source with its comments removed.
+ *
+ * A line whose text before the `//` already holds a quote is left whole: the
+ * `//` may be inside a string, and a guard that guesses wrong deletes real code
+ * and stops matching it.
+ */
+function stripComments(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .map((line) => {
+      const comment = line.indexOf('//');
+      if (comment === -1) return line;
+      const before = line.slice(0, comment);
+      return /['"`]/.test(before) ? line : before;
+    })
+    .join('\n');
 }
 
 /** The text between the parenthesis at `openIndex` and its matching close. */
@@ -143,14 +216,68 @@ function paramsInterfaceBodies(source: string): string[] {
   return bodies;
 }
 
-/** Detector 1: a reader-named parameter, or a reader-named field on a parameter object. */
+/** The property names an interface body declares. */
+function declaredKeys(body: string): string[] {
+  return [...body.matchAll(/^\s*(?:readonly\s+)?(\w+)\s*\??\s*:/gm)].map((match) => match[1] ?? '');
+}
+
+/**
+ * The keys one signature destructures, or none when it takes its object whole.
+ *
+ * A SIGNATURE THAT NAMES ITS OBJECT IS NOT A FAILURE. `(db, params: ListParams)`
+ * destructures nothing, and the interface check covers it: a guard that demanded
+ * inline destructuring would reject a correct implementation for its shape.
+ */
+function destructuredKeys(signature: string): string[] {
+  const open = signature.indexOf('{');
+  if (open === -1) return [];
+  const close = signature.indexOf('}', open);
+  if (close === -1) return [];
+  return signature
+    .slice(open + 1, close)
+    .split(',')
+    .map((entry) => (entry.split(':')[0] ?? '').trim())
+    .filter((entry) => entry.length > 0);
+}
+
+/** Every parameter key the listing module declares, from both places one can be written. */
+function listingParamKeys(source: string): string[] {
+  const stripped = stripComments(source);
+  return [
+    ...paramsInterfaceBodies(stripped).flatMap((body) => declaredKeys(body)),
+    ...exportedSignatures(stripped).flatMap((signature) => destructuredKeys(signature)),
+  ];
+}
+
+/** Detector 1: a parameter key that is not on the allow-list. */
+function findDisallowedParamKeys(source: string): string[] {
+  return listingParamKeys(source).filter((key) => !ALLOWED_PARAM_KEYS.has(key));
+}
+
+/** Detector 2: a reader-named parameter, or a reader-named field on a parameter object. */
 function findReaderNamedDeclarations(source: string): string[] {
   return [...exportedSignatures(source), ...paramsInterfaceBodies(source)]
     .filter((text) => READER_NAME_PATTERN.test(text))
     .map((text) => text.trim());
 }
 
-/** Detector 2: an authorship or profile column used to filter, sort or group. */
+/** Detector 3: one of the banned name-matching tokens, in code rather than in a comment. */
+function findBannedTokens(source: string): string[] {
+  const stripped = stripComments(source);
+  return BANNED_TOKENS.filter((token) => stripped.includes(token));
+}
+
+/** Every profile column the source names, in code rather than in a comment. */
+function profileColumns(source: string): string[] {
+  return [...stripComments(source).matchAll(/userProfiles\.(\w+)/g)].map((match) => match[1] ?? '');
+}
+
+/** Detector 4: a profile column that is neither the join key nor the byline. */
+function findDisallowedProfileColumns(source: string): string[] {
+  return profileColumns(source).filter((column) => !ALLOWED_PROFILE_COLUMNS.has(column));
+}
+
+/** Detector 5: an authorship or profile column used to filter, sort or group. */
 function findReaderNamedFilters(source: string): string[] {
   const hits: string[] = [];
   for (const token of FILTER_TOKENS) {
@@ -163,9 +290,33 @@ function findReaderNamedFilters(source: string): string[] {
   return hits;
 }
 
-/** Detector 3: the vote table's account column, anywhere at all. */
+/** Detector 6: the vote table's account column, anywhere at all. */
 function findVoterColumn(source: string): string[] {
   return source.includes(VOTER_COLUMN) ? [VOTER_COLUMN] : [];
+}
+
+/** Every key a route reads out of the query string. */
+function searchParamKeys(source: string): string[] {
+  return [...stripComments(source).matchAll(/searchParams\.get\(\s*['"`]([^'"`]+)['"`]\s*\)/g)].map(
+    (match) => match[1] ?? '',
+  );
+}
+
+/** Every key a route reads off a `params` object, the path's own and any other. */
+function pathParamKeys(source: string): string[] {
+  return [...stripComments(source).matchAll(/\bparams\.(\w+)/g)].map((match) => match[1] ?? '');
+}
+
+/** Detector 7: a browse route reading a key that is not on the allow-list. */
+function findDisallowedRouteKeys(source: string): string[] {
+  const hits: string[] = [];
+  for (const key of searchParamKeys(source)) {
+    if (!ALLOWED_ROUTE_KEYS.has(key)) hits.push(`reads ?${key}= out of the URL`);
+  }
+  for (const key of pathParamKeys(source)) {
+    if (!ALLOWED_ROUTE_KEYS.has(key)) hits.push(`reads params.${key}`);
+  }
+  return hits;
 }
 
 /** The names a file imports from the public listing module. */
@@ -184,16 +335,14 @@ function importedListingNames(source: string): string[] {
     .filter((entry) => entry.length > 0);
 }
 
-/** Detector 4: a browse route reading a reader-named key, or handing one to the listing model. */
+/** Detector 8: a browse route reading a reader-named key, or handing one to the listing model. */
 function findReaderNamedRouteInputs(source: string): string[] {
   const hits: string[] = [];
 
-  for (const match of source.matchAll(/searchParams\.get\(\s*['"`]([^'"`]+)['"`]\s*\)/g)) {
-    const key = match[1] ?? '';
+  for (const key of searchParamKeys(source)) {
     if (READER_NAME_PATTERN.test(key)) hits.push(`reads ?${key}= out of the URL`);
   }
-  for (const match of source.matchAll(/\bparams\.(\w+)/g)) {
-    const key = match[1] ?? '';
+  for (const key of pathParamKeys(source)) {
     if (READER_NAME_PATTERN.test(key)) hits.push(`reads params.${key} off the path`);
   }
   for (const name of importedListingNames(source)) {
@@ -221,6 +370,17 @@ export interface ListThingsParams {
   limit: number;
 }
 export async function listThings(db: Db, { from, limit }: ListThingsParams): Promise<void> {}
+`;
+
+/** A signature that takes its object whole. It destructures nothing, and that is correct. */
+const GOOD_UNDESTRUCTURED = `
+export interface ListThingsParams {
+  from: string | null;
+  to: string | null;
+  limit: number;
+  offset: number;
+}
+export async function listThings(db: Db, params: ListThingsParams): Promise<void> {}
 `;
 
 const BAD_FILTERS = `
@@ -272,8 +432,59 @@ export async function loader({ request, params }) {
 }
 `;
 
+/**
+ * The review's own counter-example, which every name-shaped detector passes.
+ *
+ * A `byline` parameter matches nothing in `/user|account|author/i`, and the
+ * profile column sits inside a helper handed in as the `extra` condition rather
+ * than in a `where` position. This is a per-person public page, and the
+ * allow-list is the only thing that stops it.
+ */
+const BAD_BYLINE_MODEL = `
+export interface ListPublicExplanationsParams {
+  from: string | null;
+  to: string | null;
+  byline: string | null;
+  limit: number;
+  offset: number;
+}
+
+function byName(name: string) {
+  return eq(userProfiles.publicNameFolded, foldPublicName(name));
+}
+
+export async function listPublicExplanations(
+  db: DictionaryDb,
+  { from, to, byline, limit, offset }: ListPublicExplanationsParams,
+): Promise<PublicExplanationPage> {
+  const latest = latestAnsweredPerKey(db, { from, to, questionNormalized: null });
+  return visibleExplanations(db, latest, byline === null ? undefined : byName(byline)).query;
+}
+`;
+
+const BAD_BYLINE_ROUTE = `
+import { listPublicExplanations } from '#app/models/explanation-browse.server';
+export async function loader({ request }) {
+  const url = new URL(request.url);
+  const byline = url.searchParams.get('byline');
+  return listPublicExplanations(db, { from: null, to: null, byline, limit: 20, offset: 0 });
+}
+`;
+
+/** A module that names a banned token only where it says why it must not use it. */
+const GOOD_BANNED_TOKENS = `
+// The profile's folded name column exists to match a person by name. This list
+// never reads publicNameFolded, and never calls foldPublicName.
+const rows = db.select({ name: userProfiles.publicName }).from(userProfiles);
+`;
+
+/** A module naming a third profile column, which is neither the join key nor the byline. */
+const BAD_PROFILE_COLUMNS = `
+const rows = db.select({ folded: userProfiles.publicNameFolded, bio: userProfiles.bio }).from(userProfiles);
+`;
+
 describe('the public explanation listing is never filtered by a reader', () => {
-  it('found the listing module and the browse routes it is meant to guard', () => {
+  it('found the listing module, the browse routes and everything it claims to parse', () => {
     assert.equal(
       modelFiles.length,
       1,
@@ -285,17 +496,69 @@ describe('the public explanation listing is never filtered by a reader', () => {
       `expected at least two app/routes/browse.* files, walked ${browseRouteFiles.length}. With none found, every ` +
         'route assertion below would pass over an empty list.',
     );
-    const signatures = exportedSignatures(read(modelFiles[0] ?? ''));
+
+    const model = read(modelFiles[0] ?? '');
     assert.ok(
-      signatures.length >= 1,
-      `parsed ${signatures.length} exported function signatures out of ${modelFiles[0]}. Zero means the parser ` +
-        'stopped matching this module, not that the module is clean.',
+      exportedSignatures(model).length >= 1,
+      `parsed no exported function signatures out of ${modelFiles[0]}. Zero means the parser stopped matching ` +
+        'this module, not that the module is clean.',
+    );
+    assert.ok(
+      paramsInterfaceBodies(model).length >= 1,
+      `parsed no exported *Params interface out of ${modelFiles[0]}, so the allow-list would run over nothing.`,
+    );
+    assert.ok(
+      listingParamKeys(model).length >= 5,
+      `parsed ${listingParamKeys(model).length} parameter keys out of ${modelFiles[0]}. The module declares a ` +
+        'language filter, a window and a row id, so a smaller number means the parser is missing declarations.',
+    );
+    assert.ok(
+      profileColumns(model).length >= 2,
+      `parsed ${profileColumns(model).length} profile column references out of ${modelFiles[0]}. The join and the ` +
+        'byline are two, so fewer means detector 4 is looking at nothing.',
+    );
+
+    const routeSources = browseRouteFiles.map((file) => read(file));
+    assert.ok(
+      routeSources.flatMap((source) => searchParamKeys(source)).length >= 1,
+      'parsed no searchParams.get key out of the browse routes, so the URL allow-list would run over nothing.',
+    );
+    assert.ok(
+      routeSources.flatMap((source) => pathParamKeys(source)).length >= 1,
+      'parsed no params.<name> read out of the browse routes, so half the URL allow-list would run over nothing.',
+    );
+  });
+
+  it('allows only the five parameter keys a public listing needs', () => {
+    // Twice: the interface declares it and the signature destructures it.
+    assert.deepEqual(findDisallowedParamKeys(BAD_DECLARATIONS), ['accountId', 'accountId']);
+    assert.deepEqual(findDisallowedParamKeys(GOOD_DECLARATIONS), []);
+    assert.deepEqual(
+      findDisallowedParamKeys(GOOD_UNDESTRUCTURED),
+      [],
+      'a signature that takes its params object whole was flagged. The interface check already covers it, and ' +
+        'demanding inline destructuring would reject a correct implementation for its shape.',
     );
   });
 
   it('flags a reader-named parameter and passes a language-shaped one', () => {
     assert.ok(findReaderNamedDeclarations(BAD_DECLARATIONS).length > 0);
     assert.deepEqual(findReaderNamedDeclarations(GOOD_DECLARATIONS), []);
+  });
+
+  it('flags the folded-name column and the function that writes it, but not a comment about them', () => {
+    assert.deepEqual(findBannedTokens(BAD_BYLINE_MODEL), ['publicNameFolded', 'foldPublicName']);
+    assert.deepEqual(
+      findBannedTokens(GOOD_BANNED_TOKENS),
+      [],
+      'a comment explaining why the module must not match people by name was read as the module doing it. That ' +
+        'teaches the next author to delete the explanation.',
+    );
+  });
+
+  it('allows the join key and the byline column, and no third profile column', () => {
+    assert.deepEqual(findDisallowedProfileColumns(BAD_PROFILE_COLUMNS), ['publicNameFolded', 'bio']);
+    assert.deepEqual(findDisallowedProfileColumns(GOOD_FILTERS), []);
   });
 
   it('flags an authorship or profile column in a filter, and ignores the join and the byline select', () => {
@@ -313,12 +576,43 @@ describe('the public explanation listing is never filtered by a reader', () => {
     assert.deepEqual(findVoterColumn(GOOD_VOTER_COLUMN), []);
   });
 
+  it('allows only the four URL keys a browse page reads', () => {
+    assert.deepEqual(findDisallowedRouteKeys(BAD_ROUTE), ['reads ?authorId= out of the URL']);
+    assert.deepEqual(findDisallowedRouteKeys(GOOD_ROUTE), []);
+  });
+
   it('flags a route reading a reader-named key and passes one reading a language', () => {
     assert.ok(findReaderNamedRouteInputs(BAD_ROUTE).length >= 2);
     assert.deepEqual(findReaderNamedRouteInputs(GOOD_ROUTE), []);
   });
 
+  it('catches the search-by-name door that every reader-NAMED detector lets through', () => {
+    // First, the reason this guard is an allow-list at all: the name-shaped
+    // detectors are green on a per-person public page.
+    assert.deepEqual(findReaderNamedDeclarations(BAD_BYLINE_MODEL), []);
+    assert.deepEqual(findReaderNamedFilters(BAD_BYLINE_MODEL), []);
+    assert.deepEqual(findReaderNamedRouteInputs(BAD_BYLINE_ROUTE), []);
+
+    // And the three allow-list detectors that do catch it.
+    assert.deepEqual(findDisallowedParamKeys(BAD_BYLINE_MODEL), ['byline', 'byline']);
+    assert.deepEqual(findBannedTokens(BAD_BYLINE_MODEL), ['publicNameFolded', 'foldPublicName']);
+    assert.deepEqual(findDisallowedProfileColumns(BAD_BYLINE_MODEL), ['publicNameFolded']);
+    assert.deepEqual(findDisallowedRouteKeys(BAD_BYLINE_ROUTE), ['reads ?byline= out of the URL']);
+  });
+
   for (const file of modelFiles) {
+    it(`${file}: declares only the parameter keys a public listing needs`, () => {
+      const hits = findDisallowedParamKeys(read(file));
+      assert.deepEqual(
+        hits,
+        [],
+        `${file} declares the parameter key(s) ${hits.join(', ')}, which are not on the allow-list ` +
+          `[${[...ALLOWED_PARAM_KEYS].join(', ')}].\nA public listing filters by language and pages by a window. ` +
+          'Anything else is a new way to narrow a public page, and it belongs in this allow-list first, with a ' +
+          'reason, before it belongs in the module.',
+      );
+    });
+
     it(`${file}: declares no reader-named parameter`, () => {
       const hits = findReaderNamedDeclarations(read(file));
       assert.deepEqual(
@@ -327,6 +621,28 @@ describe('the public explanation listing is never filtered by a reader', () => {
         `${file} declares a reader-named parameter:\n${hits.join('\n')}\n` +
           'A public listing must have no slot for a reader id, so no later change can wire one in. An ownership ' +
           'check or a mutation that legitimately takes one belongs in another module.',
+      );
+    });
+
+    it(`${file}: never matches a person by the name they chose`, () => {
+      const hits = findBannedTokens(read(file));
+      assert.deepEqual(
+        hits,
+        [],
+        `${file} names ${hits.join(' and ')}. The folded profile name exists to find a person by their public ` +
+          'name, which is the one lookup these pages must never offer. Naming it in a comment is fine; using it ' +
+          'is not.',
+      );
+    });
+
+    it(`${file}: names only the profile join key and the byline column`, () => {
+      const hits = findDisallowedProfileColumns(read(file));
+      assert.deepEqual(
+        hits,
+        [],
+        `${file} names the profile column(s) ${hits.join(', ')}. The module joins the profile table for ONE ` +
+          'thing, a name to write beside a row. A third column is a listing that knows more about the author ' +
+          'than the byline needs.',
       );
     });
 
@@ -353,6 +669,17 @@ describe('the public explanation listing is never filtered by a reader', () => {
   }
 
   for (const file of browseRouteFiles) {
+    it(`${file}: reads only the URL keys a browse page needs`, () => {
+      const hits = findDisallowedRouteKeys(read(file));
+      assert.deepEqual(
+        hits,
+        [],
+        `${file} ${hits.join(', ')}, which is not on the allow-list [${[...ALLOWED_ROUTE_KEYS].join(', ')}].\n` +
+          'A public browse page is addressed by a language pair, a window and a row id. A new key belongs in this ' +
+          'allow-list first, with a reason.',
+      );
+    });
+
     it(`${file}: takes no reader-named input from the URL`, () => {
       const hits = findReaderNamedRouteInputs(read(file));
       assert.deepEqual(

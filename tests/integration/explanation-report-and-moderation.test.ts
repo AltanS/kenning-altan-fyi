@@ -38,6 +38,8 @@ import { RouterContextProvider, type MiddlewareFunction } from 'react-router';
 
 import type { RouteConfigEntry } from '@react-router/dev/routes';
 
+import type { LanguageCode } from '../../app/lib/dictionary/detect-language';
+
 import routes from '../../app/routes';
 import { closePool, getRawDb, poolInitialized } from '../../drizzle/db';
 import {
@@ -62,6 +64,9 @@ const db = getRawDb();
 const FROM = 'tr';
 const TO = 'es';
 
+/** A second answer language for the same words. It makes a second cache key out of one question. */
+const SECOND_TO = 'en';
+
 /** Every question this file writes carries this, so a stray row is traceable to it. */
 const RUN = randomUUID().slice(0, 8);
 
@@ -71,7 +76,30 @@ const HIDEABLE_ID = randomUUID();
 /** A SECOND answered row opened under the hidden question's key, after the hide. */
 const HIDEABLE_RETRY_ID = randomUUID();
 
+/** One question answered under TWO pairs. The hide names one key, so only one of them may come down. */
+const PAIR_SPLIT_HIDDEN_ID = randomUUID();
+const PAIR_SPLIT_VISIBLE_ID = randomUUID();
+
+/** A row hidden with the reason box left empty, which the column must record as nothing at all. */
+const EMPTY_REASON_ID = randomUUID();
+
 const HIDEABLE_QUESTION = `zz-hideable-${RUN}`;
+const PAIR_SPLIT_QUESTION = `zz-pair-split-${RUN}`;
+const EMPTY_REASON_QUESTION = `zz-empty-reason-${RUN}`;
+
+/** Every question this file hides. The moderation table has no foreign key, so `after()` deletes by these. */
+const HIDDEN_QUESTIONS = [HIDEABLE_QUESTION, PAIR_SPLIT_QUESTION, EMPTY_REASON_QUESTION];
+
+/** Every ledger row this file writes, including the one a test opens later. */
+const EVERY_ID = [
+  REPORTED_ID,
+  UNLISTED_ID,
+  HIDEABLE_ID,
+  HIDEABLE_RETRY_ID,
+  PAIR_SPLIT_HIDDEN_ID,
+  PAIR_SPLIT_VISIBLE_ID,
+  EMPTY_REASON_ID,
+];
 
 let authorId = 0;
 let reporterId = 0;
@@ -121,6 +149,11 @@ function answeredRow(id: string, question: string, createdAt: Date) {
   };
 }
 
+/** One answered row under an explicit pair, for the case that needs the same question under two of them. */
+function answeredRowForPair(params: { id: string; question: string; to: string; createdAt: Date }) {
+  return { ...answeredRow(params.id, params.question, params.createdAt), toLanguageCode: params.to };
+}
+
 /** The chain of layout files a route file sits inside, outermost first. */
 function ancestorsOf(entries: readonly RouteConfigEntry[], file: string): string[] | null {
   for (const entry of entries) {
@@ -155,10 +188,17 @@ async function postReport(params: { id: string; reason: string | null; cookie: s
 }
 
 /** One operator submission, with the account the layout would have put in context. */
-async function submitModeration(params: { explanationId: string; intent: string; caller: AuthenticatedUser }) {
+async function submitModeration(params: {
+  explanationId: string;
+  intent: string;
+  caller: AuthenticatedUser;
+  reason?: string;
+}) {
   const body = new FormData();
   body.set('intent', params.intent);
   body.set('explanationId', params.explanationId);
+  // A text input always submits, empty or not, so the empty case sends one too.
+  if (params.reason !== undefined) body.set('reason', params.reason);
 
   const context = new RouterContextProvider();
   context.set(userContext, params.caller);
@@ -192,10 +232,15 @@ async function runSuperGate(caller: AuthenticatedUser | null): Promise<'admitted
   }
 }
 
-/** Whether one row is on the public list right now. */
-async function isPubliclyListed(id: string): Promise<boolean> {
-  const page = await listPublicExplanations(db, { from: 'tr', to: 'es', limit: 200, offset: 0 });
-  return page.rows.some((row) => row.id === id);
+/**
+ * Whether one row is on the public list right now.
+ *
+ * THE PAIR IS NAMED RATHER THAN ASSUMED, because one of the cases below asks the
+ * same question of two different pairs and the answers have to differ.
+ */
+async function isPubliclyListed(params: { id: string; from: LanguageCode; to: LanguageCode }): Promise<boolean> {
+  const page = await listPublicExplanations(db, { from: params.from, to: params.to, limit: 200, offset: 0 });
+  return page.rows.some((row) => row.id === params.id);
 }
 
 before(async () => {
@@ -221,29 +266,30 @@ before(async () => {
       answeredRow(REPORTED_ID, `zz-reported-${RUN}`, at(10)),
       answeredRow(UNLISTED_ID, `zz-report-unlisted-${RUN}`, at(11)),
       answeredRow(HIDEABLE_ID, HIDEABLE_QUESTION, at(12)),
+      answeredRow(EMPTY_REASON_ID, EMPTY_REASON_QUESTION, at(13)),
+      // The same words, answered in two languages. Two cache keys, one question.
+      answeredRow(PAIR_SPLIT_HIDDEN_ID, PAIR_SPLIT_QUESTION, at(14)),
+      answeredRowForPair({ id: PAIR_SPLIT_VISIBLE_ID, question: PAIR_SPLIT_QUESTION, to: SECOND_TO, createdAt: at(15) }),
     ]);
 
   await db.insert(explanationAuthorship).values([
     { explanationId: REPORTED_ID, userId: authorId, listed: true },
     { explanationId: UNLISTED_ID, userId: authorId, listed: false },
     { explanationId: HIDEABLE_ID, userId: authorId, listed: true },
+    { explanationId: EMPTY_REASON_ID, userId: authorId, listed: true },
+    { explanationId: PAIR_SPLIT_HIDDEN_ID, userId: authorId, listed: true },
+    { explanationId: PAIR_SPLIT_VISIBLE_ID, userId: authorId, listed: true },
   ]);
 });
 
 after(async () => {
   if (DB_HOST) {
+    // Every question this file writes carries its own run tag, so deleting by
+    // question covers every pair it was hidden under.
     await db
       .delete(explanationModeration)
-      .where(
-        and(
-          eq(explanationModeration.fromLanguageCode, FROM),
-          eq(explanationModeration.toLanguageCode, TO),
-          eq(explanationModeration.questionNormalized, HIDEABLE_QUESTION),
-        ),
-      );
-    await db
-      .delete(explanations)
-      .where(inArray(explanations.id, [REPORTED_ID, UNLISTED_ID, HIDEABLE_ID, HIDEABLE_RETRY_ID]));
+      .where(inArray(explanationModeration.questionNormalized, HIDDEN_QUESTIONS));
+    await db.delete(explanations).where(inArray(explanations.id, EVERY_ID));
     const everyUserId = [authorId, reporterId, operator.id].filter((id) => id !== 0);
     if (everyUserId.length > 0) await db.delete(users).where(inArray(users.id, everyUserId));
   }
@@ -330,18 +376,18 @@ describe('taking one question off the public pages', () => {
     'hides a question through the operator action and puts it back',
     { skip: !DB_HOST ? 'DB_HOST not set' : false },
     async () => {
-      assert.ok(await isPubliclyListed(HIDEABLE_ID), 'the fixture row is not public to begin with');
+      assert.ok(await isPubliclyListed({ id: HIDEABLE_ID, from: FROM, to: TO }), 'the fixture row is not public to begin with');
 
       await submitModeration({ explanationId: HIDEABLE_ID, intent: 'hide', caller: operator });
       assert.equal(
-        await isPubliclyListed(HIDEABLE_ID),
+        await isPubliclyListed({ id: HIDEABLE_ID, from: FROM, to: TO }),
         false,
         'the hide wrote a row and the listing kept showing the question anyway',
       );
 
       await submitModeration({ explanationId: HIDEABLE_ID, intent: 'unhide', caller: operator });
       assert.ok(
-        await isPubliclyListed(HIDEABLE_ID),
+        await isPubliclyListed({ id: HIDEABLE_ID, from: FROM, to: TO }),
         'un-hiding left the question off the public pages, so no row means visible is not the rule the listing ' +
           'follows',
       );
@@ -353,7 +399,7 @@ describe('taking one question off the public pages', () => {
     { skip: !DB_HOST ? 'DB_HOST not set' : false },
     async () => {
       await submitModeration({ explanationId: HIDEABLE_ID, intent: 'hide', caller: operator });
-      assert.equal(await isPubliclyListed(HIDEABLE_ID), false);
+      assert.equal(await isPubliclyListed({ id: HIDEABLE_ID, from: FROM, to: TO }), false);
 
       // A retry, a later prompt version or a repair: the ledger is append only,
       // so this is an ordinary thing to happen to a hidden question.
@@ -365,10 +411,57 @@ describe('taking one question off the public pages', () => {
       });
 
       assert.equal(
-        await isPubliclyListed(HIDEABLE_RETRY_ID),
+        await isPubliclyListed({ id: HIDEABLE_RETRY_ID, from: FROM, to: TO }),
         false,
         'a newer answered row republished a question an operator had hidden. The hide is keyed on the question ' +
           'precisely so a new row cannot walk around it.',
+      );
+    },
+  );
+
+  it(
+    'leaves the same question listed under a second language pair',
+    { skip: !DB_HOST ? 'DB_HOST not set' : false },
+    async () => {
+      await submitModeration({ explanationId: PAIR_SPLIT_HIDDEN_ID, intent: 'hide', caller: operator });
+
+      assert.equal(
+        await isPubliclyListed({ id: PAIR_SPLIT_HIDDEN_ID, from: FROM, to: TO }),
+        false,
+        'the hide did not take at all, so the assertion below would prove nothing',
+      );
+      assert.ok(
+        await isPubliclyListed({ id: PAIR_SPLIT_VISIBLE_ID, from: FROM, to: SECOND_TO }),
+        'hiding one question took the SAME question down under a second language pair. A cache key is three ' +
+          'columns, and the same words explained in another language are another answer the operator never read ' +
+          'and never decided about.',
+      );
+    },
+  );
+
+  it(
+    'records an empty hide reason as nothing at all',
+    { skip: !DB_HOST ? 'DB_HOST not set' : false },
+    async () => {
+      await submitModeration({ explanationId: EMPTY_REASON_ID, intent: 'hide', caller: operator, reason: '   ' });
+
+      const [row] = await db
+        .select({ reason: explanationModeration.reason })
+        .from(explanationModeration)
+        .where(
+          and(
+            eq(explanationModeration.fromLanguageCode, FROM),
+            eq(explanationModeration.toLanguageCode, TO),
+            eq(explanationModeration.questionNormalized, EMPTY_REASON_QUESTION),
+          ),
+        );
+
+      assert.ok(row !== undefined, 'the hide wrote no moderation row, so the column below was never written');
+      assert.equal(
+        row.reason,
+        null,
+        'an empty reason box was stored as an empty sentence. The queue then cannot tell an operator who wrote ' +
+          'nothing apart from one who wrote nothing down.',
       );
     },
   );

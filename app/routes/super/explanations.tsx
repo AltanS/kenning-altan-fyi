@@ -56,7 +56,15 @@ const moderationFormSchema = z.discriminatedUnion('intent', [
   z.object({
     intent: z.literal(INTENT.HIDE),
     explanationId: z.uuid(),
-    reason: z.string().trim().max(REPORT_REASON_MAX_CHARS).optional(),
+    // An empty box is "the operator wrote nothing", never "the operator wrote an
+    // empty sentence". A text input always submits, so without this the column
+    // fills with `''` and the queue cannot tell the two apart.
+    reason: z
+      .string()
+      .trim()
+      .max(REPORT_REASON_MAX_CHARS)
+      .optional()
+      .transform((value) => (value === undefined || value.length === 0 ? null : value)),
   }),
   z.object({ intent: z.literal(INTENT.UNHIDE), explanationId: z.uuid() }),
 ]);
@@ -80,7 +88,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   if (submission.value.intent === INTENT.HIDE) {
-    await hideQuestion(db, { ...key, hiddenByUserId: user.id, reason: submission.value.reason ?? null });
+    await hideQuestion(db, { ...key, hiddenByUserId: user.id, reason: submission.value.reason });
   } else {
     await unhideQuestion(db, key);
   }

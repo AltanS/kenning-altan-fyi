@@ -43,7 +43,7 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 import { RouterContextProvider } from 'react-router';
 
 import type { LanguageCode } from '../../app/lib/dictionary/detect-language';
@@ -88,12 +88,31 @@ const RECENT_ID = randomUUID();
 const MARGIN_ONE_ID = randomUUID();
 const MARGIN_TWO_ID = randomUUID();
 
+/**
+ * Three rows under the SECOND pair that must never be counted.
+ *
+ * They are what makes the exact `total` below a real assertion: one is
+ * un-listed, one answers a hidden question and one has no authorship claim, so a
+ * count taken before those filters reports twenty-four where twenty-one are
+ * visible.
+ */
+const OTHER_UNLISTED_ID = randomUUID();
+const OTHER_HIDDEN_ID = randomUUID();
+const OTHER_ORPHAN_ID = randomUUID();
+
 /** The window fixture: one page plus one row, so "show more" has something to widen into. */
 const WINDOW_IDS = Array.from({ length: PUBLIC_EXPLANATIONS_PAGE_SIZE + 1 }, () => randomUUID());
 
 /** The key the superseded pair shares. Both rows answer this same question. */
 const SUPERSEDED_QUESTION = `zz-superseded-${RUN}`;
 const HIDDEN_QUESTION = `zz-hidden-${RUN}`;
+const OTHER_HIDDEN_QUESTION = `zz-other-hidden-${RUN}`;
+
+/** Kept out of the assertion line, so the count and the expected count stay legible beside each other. */
+const EXACT_TOTAL_MESSAGE =
+  'the count under this pair is not the number of visible rows. Three more rows sit under it, one un-listed, one ' +
+  'answering a hidden question and one with no authorship claim: a count taken before those filters reports them, ' +
+  'and the list then offers a "show more" that reaches nothing.';
 
 /** A public name nothing else in the database carries. */
 const PUBLIC_NAME = `zz Reader ${RUN}`;
@@ -196,6 +215,10 @@ before(async () => {
     ...WINDOW_IDS.map((id, index) =>
       answeredRow(id, `zz-window-${RUN}-${index}`, at(30 + index), OTHER_FROM, OTHER_TO),
     ),
+    // Under the second pair, and invisible for the three different reasons.
+    answeredRow(OTHER_UNLISTED_ID, `zz-other-unlisted-${RUN}`, at(90), OTHER_FROM, OTHER_TO),
+    answeredRow(OTHER_HIDDEN_ID, OTHER_HIDDEN_QUESTION, at(91), OTHER_FROM, OTHER_TO),
+    answeredRow(OTHER_ORPHAN_ID, `zz-other-orphan-${RUN}`, at(92), OTHER_FROM, OTHER_TO),
   ]);
 
   await db.insert(explanationAuthorship).values([
@@ -211,6 +234,9 @@ before(async () => {
     { explanationId: MARGIN_ONE_ID, userId: bareAuthorId, listed: true },
     { explanationId: RECENT_ID, userId: bareAuthorId, listed: true },
     ...WINDOW_IDS.map((id) => ({ explanationId: id, userId: bareAuthorId, listed: true })),
+    { explanationId: OTHER_UNLISTED_ID, userId: bareAuthorId, listed: false },
+    { explanationId: OTHER_HIDDEN_ID, userId: bareAuthorId, listed: true },
+    // OTHER_ORPHAN_ID deliberately gets none.
   ]);
 
   await db.insert(explanationVotes).values([
@@ -219,13 +245,22 @@ before(async () => {
     { explanationId: MARGIN_TWO_ID, accountId: voterTwoId, value: 1 },
   ]);
 
-  await db.insert(explanationModeration).values({
-    fromLanguageCode: FROM,
-    toLanguageCode: TO,
-    questionNormalized: HIDDEN_QUESTION,
-    hiddenByUserId: namedAuthorId,
-    reason: 'a fixture hide',
-  });
+  await db.insert(explanationModeration).values([
+    {
+      fromLanguageCode: FROM,
+      toLanguageCode: TO,
+      questionNormalized: HIDDEN_QUESTION,
+      hiddenByUserId: namedAuthorId,
+      reason: 'a fixture hide',
+    },
+    {
+      fromLanguageCode: OTHER_FROM,
+      toLanguageCode: OTHER_TO,
+      questionNormalized: OTHER_HIDDEN_QUESTION,
+      hiddenByUserId: namedAuthorId,
+      reason: 'a fixture hide',
+    },
+  ]);
 });
 
 after(async () => {
@@ -243,18 +278,16 @@ after(async () => {
       MARGIN_ONE_ID,
       MARGIN_TWO_ID,
       ...WINDOW_IDS,
+      OTHER_UNLISTED_ID,
+      OTHER_HIDDEN_ID,
+      OTHER_ORPHAN_ID,
     ];
-    // The moderation row has no foreign key onto anything, so it is deleted by
-    // its own key. Everything else cascades off the ledger rows or the users.
+    // The moderation rows have no foreign key onto anything, so they are deleted
+    // by their own questions, each of which carries this run's own tag.
+    // Everything else cascades off the ledger rows or the users.
     await db
       .delete(explanationModeration)
-      .where(
-        and(
-          eq(explanationModeration.fromLanguageCode, FROM),
-          eq(explanationModeration.toLanguageCode, TO),
-          eq(explanationModeration.questionNormalized, HIDDEN_QUESTION),
-        ),
-      );
+      .where(inArray(explanationModeration.questionNormalized, [HIDDEN_QUESTION, OTHER_HIDDEN_QUESTION]));
     await db.delete(explanations).where(inArray(explanations.id, everyId));
     const everyUserId = [namedAuthorId, bareAuthorId, voterOneId, voterTwoId].filter((id) => id !== 0);
     if (everyUserId.length > 0) await db.delete(users).where(inArray(users.id, everyUserId));
@@ -396,6 +429,22 @@ describe('the public listing: order and window', () => {
     assert.ok(theirs.includes(WINDOW_IDS[0] ?? ''));
     assert.equal(theirs.includes(NAMED_ID), false, 'the reversed pair returned rows from the forward one');
   });
+
+  it(
+    'counts exactly the visible rows, on a pair this file seeds and nothing else does',
+    { skip: !DB_HOST ? 'DB_HOST not set' : false },
+    async () => {
+      const page = await listPublicExplanations(db, { from: OTHER_FROM, to: OTHER_TO, limit: 200, offset: 0 });
+
+      assert.deepEqual(
+        page.rows.map((row) => row.id).toSorted(),
+        WINDOW_IDS.toSorted(),
+        'the reversed pair holds this run\'s window rows and nothing else, so anything extra or missing here is ' +
+          'the filter, not another test',
+      );
+      assert.equal(page.total, WINDOW_IDS.length, EXACT_TOTAL_MESSAGE);
+    },
+  );
 
   it('pages with limit and offset over one stable total', { skip: !DB_HOST ? 'DB_HOST not set' : false }, async () => {
     const first = await listPublicExplanations(db, { from: 'es', to: 'tr', limit: 2, offset: 0 });

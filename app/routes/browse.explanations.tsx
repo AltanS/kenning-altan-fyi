@@ -108,11 +108,15 @@ export async function loader({ request }: Route.LoaderArgs) {
   // the model could not decode must not shorten the list by ending it early.
   const shown = Math.min(limit, page.total);
 
+  // A wider window would clamp straight back to this one, so the link would
+  // render and do nothing.
+  const atCeiling = shown >= PUBLIC_EXPLANATIONS_MAX_ROWS;
+
   return {
     rows: page.rows,
     total: page.total,
     shown,
-    nextPage: shown < page.total ? Math.floor(shown / PUBLIC_EXPLANATIONS_PAGE_SIZE) + 1 : null,
+    nextPage: !atCeiling && shown < page.total ? Math.floor(shown / PUBLIC_EXPLANATIONS_PAGE_SIZE) + 1 : null,
     from,
     to,
     isSignedIn: user !== null,

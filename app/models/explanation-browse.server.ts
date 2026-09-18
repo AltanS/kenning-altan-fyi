@@ -15,10 +15,10 @@
  * THE PREDICATE, IN THREE STEPS AND IN THIS ORDER.
  *   1. `DISTINCT ON (from, to, question_normalized)` over the `ok` rows, newest
  *      first, so each question is represented by its LATEST answered row. The
- *      language filters live inside this step because they are key columns and
- *      cannot change which row the step picks. Everything else is applied to the
- *      row it picked, so an older listed row can never surface behind a newer
- *      unlisted one.
+ *      language filters, and the question the single-row read already knows, live
+ *      inside this step because they are key columns and cannot change which row
+ *      the step picks. Everything else is applied to the row it picked, so an
+ *      older listed row can never surface behind a newer unlisted one.
  *   2. An INNER JOIN onto `explanation_authorship`, keeping `listed = true`.
  *      ABSENCE OF AN AUTHORSHIP ROW MEANS NOT LISTED. That is what the inner
  *      join expresses and it is not an accident of shape: an authorship row
@@ -133,10 +133,46 @@ export interface GetPublicExplanationParams {
 const KEY_COLUMNS = [explanations.fromLanguageCode, explanations.toLanguageCode, explanations.questionNormalized];
 
 /**
- * Step 1: the latest answered row per question, already narrowed to the
- * languages the caller asked for.
+ * Which questions step 1 may consider, `null` meaning "every one of them".
+ *
+ * EVERY FIELD IS A KEY COLUMN, and that is what makes narrowing safe: the
+ * DISTINCT ON groups by exactly these three, so a filter on any of them cannot
+ * change which row the step picks for a group it keeps.
  */
-function latestAnsweredPerKey(db: DictionaryDb, from: LanguageCode | null, to: LanguageCode | null) {
+interface KeyFilter {
+  from: string | null;
+  to: string | null;
+  questionNormalized: string | null;
+}
+
+/**
+ * The cache key one ledger row carries, read by primary key.
+ *
+ * WHY THE SINGLE-ROW READ STARTS HERE. Step 1 groups the whole answered ledger
+ * and Postgres cannot push `id = $1` into a DISTINCT ON, so a detail page that
+ * filtered afterwards scanned every answered row to serve one. The key read here
+ * narrows step 1 to a single group instead, and the `latest.id = id` test after
+ * it is unchanged, so a superseded row still refuses.
+ */
+async function readExplanationKey(db: DictionaryDb, id: string): Promise<KeyFilter | null> {
+  const [row] = await db
+    .select({
+      from: explanations.fromLanguageCode,
+      to: explanations.toLanguageCode,
+      questionNormalized: explanations.questionNormalized,
+    })
+    .from(explanations)
+    .where(eq(explanations.id, id))
+    .limit(1);
+
+  return row ?? null;
+}
+
+/**
+ * Step 1: the latest answered row per question, already narrowed to the keys the
+ * caller asked for.
+ */
+function latestAnsweredPerKey(db: DictionaryDb, key: KeyFilter) {
   return db.$with('latest_answered').as(
     db
       .selectDistinctOn(KEY_COLUMNS, {
@@ -152,8 +188,11 @@ function latestAnsweredPerKey(db: DictionaryDb, from: LanguageCode | null, to: L
       .where(
         and(
           eq(explanations.status, 'ok'),
-          from === null ? undefined : eq(explanations.fromLanguageCode, from),
-          to === null ? undefined : eq(explanations.toLanguageCode, to),
+          key.from === null ? undefined : eq(explanations.fromLanguageCode, key.from),
+          key.to === null ? undefined : eq(explanations.toLanguageCode, key.to),
+          key.questionNormalized === null
+            ? undefined
+            : eq(explanations.questionNormalized, key.questionNormalized),
         ),
       )
       .orderBy(...KEY_COLUMNS, desc(explanations.createdAt)),
@@ -240,7 +279,7 @@ export async function listPublicExplanations(
   db: DictionaryDb,
   { from, to, limit, offset }: ListPublicExplanationsParams,
 ): Promise<PublicExplanationPage> {
-  const latest = latestAnsweredPerKey(db, from, to);
+  const latest = latestAnsweredPerKey(db, { from, to, questionNormalized: null });
   const visible = visibleExplanations(db, latest);
 
   const selected = await visible.query
@@ -287,7 +326,10 @@ export async function getPublicExplanation(
   db: DictionaryDb,
   { id }: GetPublicExplanationParams,
 ): Promise<PublicExplanation | null> {
-  const latest = latestAnsweredPerKey(db, null, null);
+  const key = await readExplanationKey(db, id);
+  if (key === null) return null;
+
+  const latest = latestAnsweredPerKey(db, key);
   const visible = visibleExplanations(db, latest, eq(latest.id, id));
 
   const [row] = await visible.query.limit(1);
