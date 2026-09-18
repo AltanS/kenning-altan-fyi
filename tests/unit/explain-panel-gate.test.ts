@@ -191,7 +191,7 @@ describe('the explain resolver, which never enqueues', () => {
 
   it('reports translating for an open run, and failed for the latest failed one', async () => {
     fake.latest = row('pending');
-    assert.deepEqual(await resolveExplainPanel(db, key), { state: 'translating' });
+    assert.deepEqual(await resolveExplainPanel(db, key), { state: 'translating', queuedRunId: null });
 
     fake.latest = row('failed', { error: 'the model answered nothing usable' });
     assert.deepEqual(await resolveExplainPanel(db, key), {
@@ -243,7 +243,7 @@ describe('the explain trigger, which may', () => {
 
   it('enqueues for a question nobody has asked, asking the four guards in order', async () => {
     const panel = await resolveTriggeredExplainPanel(db, { ...key, request });
-    assert.deepEqual(panel, { state: 'translating' });
+    assert.deepEqual(panel, { state: 'translating', queuedRunId: 'explain-1' });
     assert.deepEqual(calls, ['cache', 'latest', 'rateLimit', 'countRunsToday', 'budget', 'enqueue']);
   });
 
@@ -270,7 +270,7 @@ describe('the explain trigger, which may', () => {
       questionNormalized: atCap,
       request,
     });
-    assert.deepEqual(panel, { state: 'translating' });
+    assert.deepEqual(panel, { state: 'translating', queuedRunId: 'explain-1' });
     assert.equal(calls.at(-1), 'enqueue');
   });
 
@@ -298,13 +298,16 @@ describe('the explain trigger, which may', () => {
   it('re-enqueues a failure when the reader pressed retry', async () => {
     fake.latest = row('failed');
     const panel = await resolveTriggeredExplainPanel(db, { ...key, request, retry: true });
-    assert.deepEqual(panel, { state: 'translating' });
+    assert.deepEqual(panel, { state: 'translating', queuedRunId: 'explain-1' });
     assert.equal(calls.at(-1), 'enqueue');
   });
 
-  it('treats a deduped enqueue as translating, and an unavailable queue as failed', async () => {
+  it('treats a deduped enqueue as translating with no id of its own, and an unavailable queue as failed', async () => {
     fake.enqueueOutcome = 'deduped';
-    assert.deepEqual(await resolveTriggeredExplainPanel(db, { ...key, request }), { state: 'translating' });
+    assert.deepEqual(await resolveTriggeredExplainPanel(db, { ...key, request }), {
+      state: 'translating',
+      queuedRunId: null,
+    });
 
     fake.enqueueOutcome = 'unavailable';
     const panel = await resolveTriggeredExplainPanel(db, { ...key, request });
@@ -313,6 +316,19 @@ describe('the explain trigger, which may', () => {
       canRetry: true,
       error: 'the explain queue is not available',
     });
+  });
+
+  it('mints the row id on a fresh queue, and answers no id when the same key is asked again while it is still open', async () => {
+    const first = await resolveTriggeredExplainPanel(db, { ...key, request });
+    assert.deepEqual(first, { state: 'translating', queuedRunId: 'explain-1' });
+
+    // The real `enqueueExplain` answers `deduped` for the second reader who asks
+    // the same key while the first run is still open; the fake models that
+    // outcome directly here, since the singleton-key race itself is proved by
+    // the integration test, not by this fake.
+    fake.enqueueOutcome = 'deduped';
+    const second = await resolveTriggeredExplainPanel(db, { ...key, request });
+    assert.deepEqual(second, { state: 'translating', queuedRunId: null });
   });
 });
 

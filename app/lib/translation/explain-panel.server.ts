@@ -59,6 +59,13 @@ export interface ExplainPanelReady {
 /** A run for this key is open. The pane polls until it is not. */
 export interface ExplainPanelTranslating {
   state: 'translating';
+  /**
+   * The id of the `explanations` row THIS request caused to be queued.
+   * `null` when this request only observed a run already open — a deduped
+   * enqueue, or a row already `pending` from an earlier request, read here
+   * without enqueueing anything.
+   */
+  queuedRunId: string | null;
 }
 
 /**
@@ -145,7 +152,7 @@ export async function resolveExplainPanel(db: DictionaryDb, key: ExplainPanelKey
 
   const row = await latestExplanation(db, key);
   if (row === null) return { state: 'none' };
-  if (row.status === 'pending') return { state: 'translating' };
+  if (row.status === 'pending') return { state: 'translating', queuedRunId: null };
   if (row.status === 'failed') return { state: 'failed', canRetry: true, error: row.error };
   if (row.status === 'budget') return { state: 'budget', reason: 'budget' };
   // `ok` with no readable answer: the check above already returned for every
@@ -222,11 +229,16 @@ export async function resolveTriggeredExplainPanel(
   });
   // A DEDUPED ENQUEUE IS STILL `translating`. The work is already queued or
   // running under this key, which is what the singleton key exists to arrange,
-  // and the row the first caller opened is what the pane will poll.
+  // and the row the first caller opened is what the pane will poll. Only a
+  // fresh `queued` outcome carries the id THIS request minted; a `deduped`
+  // outcome observed someone else's run and reports no id of its own.
   if (outcome.outcome === 'unavailable') {
     return { state: 'failed', canRetry: true, error: 'the explain queue is not available' };
   }
-  return { state: 'translating' };
+  if (outcome.outcome === 'deduped') {
+    return { state: 'translating', queuedRunId: null };
+  }
+  return { state: 'translating', queuedRunId: outcome.runId };
 }
 
 /**

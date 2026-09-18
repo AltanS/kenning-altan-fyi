@@ -56,6 +56,12 @@ export * from './schema/votes';
 // identity on this installation, reached through `getRawDb()`.
 export * from './schema/users';
 
+// The reader's own profile: an optional public display name, and whether
+// their future explanations start out hidden by default (M199). One row per
+// user, created lazily on the first write; carries no reference onto
+// `explanations`, deliberately. Reached through `getRawDb()`.
+export * from './schema/user-profiles';
+
 // The one synced document per user: the device's own store, pushed as plain
 // JSON under a compare-and-swap version. Reached through `getRawDb()`.
 export * from './schema/sync';
