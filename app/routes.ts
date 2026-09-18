@@ -117,6 +117,12 @@ export default [
   // dynamic stands above it, so there is no segment for it to be swallowed by.
   route('/api/explain', 'routes/api.explain.ts'),
   route('/api/explain/retry', 'routes/api.explain.retry.ts'),
+  // The vote on ONE written explanation (M200/02). Flat, beside the other two
+  // vote paths rather than under `/api/explain/`, for the reason they are flat:
+  // a vote is an action on a row the reader already has, not a second read of
+  // the question, and keeping the three votes side by side is what makes it
+  // obvious they share a gate and a shape.
+  route('/api/explanation-vote', 'routes/api.explanation-vote.ts'),
 
   // =============================================================================
   // App Shell (sidebar, mobile drawer, bottom tab bar)

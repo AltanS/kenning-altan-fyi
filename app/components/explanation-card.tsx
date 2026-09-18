@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { CopyTextButton } from '#app/components/copy-text-button';
 import { ExplanationBody } from '#app/components/explanation-body';
+import { ExplanationVotes } from '#app/components/explanation-votes';
 import { Button } from '#app/components/ui/button';
 import { Skeleton } from '#app/components/ui/skeleton';
 import type { ExplainPaneController } from '#app/components/explain-pane';
@@ -127,6 +128,19 @@ export function ExplanationCard({ controller, question, from, to }: ExplanationC
       </div>
       <div className="mt-3">
         {isAnswered && answer !== null && <ExplanationBody answer={answer} from={from} to={to} variant="card" />}
+
+        {/* UNDER THE ANSWER, AND ONLY WHEN THERE IS ONE. A reader cannot judge
+            the accuracy of prose that is still being written, and the id is
+            `null` on every other view anyway. The control reads the tally the
+            same poll already delivered, so this adds no second fetch. */}
+        {isAnswered && controller.explanationId !== null && (
+          <ExplanationVotes
+            explanationId={controller.explanationId}
+            up={controller.up}
+            down={controller.down}
+            myVote={controller.myVote}
+          />
+        )}
 
         {view === 'translating' && (
           <div className="flex flex-col gap-3">

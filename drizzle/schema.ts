@@ -53,9 +53,10 @@ export * from './schema/explanation-asks';
 // ledger rather than the ledger pointing back. Reached through `getRawDb()`.
 export * from './schema/explanation-authorship';
 
-// Reader votes on an enrichment and on a single translation edge, plus the
-// per-headword re-enrichment cooldown. All three describe the shared
-// dictionary, and all three are reached through `getRawDb()`.
+// Reader votes on an enrichment, on a single translation edge and on one
+// written explanation, plus the per-headword re-enrichment cooldown. All of
+// them are reached through `getRawDb()`. The explanation votes carry the same
+// governance as `explanation_authorship`: the file header states it.
 export * from './schema/votes';
 
 // The account model: `users` and `user_tokens`. A user is a person's own

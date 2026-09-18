@@ -69,6 +69,8 @@ export async function resolveOwnAuthorship(
     questionNormalized: ask.questionNormalized,
     from: storedLanguage({ code: ask.fromLanguage, fallback: 'de' }),
     to: storedLanguage({ code: ask.toLanguage, fallback: 'en' }),
+    // No tally is wanted here: this call asks who owns a row, not how it scored.
+    accountId: null,
   });
   if (panel.state !== 'ready') return null;
 

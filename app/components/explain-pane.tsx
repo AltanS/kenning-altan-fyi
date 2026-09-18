@@ -48,6 +48,17 @@ export interface ExplainPaneController {
   /** Which model wrote the answer on screen, or `null`. The disclosure names it. */
   model: string | null;
   /**
+   * The score on the answer on screen, and this reader's own vote in it.
+   *
+   * READ OFF THE HELD PANEL, exactly as `explanationId` and `model` are, so the
+   * vote control needs no second fetch of its own: the poll that delivers the
+   * answer delivers its tally in the same body. Zero and `null` on every view
+   * but `ready`, where there is nothing to score.
+   */
+  up: number;
+  down: number;
+  myVote: -1 | 1 | null;
+  /**
    * The locale key of the sentence the `translating` view shows.
    *
    * IT PHASES WITH THE ELAPSED WAIT, which is DESIGN.md section 7's rule for a
@@ -172,6 +183,9 @@ export function useExplainPane({ panel, target }: UseExplainPaneParams): Explain
     answer: ready?.answer ?? null,
     explanationId: ready?.explanationId ?? null,
     model: ready?.model ?? null,
+    up: ready?.up ?? 0,
+    down: ready?.down ?? 0,
+    myVote: ready?.myVote ?? null,
     retry,
     isRetrying: fetcher.state !== 'idle',
     refusalReason: state.panel.state === 'budget' ? state.panel.reason : null,

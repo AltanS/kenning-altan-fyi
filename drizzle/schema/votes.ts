@@ -3,6 +3,7 @@ import { pgTable, text, smallint, timestamp, uuid, integer, index, check, primar
 import { users } from './users';
 import { headwords, languages, translations } from './dictionary';
 import { enrichments } from './enrichment';
+import { explanations } from './explanations';
 
 // =============================================================================
 // Enrichment votes and the re-enrichment cooldown
@@ -150,6 +151,82 @@ export const translationVotes = pgTable(
 
 export type InsertTranslationVote = InferInsertModel<typeof translationVotes>;
 export type SelectTranslationVote = InferSelectModel<typeof translationVotes>;
+
+// =============================================================================
+// Explanation votes
+// =============================================================================
+// A reader tells us whether ONE written explanation is accurate. It is a
+// judgement about a paragraph of generated prose, not about a dictionary word,
+// so the row points at one `explanations` ledger row and at nothing else.
+//
+// THE PRIVACY RULE OF THIS FILE HOLDS HERE TOO, AND IT IS TIGHTER THAN ABOVE.
+//   An enrichment id and a translation id name shared-zone objects that exist
+//   whether or not anybody searched for them. An explanation id names a row that
+//   only exists because SOMEBODY TYPED THAT QUESTION. So the id alone is what
+//   crosses into the vote row: no question text, no normalised form, no language
+//   pair, no headword and no lemma may ever be added to this table. Any one of
+//   those columns would put a free-text question and a named reader on the same
+//   row, and the product's claim would be lost with no bug and no other change.
+//
+// IT CARRIES THE SAME GOVERNANCE AS `explanation_authorship`, DELIBERATELY.
+//   Both tables permanently link one account to one free-text question, and both
+//   get the same rule: no admin export, no per-user "everything this account
+//   voted on" query path, no API route and no CLI command, ever. The operator's
+//   list at `/super/llm` reads this table joined ONLY to `explanations`, with
+//   the account column grouped away before anything is selected, so a person
+//   triaging bad answers reads "this answer scored badly" and never "this reader
+//   judged this question".
+//
+//   THE RULE IS ENFORCED, NOT JUST STATED. `tests/unit/explanation-listing-no-user-filter.test.ts`
+//   is the automated guard, so a reader who arrives at either table's header
+//   finds the check as well as the rule.
+//
+// WHAT A VOTE DOES, TODAY: it is recorded, and nothing else. No explanation is
+// re-run, hidden or re-ordered because of its score (M194 decision 8).
+// =============================================================================
+
+export const explanationVotes = pgTable(
+  'explanation_votes',
+  {
+    // `cascade` for the same reason the two links above cascade: a vote on an
+    // answer that no longer exists scores prose nobody can read.
+    explanationId: uuid('explanation_id')
+      .notNull()
+      .references(() => explanations.id, { onDelete: 'cascade' }),
+    // `cascade` again, and it is also what makes account deletion a single
+    // DELETE that leaves nothing behind, which is the self-serve erasure path.
+    accountId: integer('account_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** `-1` or `1`, pinned by the check constraint below. There is no neutral vote: not voting is the neutral case. */
+    value: smallint('value').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    // THE COMPOSITE KEY IS THE RULE. "One vote per reader per explanation" is
+    // not enforced anywhere in the application; it is this primary key. A reader
+    // who changes their mind upserts on it, so the second vote REPLACES the
+    // first. Without the key a re-vote would be a second row, the tally would
+    // count one person twice, and any reader could push a score as far as they
+    // liked by clicking again.
+    primaryKey({ columns: [table.explanationId, table.accountId] }),
+
+    check('explanation_votes_value_check', sql`value in (-1, 1)`),
+
+    // The primary key starts with `explanationId`, so it cannot serve a read
+    // that starts from the account. The index exists for the cascade on account
+    // deletion, which is the erasure path, and for NOTHING ELSE: it is not an
+    // invitation to add a per-reader listing. See the governance note above.
+    index('explanation_votes_account_idx').on(table.accountId),
+  ],
+);
+
+export type InsertExplanationVote = InferInsertModel<typeof explanationVotes>;
+export type SelectExplanationVote = InferSelectModel<typeof explanationVotes>;
 
 // =============================================================================
 // Re-enrichment cooldown

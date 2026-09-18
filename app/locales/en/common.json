@@ -544,7 +544,7 @@
     "removeTrigger": "Remove",
     "removeLabel": "Remove {{question}}",
     "removeTitle": "Remove this question?",
-    "removeBody": "It leaves your list. If it was public, it comes off the public pages. The answer itself stays in the shared record, which names nobody.",
+    "removeBody": "It leaves your list. Anything you made public with it comes off the public pages, and stays off. The answer itself stays in the shared record.",
     "removeConfirm": "Remove",
     "removePending": "Removing...",
     "removeCancel": "Cancel",

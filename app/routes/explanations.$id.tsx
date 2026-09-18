@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { ItemActionsMenu } from '#app/components/item-actions-menu';
 import { useExplainPane } from '#app/components/explain-pane';
 import { ExplanationBody } from '#app/components/explanation-body';
+import { ExplanationVotes } from '#app/components/explanation-votes';
 import { Link } from '#app/components/link';
 import { languageName } from '#app/components/personal/saved-word-row';
 import { Button } from '#app/components/ui/button';
@@ -95,6 +96,9 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     questionNormalized: ask.questionNormalized,
     from: storedLanguage({ code: ask.fromLanguage, fallback: 'de' }),
     to: storedLanguage({ code: ask.toLanguage, fallback: 'en' }),
+    // Past the 404 guard the reader is known, so the panel can report their own
+    // vote and the buttons come back pressed after a reload.
+    accountId: user.id,
   });
 
   const authorship = panel.state === 'ready' ? await resolveOwnAuthorship(db, { userId: user.id, askId: id }) : null;
@@ -226,6 +230,7 @@ export default function ExplanationDetailRoute({ loaderData }: Route.ComponentPr
   const target: ExplainPaneTarget = { kind: 'question', question, from: language.from, to: language.to };
   const explanation = useExplainPane({ panel, target });
   const { view, answer, waitingKey } = explanation;
+  const isAnswered = view === 'ready' && answer !== null && explanation.explanationId !== null;
 
   const askAgainHref = `/explain?${new URLSearchParams({ q: question, from, to }).toString()}`;
   const answerText = answer === null ? '' : explanationToText(answer, { question, from, to });
@@ -326,6 +331,19 @@ export default function ExplanationDetailRoute({ loaderData }: Route.ComponentPr
             ]}
           />
         </div>
+
+        {/* BESIDE THE METADATA, AND ONLY ONCE THERE IS AN ANSWER. A reader
+            cannot judge the accuracy of prose that is still being written. The
+            tally arrives on the panel the loader already resolved, so this adds
+            no second fetch to the page. */}
+        {isAnswered && explanation.explanationId !== null && (
+          <ExplanationVotes
+            explanationId={explanation.explanationId}
+            up={explanation.up}
+            down={explanation.down}
+            myVote={explanation.myVote}
+          />
+        )}
       </div>
 
       <div className="flex flex-col gap-4">

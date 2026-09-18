@@ -1,6 +1,7 @@
 import type { Route } from './+types/api.explain';
 import { explainKeyFromRequest, resolveExplainPanel, type ExplainPanel } from '#app/lib/translation/explain-panel.server';
 import { authMiddleware } from '#app/middleware/auth';
+import { getUser } from '#app/middleware/helpers';
 import { getRawDb } from '#drizzle/db';
 
 /**
@@ -30,10 +31,16 @@ export const middleware = [authMiddleware];
 /** The answer for every request whose query names no question this route can fold. */
 const NO_ENTRY_PANEL: ExplainPanel = { state: 'no-entry' };
 
-export async function loader({ request }: Route.LoaderArgs): Promise<Response> {
+export async function loader({ context, request }: Route.LoaderArgs): Promise<Response> {
   const key = explainKeyFromRequest(new URL(request.url));
   if (key === null) return Response.json(NO_ENTRY_PANEL);
 
-  const panel = await resolveExplainPanel(getRawDb(), key);
+  // THE READER IS NAMED SO THE POLL CAN REPORT THEIR OWN VOTE. The pane replaces
+  // its whole panel with whatever this route answers, so an anonymous read here
+  // would un-press the vote button three seconds after the page loaded it
+  // pressed. `authMiddleware` above guarantees the context holds a user.
+  const user = getUser(context);
+
+  const panel = await resolveExplainPanel(getRawDb(), { ...key, accountId: user.id });
   return Response.json(panel);
 }

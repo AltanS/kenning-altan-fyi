@@ -20,11 +20,18 @@
  *   coming back under a fresh allowance reaches the same enqueue this one did
  *   not.
  *
- * THE READS ARE FAKED, ALL FIVE OF THEM. `explain-panel.server.ts` reads the
- * cache, the ledger, the rate limiter, the budget and the queue, each through
- * its own module, and each one is replaced here. Nothing in this file opens a
- * database: `#drizzle/db` connects at module load and is stubbed to throw, so a
- * read this test forgot to fake fails loudly instead of hanging on a pool.
+ * THE READS ARE FAKED, ALL SIX OF THEM. `explain-panel.server.ts` reads the
+ * cache, the ledger, the rate limiter, the budget, the queue and, since M200/02,
+ * the vote table, each through its own module, and each one is replaced here.
+ * Nothing in this file opens a database: `#drizzle/db` connects at module load
+ * and is stubbed to throw, so a read this test forgot to fake fails loudly
+ * instead of hanging on a pool.
+ *
+ * THE VOTE READS GO IN THEIR OWN LOG, NOT IN `calls`. The gate-order assertions
+ * below are exact `deepEqual`s on `calls`, so folding two more entries into it
+ * would have rewritten every one of them and turned an order proof into a
+ * transcript nobody can read. `voteReads` answers a different question: WHICH
+ * vote statements ran, and on whose behalf.
  *
  * THE CALL LOG IS THE ASSERTION FOR ORDER. Asserting only the returned reason
  * would pass on an implementation that asked all four guards and picked a winner
@@ -37,7 +44,9 @@ import assert from 'node:assert/strict';
 import type { DictionaryDb } from '#app/lib/dictionary/queries.server';
 import type { Explanation } from '#app/lib/llm/explain-schema';
 import type { ExplainEnqueueRequest } from '#app/lib/translation/explain-enqueue.server';
+import type { VoteTally } from '#app/lib/votes/score';
 import type { ExplanationView } from '#app/models/explanations.server';
+import type { VoteValue } from '#app/models/votes.server';
 
 mock.module('#drizzle/db', {
   namedExports: {
@@ -55,6 +64,10 @@ interface FakeReads {
   budgetExhausted: boolean;
   runsToday: number;
   enqueueOutcome: 'queued' | 'deduped' | 'unavailable';
+  /** What the shared tally answers for the answered row. */
+  tally: VoteTally;
+  /** What the per-account read answers, when it is performed at all. */
+  storedVote: VoteValue | null;
 }
 
 const fake: FakeReads = {
@@ -64,6 +77,8 @@ const fake: FakeReads = {
   budgetExhausted: false,
   runsToday: 0,
   enqueueOutcome: 'queued',
+  tally: { up: 0, down: 0 },
+  storedVote: null,
 };
 
 /** Which reads happened, in order. The gate ORDER is what this proves. */
@@ -82,6 +97,35 @@ mock.module('#app/models/explanations.server', {
     countExplainRunsToday: () => {
       calls.push('countRunsToday');
       return Promise.resolve(fake.runsToday);
+    },
+  },
+});
+
+/** One statement the vote table was asked for, and on whose behalf. */
+interface VoteRead {
+  kind: 'tally' | 'account';
+  explanationId: string;
+  accountId?: number;
+}
+
+/**
+ * Which vote statements ran, in order.
+ *
+ * THE ABSENCE OF AN `account` ENTRY IS THE ASSERTION FOR A STRANGER. "No
+ * per-account read happens" cannot be proved by reading `myVote`, which is
+ * `null` both when the read was skipped and when it ran and found nothing.
+ */
+let voteReads: VoteRead[] = [];
+
+mock.module('#app/models/explanation-votes.server', {
+  namedExports: {
+    tallyExplanationVotes: (_db: DictionaryDb, explanationId: string) => {
+      voteReads.push({ kind: 'tally', explanationId });
+      return Promise.resolve(fake.tally);
+    },
+    readVoteForAccount: (_db: DictionaryDb, params: { explanationId: string; accountId: number }) => {
+      voteReads.push({ kind: 'account', explanationId: params.explanationId, accountId: params.accountId });
+      return Promise.resolve(fake.storedVote);
     },
   },
 });
@@ -148,6 +192,19 @@ const key = {
   to: 'en',
 } as const;
 
+/**
+ * The same question, addressed by one reader or by nobody.
+ *
+ * THE ACCOUNT IS NOT PART OF THE KEY, which is why it is a second argument here
+ * rather than a field on `key` above: `explainKeyFromRequest` still answers the
+ * four-field key, and its own case at the bottom of this file proves it.
+ *
+ * @param accountId The signed-in reader, or `null` for a stranger.
+ */
+function lookup(accountId: number | null = null) {
+  return { ...key, accountId };
+}
+
 const request = new Request('https://kenning.altan.fyi/explain?q=kennen%20wissen');
 
 /** The signed-in reader every trigger in this file asks as. */
@@ -187,7 +244,10 @@ function row(status: ExplanationView['status'], overrides: Partial<ExplanationVi
 
 beforeEach(() => {
   calls = [];
+  voteReads = [];
   enqueued = null;
+  fake.tally = { up: 0, down: 0 };
+  fake.storedVote = null;
   fake.answer = null;
   fake.latest = null;
   fake.rateLimitAllowed = true;
@@ -199,19 +259,90 @@ beforeEach(() => {
 describe('the explain resolver, which never enqueues', () => {
   it('serves the cached answer with the row id and the model that wrote it, without reading the ledger', async () => {
     fake.answer = row('ok', { answer });
-    const panel = await resolveExplainPanel(db, key);
-    assert.deepEqual(panel, { state: 'ready', answer, explanationId: 'explain-0', model: 'a-model' });
+    const panel = await resolveExplainPanel(db, lookup());
+    assert.deepEqual(panel, {
+      state: 'ready',
+      answer,
+      explanationId: 'explain-0',
+      model: 'a-model',
+      up: 0,
+      down: 0,
+      myVote: null,
+    });
     // The ledger is not even read: an answer on the screen is the answer,
     // whatever a later attempt to produce another one did.
     assert.deepEqual(calls, ['cache']);
   });
 
+  it('serves a stranger the shared tally and no vote of their own, without reading the vote table per account', async () => {
+    fake.answer = row('ok', { answer });
+    fake.tally = { up: 5, down: 2 };
+    // Set, and it must NOT come back: a read that ran on behalf of a reader the
+    // request cannot name would be the defect this case exists to catch.
+    fake.storedVote = 1;
+
+    const panel = await resolveExplainPanel(db, lookup(null));
+
+    assert.equal(panel.state, 'ready');
+    assert.deepEqual(panel, {
+      state: 'ready',
+      answer,
+      explanationId: 'explain-0',
+      model: 'a-model',
+      up: 5,
+      down: 2,
+      myVote: null,
+    });
+    assert.deepEqual(
+      voteReads,
+      [{ kind: 'tally', explanationId: 'explain-0' }],
+      'a signed-out read reached the per-account statement. The score is a property of the answer and is read for ' +
+        'everybody; who voted on it is not, and must never be asked on behalf of a reader with no account.',
+    );
+  });
+
+  it("carries a signed-in reader's stored vote back, so the button comes back pressed after a reload", async () => {
+    fake.answer = row('ok', { answer });
+    fake.tally = { up: 4, down: 1 };
+    fake.storedVote = -1;
+
+    const panel = await resolveExplainPanel(db, lookup(READER_ID));
+
+    assert.deepEqual(panel, {
+      state: 'ready',
+      answer,
+      explanationId: 'explain-0',
+      model: 'a-model',
+      up: 4,
+      down: 1,
+      myVote: -1,
+    });
+    assert.deepEqual(voteReads, [
+      { kind: 'tally', explanationId: 'explain-0' },
+      { kind: 'account', explanationId: 'explain-0', accountId: READER_ID },
+    ]);
+  });
+
+  it('asks the vote table nothing at all while a run is open or after it failed', async () => {
+    fake.latest = row('pending');
+    await resolveExplainPanel(db, lookup(READER_ID));
+    fake.latest = row('failed');
+    await resolveExplainPanel(db, lookup(READER_ID));
+
+    assert.deepEqual(
+      voteReads,
+      [],
+      'an unanswered question paid for two vote statements. The pane polls this every three seconds, so a tally ' +
+        'read on the waiting path is a query per poll for a score that cannot exist yet.',
+    );
+  });
+
   it('reports translating for an open run, and failed for the latest failed one', async () => {
     fake.latest = row('pending');
-    assert.deepEqual(await resolveExplainPanel(db, key), { state: 'translating', queuedRunId: null });
+    assert.deepEqual(await resolveExplainPanel(db, lookup()), { state: 'translating', queuedRunId: null });
 
     fake.latest = row('failed', { error: 'the model answered nothing usable' });
-    assert.deepEqual(await resolveExplainPanel(db, key), {
+    assert.deepEqual(await resolveExplainPanel(db, lookup()), {
       state: 'failed',
       canRetry: true,
       error: 'the model answered nothing usable',
@@ -219,17 +350,17 @@ describe('the explain resolver, which never enqueues', () => {
   });
 
   it('reports none for a question nobody has asked, and for an ok row whose document does not decode', async () => {
-    assert.deepEqual(await resolveExplainPanel(db, key), { state: 'none' });
+    assert.deepEqual(await resolveExplainPanel(db, lookup()), { state: 'none' });
     // `answer: null` here is what the model layer produces for a stored document
     // this version cannot read. It must not render as an empty answer.
     fake.latest = row('ok');
-    assert.deepEqual(await resolveExplainPanel(db, key), { state: 'none' });
+    assert.deepEqual(await resolveExplainPanel(db, lookup()), { state: 'none' });
   });
 
   it('never enqueues and never spends a rate-limit token, whatever it is asked', async () => {
-    await resolveExplainPanel(db, key);
+    await resolveExplainPanel(db, lookup());
     fake.latest = row('failed');
-    await resolveExplainPanel(db, key);
+    await resolveExplainPanel(db, lookup());
     assert.equal(calls.includes('enqueue'), false);
     assert.equal(calls.includes('rateLimit'), false);
   });
@@ -241,6 +372,28 @@ describe('the explain trigger, which may', () => {
     const panel = await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID });
     assert.equal(panel.state, 'ready');
     assert.deepEqual(calls, ['cache']);
+  });
+
+  it("reports the asking reader's own vote on a question the cache already answers", async () => {
+    fake.answer = row('ok', { answer });
+    fake.tally = { up: 2, down: 0 };
+    fake.storedVote = 1;
+
+    const panel = await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID });
+
+    assert.equal(panel.state, 'ready');
+    // SAFETY: the state was just asserted, and `ready` is the only member of the
+    // union that carries a tally.
+    assert.deepEqual(
+      panel.state === 'ready' ? { up: panel.up, down: panel.down, myVote: panel.myVote } : null,
+      { up: 2, down: 0, myVote: 1 },
+    );
+    assert.deepEqual(
+      voteReads.find((read) => read.kind === 'account'),
+      { kind: 'account', explanationId: 'explain-0', accountId: READER_ID },
+      'the trigger half built its lookup without the reader it was handed, so a reader who asks a question this ' +
+        'installation has already answered is shown the buttons unpressed and votes again',
+    );
   });
 
   it('short-circuits an open run, so a second identical question queues nothing', async () => {

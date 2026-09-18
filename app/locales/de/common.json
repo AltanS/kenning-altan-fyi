@@ -544,7 +544,7 @@
     "removeTrigger": "Entfernen",
     "removeLabel": "{{question}} entfernen",
     "removeTitle": "Diese Frage entfernen?",
-    "removeBody": "Sie verschwindet aus deiner Liste. War sie öffentlich, wird sie von den öffentlichen Seiten entfernt. Die Antwort selbst bleibt im gemeinsamen Datensatz, ohne Namen.",
+    "removeBody": "Sie verschwindet aus deiner Liste. Alles, was du damit veröffentlicht hast, wird von den öffentlichen Seiten entfernt und taucht dort nicht wieder auf. Die Antwort selbst bleibt im gemeinsamen Datenbestand erhalten.",
     "removeConfirm": "Entfernen",
     "removePending": "Wird entfernt...",
     "removeCancel": "Abbrechen",

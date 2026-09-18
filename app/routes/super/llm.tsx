@@ -28,6 +28,7 @@ import {
 } from '#app/lib/abuse/rate-limit.server';
 import { getActiveModel, listActiveModelAudit, setActiveModel } from '#app/models/app-settings.server';
 import { readCorpusStats } from '#app/models/corpus-stats.server';
+import { listDownVotedExplanations } from '#app/models/explanation-votes.server';
 import { listDownVotedTranslations } from '#app/models/translation-votes.server';
 import { listFlaggedForReview } from '#app/models/votes.server';
 import { getRawDb } from '#drizzle/db';
@@ -59,11 +60,13 @@ const AUDIT_LIMIT = 20;
 const FLAGGED_LIMIT = 20;
 
 /**
- * How many down-voted translations the block below the flagged one shows.
+ * How many down-voted rows each of the two blocks below the flagged one shows.
  *
- * CAPPED FOR THE SAME REASON THE FLAGGED LIST IS. Nothing automatic reads this
- * list (M194 decision 8), so it is a page a person scans, and an uncapped one
- * would grow into a report nobody opens.
+ * CAPPED FOR THE SAME REASON THE FLAGGED LIST IS. Nothing automatic reads either
+ * list (M194 decision 8), so they are pages a person scans, and an uncapped one
+ * would grow into a report nobody opens. ONE constant for both, because the two
+ * blocks sit on the same screen and a reader who scrolls past twenty words then
+ * meets fifty answers has been given two different ideas of what "capped" means.
  */
 const DOWN_VOTED_LIMIT = 20;
 
@@ -102,11 +105,12 @@ export async function loader() {
   // each other and of the model reads above, so they are issued together.
   // Every one of them is a plain read: this page never grants, releases or
   // clears anything.
-  const [budget, rejections, flagged, downVoted, corpus] = await Promise.all([
+  const [budget, rejections, flagged, downVoted, downVotedExplanations, corpus] = await Promise.all([
     readBudget(),
     readRejections(),
     listFlaggedForReview(getRawDb(), FLAGGED_LIMIT),
     listDownVotedTranslations(getRawDb(), DOWN_VOTED_LIMIT),
+    listDownVotedExplanations(getRawDb(), DOWN_VOTED_LIMIT),
     readCorpusStats(getRawDb()),
   ]);
 
@@ -140,6 +144,7 @@ export async function loader() {
     rejections,
     flagged,
     downVoted,
+    downVotedExplanations,
     corpus,
     // The two trigger ceilings travel as data rather than being read from the
     // module in the component, because `rate-limit.server` must never reach the
@@ -241,7 +246,8 @@ function describeSelection(selection: ActiveModelSelection | null): string {
 }
 
 export default function SuperLlm({ loaderData, actionData }: Route.ComponentProps) {
-  const { active, status, audit, providers, spend, rejections, flagged, downVoted, corpus, triggerLimits } = loaderData;
+  const { active, status, audit, providers, spend, rejections, flagged, corpus, triggerLimits } = loaderData;
+  const { downVoted, downVotedExplanations } = loaderData;
   const navigation = useNavigation();
   const isSubmitting = navigation.state !== 'idle';
 
@@ -646,6 +652,56 @@ export default function SuperLlm({ loaderData, actionData }: Route.ComponentProp
                     <TableCell className="font-mono">{row.lemma}</TableCell>
                     <TableCell className="font-mono">
                       {row.fromLanguageCode} to {row.toLanguageCode}
+                    </TableCell>
+                    <TableCell className="tabular-nums">{row.up}</TableCell>
+                    <TableCell className="tabular-nums">{row.down}</TableCell>
+                    <TableCell className="tabular-nums">{new Date(row.lastVotedAt).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </section>
+
+      <section className={CARD_CLASS}>
+        <h2 className={SECTION_LABEL_CLASS}>Down-voted explanations</h2>
+        {/* WHAT THIS LIST SHOWS, AND WHAT IT DELIBERATELY CANNOT SHOW. A reader
+            votes on one written answer, and the vote is recorded and nothing
+            else: no answer is re-run, hidden or re-ordered because of its score.
+            This page is therefore the only place the signal is readable at all.
+
+            IT NAMES THE QUESTION AND NEVER THE PERSON. The query groups the
+            account column away before anything is selected, and it joins the
+            explanation ledger and nothing else. The authorship table and the
+            profile table are out of reach on purpose, so triaging a bad answer
+            here cannot also tell you who asked for it. Do not add a voter
+            column, a per-reader filter or an export to this block. */}
+        <p className="mt-2 text-sm text-muted-foreground">
+          Answers readers marked inaccurate, most recently voted first. Nothing is re-run or hidden because of a score;
+          these rows are the record of what readers think.
+        </p>
+        {downVotedExplanations.length === 0 && (
+          <p className="mt-3 text-sm text-muted-foreground">No down-voted explanations.</p>
+        )}
+        {downVotedExplanations.length > 0 && (
+          <div className="mt-3">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Question</TableHead>
+                  <TableHead>Pair</TableHead>
+                  <TableHead>Up</TableHead>
+                  <TableHead>Down</TableHead>
+                  <TableHead>Last vote</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {downVotedExplanations.map((row) => (
+                  <TableRow key={row.explanationId}>
+                    <TableCell>{row.question}</TableCell>
+                    <TableCell className="font-mono">
+                      {row.from} to {row.to}
                     </TableCell>
                     <TableCell className="tabular-nums">{row.up}</TableCell>
                     <TableCell className="tabular-nums">{row.down}</TableCell>

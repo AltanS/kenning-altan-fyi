@@ -37,11 +37,13 @@ import type { Explanation } from '#app/lib/llm/explain-schema';
 import { enqueueExplain } from '#app/lib/translation/explain-enqueue.server';
 import { EXPLAIN_MAX_QUESTION_CHARS, MAX_EXPLAIN_RUNS_PER_DAY } from '#app/lib/translation/limits';
 import type { TranslationRefusal } from '#app/lib/translation/panel.server';
+import { readVoteForAccount, tallyExplanationVotes } from '#app/models/explanation-votes.server';
 import {
   countExplainRunsToday,
   latestExplanation,
   latestExplanationAnswer,
 } from '#app/models/explanations.server';
+import type { VoteValue } from '#app/models/votes.server';
 import { EXPLAIN_PROMPT_VERSION } from '#app/prompts/explain/version';
 
 export type { TranslationRefusal } from '#app/lib/translation/panel.server';
@@ -54,6 +56,18 @@ export interface ExplainPanelReady {
   explanationId: string;
   /** Which model wrote it. The card discloses that a model did, and this says which. */
   model: string;
+  /** How many readers called this answer accurate. Read for everybody, including a signed-out one. */
+  up: number;
+  /** How many called it inaccurate. */
+  down: number;
+  /**
+   * This reader's own vote, or `null`.
+   *
+   * ALWAYS `null` WHEN NO ACCOUNT WAS SUPPLIED, and the per-account read is then
+   * not performed at all. A signed-out reader still sees the shared tally: the
+   * score is a property of the answer, not of them.
+   */
+  myVote: VoteValue | null;
 }
 
 /** A run for this key is open. The pane polls until it is not. */
@@ -135,19 +149,65 @@ export interface ExplainPanelKey {
 }
 
 /**
+ * The key, plus who is asking.
+ *
+ * THE ACCOUNT IS NOT PART OF THE KEY, AND THAT IS THE WHOLE REASON THIS TYPE
+ * EXISTS. `ExplainPanelKey` is the CACHE IDENTITY: it is what
+ * `explainKeyFromRequest` folds out of a query string, and a URL cannot know who
+ * is reading it. Two readers asking one question share one row, so putting an
+ * account id on the key would say they were asking different things. The account
+ * decides only one field of the answer, `myVote`, so it rides beside the key
+ * rather than in it.
+ */
+export interface ExplainPanelLookup extends ExplainPanelKey {
+  /** The signed-in reader, or `null` for a reader with no account. */
+  accountId: number | null;
+}
+
+/**
  * Read the cache and the ledger, and say where this question stands.
  *
  * IT NEVER ENQUEUES AND IT NEVER REFUSES. It holds no request, so it cannot ask
  * the rate limiter anything, and it starts nothing, so it has nothing to refuse.
  *
+ * THE TALLY IS READ ONLY ON THE `ready` PATH. There is nothing to score until an
+ * answer exists, and a question that is still running or has failed must not pay
+ * for two extra statements on every three-second poll.
+ *
  * @param db The database handle.
- * @param key The question and the two languages.
+ * @param lookup The question, the two languages, and the reader asking.
  * @returns One of `ready`, `translating`, `failed`, `budget` or `none`.
  */
-export async function resolveExplainPanel(db: DictionaryDb, key: ExplainPanelKey): Promise<ExplainPanel> {
+export async function resolveExplainPanel(db: DictionaryDb, lookup: ExplainPanelLookup): Promise<ExplainPanel> {
+  const key: ExplainPanelKey = {
+    question: lookup.question,
+    questionNormalized: lookup.questionNormalized,
+    from: lookup.from,
+    to: lookup.to,
+  };
+
   const answered = await latestExplanationAnswer(db, key);
   if (answered !== null && answered.answer !== null) {
-    return { state: 'ready', answer: answered.answer, explanationId: answered.id, model: answered.model };
+    // TWO STATEMENTS AT ONCE, AND ONLY ONE OF THEM FOR A STRANGER. The shared
+    // tally is asked for every reader; the per-account read is skipped outright
+    // when nobody is signed in, rather than run and discarded, because a vote
+    // table must never be queried on behalf of a reader the request cannot name.
+    const [tally, myVote] = await Promise.all([
+      tallyExplanationVotes(db, answered.id),
+      lookup.accountId === null ?
+        Promise.resolve(null)
+      : readVoteForAccount(db, { explanationId: answered.id, accountId: lookup.accountId }),
+    ]);
+
+    return {
+      state: 'ready',
+      answer: answered.answer,
+      explanationId: answered.id,
+      model: answered.model,
+      up: tally.up,
+      down: tally.down,
+      myVote,
+    };
   }
 
   const row = await latestExplanation(db, key);
@@ -215,9 +275,11 @@ export async function resolveTriggeredExplainPanel(
   params: ResolveTriggeredExplainPanelParams,
 ): Promise<ExplainPanel> {
   const { request, retry = false, question, questionNormalized, from, to, userId } = params;
-  const key: ExplainPanelKey = { question, questionNormalized, from, to };
+  // The reader who triggers a run is the reader the answer is reported to, so
+  // `myVote` on a cached answer is theirs. This half always holds a `userId`.
+  const lookup: ExplainPanelLookup = { question, questionNormalized, from, to, accountId: userId };
 
-  const resolved = await resolveExplainPanel(db, key);
+  const resolved = await resolveExplainPanel(db, lookup);
   if (resolved.state === 'ready' || resolved.state === 'translating') return resolved;
   if (resolved.state === 'failed' && !retry) return resolved;
 
