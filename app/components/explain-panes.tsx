@@ -4,6 +4,7 @@ import { Form, useNavigation } from 'react-router';
 import type { ExplainPaneController } from '#app/components/explain-pane';
 import { ExplanationCard } from '#app/components/explanation-card';
 import { LanguageBar } from '#app/components/language-bar';
+import { Link } from '#app/components/link';
 import { ModeSwitch } from '#app/components/mode-switch';
 import { Button } from '#app/components/ui/button';
 import { Textarea } from '#app/components/ui/textarea';
@@ -21,6 +22,13 @@ import { EXPLAIN_MAX_QUESTION_CHARS } from '#app/lib/translation/limits';
  * cap is told before they do.
  */
 const COUNTER_THRESHOLD = 0.8;
+
+/** The locale keys of the visibility notice, one per line. */
+const VISIBILITY_NOTICE_KEYS = {
+  listed: 'explain.publicNoticeListed',
+  hidden: 'explain.publicNoticeHidden',
+  link: 'explain.publicNoticeSettingsLink',
+} as const;
 
 /** One rendered state of the explain surface, exactly as the loader answers it. */
 export interface ExplainPanesProps {
@@ -47,6 +55,11 @@ export interface ExplainPanesProps {
    * and then the place an answer will appear.
    */
   emptyPane?: ReactNode;
+  /**
+   * Whether this reader's new questions start out hidden from the public pages.
+   * `null` for a visitor with no account, who is shown no notice.
+   */
+  hideByDefault?: boolean | null;
 }
 
 /**
@@ -72,7 +85,7 @@ export interface ExplainPanesProps {
  * SUBMIT IS A GET, so the answer is linkable and correct under the back button,
  * exactly like a search. There is no client state on this screen at all.
  */
-export function ExplainPanes({ q, direction, pair, explanation, emptyPane }: ExplainPanesProps) {
+export function ExplainPanes({ q, direction, pair, explanation, emptyPane, hideByDefault = null }: ExplainPanesProps) {
   const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const isAsking = navigation.state !== 'idle';
@@ -160,6 +173,14 @@ export function ExplainPanes({ q, direction, pair, explanation, emptyPane }: Exp
             {showCounter && (
               <p aria-live="polite" className="text-xs text-muted-foreground tabular-nums">
                 {t('explain.counter', { count: length, max: EXPLAIN_MAX_QUESTION_CHARS })}
+              </p>
+            )}
+            {hideByDefault !== null && (
+              <p className="text-xs text-muted-foreground">
+                {t(hideByDefault ? VISIBILITY_NOTICE_KEYS.hidden : VISIBILITY_NOTICE_KEYS.listed)}{' '}
+                <Link to="/settings" className="underline underline-offset-2 hover:text-foreground">
+                  {t(VISIBILITY_NOTICE_KEYS.link)}
+                </Link>
               </p>
             )}
           </div>

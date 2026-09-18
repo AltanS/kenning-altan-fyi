@@ -15,7 +15,9 @@
  *
  * WHAT IT MUST NOT TOUCH. Another reader's claim on the same question, this
  * reader's claim on a different question, and the `explanations` rows
- * themselves, which are the installation's record of runs it paid for.
+ * themselves, which are the installation's record of runs it paid for. The
+ * case that seeds one question under two language pairs is what catches a key
+ * widened to `question_normalized` alone.
  *
  * THE LAST TWO CASES DRIVE THE REAL ROUTES, both remove entry points, with real
  * session cookies, the shape `settings-profile-actions.test.ts` established. A
@@ -39,6 +41,7 @@ import { RouterContextProvider } from 'react-router';
 import { explanationAsks, explanationAuthorship, explanations } from '../../drizzle/schema';
 import { closePool, getRawDb, poolInitialized } from '../../drizzle/db';
 import { withdrawOwnAuthorship } from '../../app/lib/authorship/withdraw-own-authorship.server';
+import type { LanguageCode } from '../../app/lib/dictionary/detect-language';
 import { normalizeQuery } from '../../app/lib/dictionary/normalize';
 import type { Explanation } from '../../app/lib/llm/explain-schema';
 import { recordExplanationAsk } from '../../app/models/explanation-asks.server';
@@ -91,11 +94,18 @@ function freshQuestion(): SeededKey {
   return { question, questionNormalized: normalizeQuery(question, FROM).normalized };
 }
 
-/** Opens one ledger row for a key and settles it, or leaves it `pending`. */
-async function openRow(params: { key: SeededKey; status: 'pending' | 'ok' | 'failed' }): Promise<string> {
+/**
+ * Opens one ledger row for a key and settles it, or leaves it `pending`. The
+ * row is written for the target `to`, which is `TO` unless a case names another.
+ */
+async function openRow(params: {
+  key: SeededKey;
+  status: 'pending' | 'ok' | 'failed';
+  to?: LanguageCode;
+}): Promise<string> {
   const id = await insertPendingExplanation(db, {
     from: FROM,
-    to: TO,
+    to: params.to ?? TO,
     question: params.key.question,
     questionNormalized: params.key.questionNormalized,
     promptVersion: 2,
@@ -109,14 +119,19 @@ async function openRow(params: { key: SeededKey; status: 'pending' | 'ok' | 'fai
   return id;
 }
 
-/** Records one reader's ask for a key and hands back its id. */
-async function recordAsk(params: { userId: number; key: SeededKey }): Promise<number> {
+/**
+ * Records one reader's ask for a key and hands back its id. The ask is written
+ * for the target `to` and read back for it, `TO` unless a case names another,
+ * because one question under two pairs is two ask rows for one reader.
+ */
+async function recordAsk(params: { userId: number; key: SeededKey; to?: LanguageCode }): Promise<number> {
+  const to = params.to ?? TO;
   await recordExplanationAsk({
     userId: params.userId,
     question: params.key.question,
     questionNormalized: params.key.questionNormalized,
     fromLanguage: FROM,
-    toLanguage: TO,
+    toLanguage: to,
   });
 
   const [row] = await db
@@ -126,6 +141,7 @@ async function recordAsk(params: { userId: number; key: SeededKey }): Promise<nu
       and(
         eq(explanationAsks.userId, params.userId),
         eq(explanationAsks.questionNormalized, params.key.questionNormalized),
+        eq(explanationAsks.toLanguage, to),
       ),
     )
     .limit(1);
@@ -300,6 +316,35 @@ describe('withdrawing leaves everything that is not this reader own claim', () =
       assert.equal(await withdrawOwnAuthorship(db, { userId, askId }), 1);
       assert.equal(await authorshipExists(removedRow), false);
       assert.equal(await authorshipExists(keptRow), true, 'only the withdrawn question key may be matched');
+    },
+  );
+
+  it(
+    'does not touch this reader claim on the same question under another language pair',
+    { skip: !DB_HOST ? 'DB_HOST not set' : false },
+    async () => {
+      const userId = author?.userId ?? 0;
+      const key = freshQuestion();
+      const englishRow = await openRow({ key, status: 'ok' });
+      const spanishRow = await openRow({ key, status: 'ok', to: 'es' });
+      await insertExplanationAuthorship(db, { explanationId: englishRow, userId, listed: true });
+      await insertExplanationAuthorship(db, { explanationId: spanishRow, userId, listed: true });
+      const englishAskId = await recordAsk({ userId, key });
+      await recordAsk({ userId, key, to: 'es' });
+
+      // The key is the whole triple. A helper widened to `question_normalized`
+      // alone would take the Spanish claim down with the English one.
+      assert.equal(await withdrawOwnAuthorship(db, { userId, askId: englishAskId }), 1);
+      assert.equal(await authorshipExists(englishRow), false, 'the withdrawn pair claim must go');
+      assert.equal(await authorshipExists(spanishRow), true, 'the same question under another pair is another key');
+
+      // The premise, read back and not assumed: two paid runs, one folded question.
+      const ledger = await db
+        .select({ questionNormalized: explanations.questionNormalized })
+        .from(explanations)
+        .where(inArray(explanations.id, [englishRow, spanishRow]));
+      assert.equal(ledger.length, 2, 'the paid runs must stay');
+      assert.deepEqual([...new Set(ledger.map((row) => row.questionNormalized))], [key.questionNormalized]);
     },
   );
 

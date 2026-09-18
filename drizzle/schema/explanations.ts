@@ -137,6 +137,13 @@ export const explanations = pgTable(
       table.questionNormalized,
       table.createdAt.desc(),
     ),
+
+    // Source language and recency, over the ANSWERED rows alone. The predicate
+    // is what keeps the other three statuses out of it: they are run records,
+    // and nothing public ever asks for one.
+    index('explanations_public_listing_idx')
+      .on(table.fromLanguageCode, table.createdAt.desc())
+      .where(sql`"status" = 'ok'`),
   ],
 );
 

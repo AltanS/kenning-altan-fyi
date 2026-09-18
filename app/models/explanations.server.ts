@@ -146,8 +146,13 @@ function toStatus(value: string): ExplainStatus {
  * nothing in it, which the resolver reads as `none`: the reader sees the screen
  * for a question nobody has asked yet and the guards decide whether to ask
  * again. Rendering an undecodable document would put undefined fields on a card.
+ *
+ * EXPORTED FOR THE PUBLIC BROWSE MODEL, which selects the column itself and must
+ * drop a row by the SAME rule. A second decode there would be a second reading
+ * of what counts as an answer, and the private page and the public one would
+ * disagree about the same row.
  */
-function toAnswer(value: JsonValue | null, id: string): Explanation | null {
+export function toAnswer(value: JsonValue | null, id: string): Explanation | null {
   if (value === null) return null;
   const parsed = explanationSchema.safeParse(value);
   if (parsed.success) return parsed.data;

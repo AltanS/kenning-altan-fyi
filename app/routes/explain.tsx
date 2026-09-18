@@ -12,6 +12,7 @@ import { normalizeQuery } from '#app/lib/dictionary/normalize';
 import { resolveTriggeredExplainPanel, type ExplainPanel } from '#app/lib/translation/explain-panel.server';
 import { EXPLAIN_MAX_QUESTION_CHARS } from '#app/lib/translation/limits';
 import { recordExplanationAsk } from '#app/models/explanation-asks.server';
+import { getUserProfile } from '#app/models/user-profiles.server';
 import type { ExplainPaneTarget } from '#app/lib/translation/explain-pane';
 import type { TitleHandle } from '#app/lib/route-title';
 import { resolveUser } from '#app/middleware/auth';
@@ -89,6 +90,10 @@ export async function loader({ request }: Route.LoaderArgs) {
   const signedIn = reader !== null;
 
   const db = getRawDb();
+  // Read on the landing state too, so the notice is on screen before the first question.
+  const profile = reader === null ? null : await getUserProfile(db, reader.id);
+  const hideByDefault = profile?.hideNewExplanationsByDefault ?? null;
+
   // The UI language comes from the request cookie, not from the i18next
   // singleton: that instance is process-wide and would leak one reader's
   // language into another reader's request.
@@ -112,7 +117,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     // question would resolve to if it were asked; nothing below reads it as an
     // answer, and reconciling a pair against a direction nobody asked with would
     // report a target for a question that never happened.
-    return { q, direction, pair, signedIn, panel: null };
+    return { q, direction, pair, signedIn, panel: null, hideByDefault };
   }
 
   // THE SAME GATE AGAIN, AS A NARROWING RATHER THAN A SECOND CHECK. `q` is
@@ -177,7 +182,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  return { q, direction, pair: resolvedPair, signedIn, panel };
+  return { q, direction, pair: resolvedPair, signedIn, panel, hideByDefault };
 }
 
 /**
@@ -201,7 +206,7 @@ export async function loader({ request }: Route.LoaderArgs) {
  * the translator. The ask has its own table and its own screen, `/explanations`.
  */
 export default function ExplainRoute({ loaderData }: Route.ComponentProps) {
-  const { q, direction, pair, signedIn, panel } = loaderData;
+  const { q, direction, pair, signedIn, panel, hideByDefault } = loaderData;
 
   // THE PANE'S STATE MACHINE, CALLED UNCONDITIONALLY, because it is a hook. The
   // landing branch passes a `none` target and a null panel, which polls nothing
@@ -220,6 +225,7 @@ export default function ExplainRoute({ loaderData }: Route.ComponentProps) {
         direction={direction}
         pair={pair}
         explanation={explanation}
+        hideByDefault={hideByDefault}
         // WHAT AN UNTOUCHED SCREEN SHOWS, where the answer card will go. One
         // line saying what this box is for, because an empty state is not an
         // error and must never read as one: DESIGN.md section 9 rule 5.

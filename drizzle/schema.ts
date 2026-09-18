@@ -53,6 +53,17 @@ export * from './schema/explanation-asks';
 // ledger rather than the ledger pointing back. Reached through `getRawDb()`.
 export * from './schema/explanation-authorship';
 
+// Explanation moderation: the questions an operator has taken off the public
+// pages. Keyed on the question triple rather than on one ledger row, with no
+// foreign key onto the ledger, because a key is not a row. No row means
+// visible. Reached through `getRawDb()`.
+export * from './schema/explanation-moderation';
+
+// Explanation reports: a signed-in reader flagging one public answer. Per row
+// where a hide is per question, capped to one report per reader per answer by a
+// unique index. Nothing automatic reads it. Reached through `getRawDb()`.
+export * from './schema/explanation-reports';
+
 // Reader votes on an enrichment, on a single translation edge and on one
 // written explanation, plus the per-headword re-enrichment cooldown. All of
 // them are reached through `getRawDb()`. The explanation votes carry the same

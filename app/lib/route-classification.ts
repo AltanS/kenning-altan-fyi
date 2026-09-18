@@ -205,6 +205,16 @@ export const ROUTE_CLASSIFICATION = {
   },
   'legal/privacy.tsx': { access: 'public', reason: 'A legal document.' },
   'legal/terms.tsx': { access: 'public', reason: 'A legal document.' },
+  'browse.explanations.tsx': {
+    access: 'public',
+    reason:
+      'The public list of answered questions (M200). Under `_public`, which carries no middleware, and the file exports no gate of its own: its loader reads `resolveUser` only to decide whether the footer offers the two doors or a link back to the app, and answers a request with no cookie in full. The loader is read only and can never enqueue, so an anonymous caller spends nothing. The rows it may show are decided by `app/models/explanation-browse.server.ts`, whose parameter list has no reader-shaped slot at all.',
+  },
+  'browse.explanations.$id.tsx': {
+    access: 'public',
+    reason:
+      'One public answer (M200), same layout and same argument as the list beside it. Its own `action` records a report and is the one gated half: it calls `resolveUser` first and answers a plain `unauthenticated` object rather than a thrown redirect, because a stranger is legitimately looking at this page and a redirect would be the wrong refusal. Every reason it will not serve a row, including a hidden or un-listed one, is the same 404.',
+  },
   '$.tsx': { access: 'public', reason: 'The 404. Every unmatched URL lands here, signed in or not.' },
   'healthcheck.ts': { access: 'public', reason: 'Read by Docker and by Gatus, neither of which holds a session.' },
   'api.build.ts': {
@@ -314,6 +324,11 @@ export const ROUTE_CLASSIFICATION = {
       'Under `_super`. A hop from `/super` to `/super/llm`, refused before it runs for anyone who is not a superadmin.',
   },
   'super/llm.tsx': { access: 'gated-layout', reason: 'Under `_super`.' },
+  'super/explanations.tsx': {
+    access: 'gated-layout',
+    reason:
+      'Under `_super`. The moderation queue for the public browse pages: it takes a question off them and puts it back. Its action reads the operator out of the context `authMiddleware` filled, so it cannot run for a caller the layout did not admit.',
+  },
   'super/whoami-ip.tsx': { access: 'gated-layout', reason: 'Under `_super`.' },
 } as const satisfies Record<string, RouteClassification>;
 

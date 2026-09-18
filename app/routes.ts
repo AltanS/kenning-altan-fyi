@@ -298,6 +298,21 @@ export default [
     route('/legal/privacy', 'routes/legal/privacy.tsx'),
     route('/legal/terms', 'routes/legal/terms.tsx'),
 
+    // The public browse section (M200): answered questions anyone may read,
+    // signed in or not. It is in `_public` rather than in the app shell for the
+    // reason `/welcome` is: the shell's sidebar offers lists, favourites and
+    // history, every one of them a dead end for a stranger. The two doors sit
+    // in the page's own body instead.
+    //
+    // ABOVE THE CATCH-ALL, because `route('*')` below matches everything and a
+    // route registered after it never runs.
+    //
+    // `:id` HERE IS `explanations.id`, a different id space from the private
+    // `/explanations/:id`, which addresses the reader's own ask log. The file
+    // names differ by the `browse.` prefix on purpose.
+    route('/browse/explanations', 'routes/browse.explanations.tsx'),
+    route('/browse/explanations/:id', 'routes/browse.explanations.$id.tsx'),
+
     // Catch-all: unmatched URLs get 404 inside the layout
     route('*', 'routes/$.tsx'),
   ]),
@@ -316,6 +331,10 @@ export default [
     route('/super', 'routes/super/index-redirect.ts'),
     // The model configuration enrichment reads out of `app_settings`.
     route('/super/llm', 'routes/super/llm.tsx'),
+    // The moderation queue for the public browse pages (M200): what readers
+    // have reported, and what has been taken down. A hide is written against
+    // the question's own cache key, so the ledger row itself is never touched.
+    route('/super/explanations', 'routes/super/explanations.tsx'),
     // What the server believes the caller's IP is, for checking the
     // `TRUST_PROXY` hop count against a live reverse proxy.
     route('/super/whoami-ip', 'routes/super/whoami-ip.tsx'),

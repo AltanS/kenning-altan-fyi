@@ -561,6 +561,33 @@
     "retryCredit": "Eine öffentliche Antwort wird der Person zugeschrieben, deren Versuch sie hervorgebracht hat, nicht allen, die dieselbe Frage gestellt haben. Wenn du eine Frage wiederholst, die bei jemand anderem fehlgeschlagen ist, kann dein Versuch derjenige sein, der genannt wird.",
     "authorshipNotSaved": "Diese Änderung wurde nicht gespeichert. Lade die Seite neu und versuche es erneut."
   },
+  "browse": {
+    "metaTitle": "Öffentliche Erklärungen",
+    "metaDescription": "Fragen von Lesern zu Wörtern und ihrer Verwendung, samt den erhaltenen Antworten.",
+    "heading": "Öffentliche Erklärungen",
+    "licence": "Fragen und Antworten auf diesen Seiten stehen unter CC0. Jeder darf sie kopieren, eine Namensnennung ist nicht nötig.",
+    "licenceLink": "CC0-Text lesen",
+    "machineNote": "Die Antworten stammen von einer Maschine. Betrachte sie als Entwürfe, nicht als geprüfte Referenzen.",
+    "filterFromLabel": "Wörter auf",
+    "filterToLabel": "Erklärt auf",
+    "filterAny": "Alle Sprachen",
+    "filterApply": "Anzeigen",
+    "askedBy": "gefragt von {{name}}",
+    "tally": "{{up}} richtig, {{down}} nicht richtig",
+    "emptyTitle": "Hier ist noch nichts.",
+    "emptyBody": "Zu diesen Sprachen gibt es noch keine öffentlichen Erklärungen.",
+    "doorsBody": "Erstelle ein Konto, um eigene Fragen zu stellen und über Antworten abzustimmen.",
+    "backToApp": "Zurück zur App",
+    "detailMetaTitle": "Öffentliche Erklärung",
+    "back": "Alle öffentlichen Erklärungen",
+    "reportTitle": "Diese Erklärung melden",
+    "reportBody": "Sag uns, was damit nicht stimmt. Jede Meldung wird von einem Menschen gelesen. Durch das Melden wird nichts automatisch ausgeblendet.",
+    "reportReasonLabel": "Was stimmt nicht? (optional)",
+    "reportSubmit": "Meldung senden",
+    "reportSentToast": "Meldung gesendet.",
+    "reportFailedToast": "Die Meldung konnte nicht gesendet werden. Versuch es noch einmal.",
+    "reportSignIn": "Melde dich an, um eine Erklärung zu melden."
+  },
   "update": {
     "bundleReady": "Eine neuere Version dieser Seite steht bereit.",
     "reload": "Neu laden"

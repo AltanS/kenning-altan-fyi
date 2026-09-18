@@ -561,6 +561,33 @@
     "retryCredit": "A public answer is credited to the person whose attempt produced it, not to everyone who asked the same question. If you retry a question that failed for someone else, your attempt can become the credited one.",
     "authorshipNotSaved": "That change was not saved. Reload the page and try again."
   },
+  "browse": {
+    "metaTitle": "Public explanations",
+    "metaDescription": "Questions readers asked about words and how they are used, with the answers they got.",
+    "heading": "Public explanations",
+    "licence": "Questions and answers on these pages are released under CC0. Anyone may copy them, and no credit is needed.",
+    "licenceLink": "Read the CC0 text",
+    "machineNote": "The answers are written by a machine. Treat them as drafts, not as checked references.",
+    "filterFromLabel": "Words in",
+    "filterToLabel": "Explained in",
+    "filterAny": "Any language",
+    "filterApply": "Show",
+    "askedBy": "asked by {{name}}",
+    "tally": "{{up}} accurate, {{down}} not accurate",
+    "emptyTitle": "Nothing here yet.",
+    "emptyBody": "No public explanations match these languages yet.",
+    "doorsBody": "Create an account to ask your own questions and vote on answers.",
+    "backToApp": "Back to the app",
+    "detailMetaTitle": "Public explanation",
+    "back": "All public explanations",
+    "reportTitle": "Report this explanation",
+    "reportBody": "Tell us what is wrong with it. A person reads every report. Reporting does not hide anything by itself.",
+    "reportReasonLabel": "What is wrong? (optional)",
+    "reportSubmit": "Send report",
+    "reportSentToast": "Report sent.",
+    "reportFailedToast": "The report was not sent. Try again.",
+    "reportSignIn": "Sign in to report an explanation."
+  },
   "update": {
     "bundleReady": "A newer version of this page is ready.",
     "reload": "Reload"
