@@ -191,7 +191,7 @@ export const ROUTE_CLASSIFICATION = {
   'explanations.$id.tsx': {
     access: 'gated-layout',
     reason:
-      'Under `_app.gated`, and gated a second time by the query: `getExplanationAsk` matches the user AND the id, so another account\'s row reads as a 404. Its loader resolves the panel READ-ONLY and can never enqueue.',
+      'Under `_app.gated`, and gated a second time by the query: `getExplanationAsk` matches the user AND the id, so another account\'s row reads as a 404. Its loader resolves the panel READ-ONLY and can never enqueue. Its two authorship switches are gated a THIRD time, against `explanation_authorship` rather than against the ask: `resolveOwnAuthorship` turns the ask id into the explanation it resolves to right now and answers null unless that row names this reader, so a reader served an answer somebody else authored sees no switch and its action writes nothing.',
   },
   'favourites.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },
   'history.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },

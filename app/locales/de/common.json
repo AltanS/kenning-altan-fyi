@@ -194,7 +194,6 @@
     "publicNameTaken": "Dieser Name ist bereits vergeben.",
     "hideNewExplanationsByDefaultTitle": "Neue Erklärungen",
     "hideNewExplanationsByDefaultBody": "Wähle, ob deine zukünftigen Erklärungen für andere Leser standardmäßig ausgeblendet sein sollen.",
-    "hideNewExplanationsByDefaultNotEnforcedYet": "Diese Auswahl wird gespeichert, aber beim Erstellen von Erklärungen noch nicht angewendet.",
     "hideNewExplanationsByDefaultLabel": "Neue Erklärungen standardmäßig ausblenden",
     "hideNewExplanationsByDefaultSavedToast": "Einstellung gespeichert.",
     "installTitle": "App installieren",
@@ -447,6 +446,13 @@
     "down": "Dieses Wort ist falsch",
     "signIn": "Melde dich an, um über ein Wort abzustimmen"
   },
+  "explanationVote": {
+    "up": "Diese Antwort ist richtig",
+    "down": "Diese Antwort ist falsch",
+    "signIn": "Melde dich an, um über diese Antwort abzustimmen",
+    "recorded": "Deine Stimme wurde erfasst.",
+    "invalid": "Diese Antwort gibt es nicht mehr, daher wurde deine Stimme nicht gespeichert."
+  },
   "explain": {
     "metaTitle": "Erklären",
     "metaDescription": "Fragen zu einem Wort stellen oder dazu, wie sich zwei Wörter unterscheiden.",
@@ -511,7 +517,10 @@
       "literary": "literarisch",
       "dated": "veraltet",
       "regional": "regional"
-    }
+    },
+    "publicNoticeListed": "Fragen, die du hier stellst, sind standardmäßig öffentlich, samt ihren Antworten und ohne deinen Namen. Jeder darf sie kopieren, und ein späteres Verbergen macht bereits erstellte Kopien nicht rückgängig.",
+    "publicNoticeHidden": "Fragen, die du hier stellst, sind auf den öffentlichen Seiten zunächst verborgen. Du kannst sie später auf ihrer Seite öffentlich machen.",
+    "publicNoticeSettingsLink": "In den Einstellungen ändern"
   },
   "explanations": {
     "metaTitle": "Erklärungen",
@@ -542,7 +551,14 @@
     "removedToast": "Entfernt.",
     "actionsLabel": "Aktionen für diese Frage",
     "rowActionsLabel": "Aktionen für {{question}}",
-    "open": "Öffnen"
+    "open": "Öffnen",
+    "showNameLabel": "Meinen Namen bei dieser Antwort anzeigen",
+    "showNameNeedsName": "Du hast noch keinen öffentlichen Namen gewählt.",
+    "showNameSettingsLink": "In den Einstellungen festlegen",
+    "listedLabel": "Diese Antwort auf den öffentlichen Seiten anzeigen",
+    "cc0NoticeListed": "Diese Frage und ihre Antwort sind öffentlich. Sie stehen unter CC0: Alle dürfen sie kopieren, ohne Namensnennung. Wenn du dies später deaktivierst, macht das bereits erstellte Kopien nicht rückgängig.",
+    "cc0NoticeHidden": "Diese Frage und ihre Antwort sind auf den öffentlichen Seiten ausgeblendet.",
+    "retryCredit": "Eine öffentliche Antwort wird der Person zugeschrieben, deren Versuch sie hervorgebracht hat, nicht allen, die dieselbe Frage gestellt haben. Wenn du eine Frage wiederholst, die bei jemand anderem fehlgeschlagen ist, kann dein Versuch derjenige sein, der genannt wird."
   },
   "update": {
     "bundleReady": "Eine neuere Version dieser Seite steht bereit.",

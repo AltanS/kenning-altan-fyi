@@ -35,6 +35,17 @@ export const meta: MetaFunction = ({ matches }) => {
 export const handle = { titleKey: 'nav.explain' } satisfies TitleHandle;
 
 /**
+ * The 302 a signed-out visitor gets, carrying where they were going.
+ *
+ * @param request the incoming request.
+ * @returns the redirect Response, for a caller to throw.
+ */
+function signInRedirect(request: Request): Response {
+  const url = new URL(request.url);
+  return redirect(`${SIGN_IN_PATH}?next=${encodeURIComponent(`${url.pathname}${url.search}`)}`);
+}
+
+/**
  * The signed-in user, or a redirect to the sign-in page carrying `?next=`.
  *
  * IT THROWS RATHER THAN RETURNING A FLAG, so a caller cannot forget to act on
@@ -48,8 +59,7 @@ export const handle = { titleKey: 'nav.explain' } satisfies TitleHandle;
 async function requireSignedIn(request: Request): Promise<AuthenticatedUser> {
   const user = await resolveUser(request);
   if (user !== null) return user;
-  const url = new URL(request.url);
-  throw redirect(`${SIGN_IN_PATH}?next=${encodeURIComponent(`${url.pathname}${url.search}`)}`);
+  throw signInRedirect(request);
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -105,6 +115,14 @@ export async function loader({ request }: Route.LoaderArgs) {
     return { q, direction, pair, signedIn, panel: null };
   }
 
+  // THE SAME GATE AGAIN, AS A NARROWING RATHER THAN A SECOND CHECK. `q` is
+  // non-empty past the return above, so `requireSignedIn` already ran and either
+  // threw or answered a user; TypeScript cannot see that through the ternary
+  // that produced `user`. This throws the same 302 rather than asserting past
+  // the null, because the resolver below now needs a reader id and a wrong one
+  // would be written onto a row.
+  if (user === null) throw signInRedirect(request);
+
   // THE PAIR THE BAR SHOWS FOR THIS ANSWER, RECONCILED WITH THE RESOLUTION THAT
   // ACTUALLY RAN. `pair` above is the reader's own statement, `detect` included,
   // and `direction` is what that statement resolved to. `from=detect` hides a
@@ -128,6 +146,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     questionNormalized: query.normalized,
     from: direction.from,
     to: direction.to,
+    userId: user.id,
   });
 
   // THE ASK IS RECORDED HERE, AFTER THE PANEL AND WHATEVER THE PANEL SAYS.
@@ -148,7 +167,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   // row repeats the ask that actually ran. The folded question is the one this
   // loader already computed for the cache key: folding it twice would be two
   // implementations of one identity.
-  if (user !== null && q.length <= EXPLAIN_MAX_QUESTION_CHARS) {
+  if (q.length <= EXPLAIN_MAX_QUESTION_CHARS) {
     await recordExplanationAsk({
       userId: user.id,
       question: q,

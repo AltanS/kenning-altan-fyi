@@ -275,7 +275,6 @@ function DefaultVisibilityCard({ hideNewExplanationsByDefault }: { hideNewExplan
     <div className="rounded-xl border bg-card p-6">
       <h2 className="font-display text-base font-semibold">{t('settings.hideNewExplanationsByDefaultTitle')}</h2>
       <p className="mt-2 text-sm text-muted-foreground">{t('settings.hideNewExplanationsByDefaultBody')}</p>
-      <p className="mt-2 text-sm text-muted-foreground">{t('settings.hideNewExplanationsByDefaultNotEnforcedYet')}</p>
       <div className="mt-4 flex items-center gap-3">
         <Switch
           checked={checked}

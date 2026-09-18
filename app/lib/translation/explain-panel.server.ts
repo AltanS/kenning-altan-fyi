@@ -167,6 +167,13 @@ export interface ResolveTriggeredExplainPanelParams extends ExplainPanelKey {
   /** The screen's own request. The rate limiter reads its cookie and its address. */
   request: Request;
   /**
+   * The signed-in reader. Required, because this half may open a row and every
+   * row this app opens gets an author in the same transaction. Both callers
+   * already hold a user: the page gates any non-empty question behind one, and
+   * the retry route carries `authMiddleware`.
+   */
+  userId: number;
+  /**
    * Whether the reader asked for this again after a failure.
    *
    * `false`, the page path: a failed question stays failed, so one provider
@@ -199,15 +206,15 @@ export interface ResolveTriggeredExplainPanelParams extends ExplainPanelKey {
  * into a 500.
  *
  * @param db The database handle.
- * @param params The question, the two languages, the request, and whether this
- *   is a retry.
+ * @param params The question, the two languages, the request, the reader asking,
+ *   and whether this is a retry.
  * @returns The panel to render.
  */
 export async function resolveTriggeredExplainPanel(
   db: DictionaryDb,
   params: ResolveTriggeredExplainPanelParams,
 ): Promise<ExplainPanel> {
-  const { request, retry = false, question, questionNormalized, from, to } = params;
+  const { request, retry = false, question, questionNormalized, from, to, userId } = params;
   const key: ExplainPanelKey = { question, questionNormalized, from, to };
 
   const resolved = await resolveExplainPanel(db, key);
@@ -226,6 +233,7 @@ export async function resolveTriggeredExplainPanel(
     question,
     questionNormalized,
     promptVersion: EXPLAIN_PROMPT_VERSION,
+    userId,
   });
   // A DEDUPED ENQUEUE IS STILL `translating`. The work is already queued or
   // running under this key, which is what the singleton key exists to arrange,

@@ -22,6 +22,12 @@
  * `enqueueExplain` genuinely races the still-open singleton key rather than an
  * already-finished job.
  *
+ * IT NEEDS A REAL READER (M200). `enqueueExplain` now writes an
+ * `explanation_authorship` row in the same transaction as the ledger row, under
+ * a foreign key onto `users`, so an invented id would fail the insert and roll
+ * the whole thing back. The fixture's user is disposed in `after`, which takes
+ * the authorship rows with it.
+ *
  * ISOLATION. One question carrying a run-scoped suffix, so a repeat run of
  * this file never collides with a previous run's leftover row. Every request
  * carries a fresh documentation-range address, and its rate-limit counter is
@@ -42,6 +48,7 @@ import { explainSingletonKey } from '../../app/lib/translation/explain-job-paylo
 import { EXPLAIN_QUEUE } from '../../app/lib/translation/limits';
 import { EXPLAIN_PROMPT_VERSION } from '../../app/prompts/explain/version';
 import { initializeWorkflows, stopOrchestrator } from '../../app/services/workflows.server';
+import { createTestUserSession, type TestUserSession } from '../fixtures/user-session';
 
 const DB_HOST = process.env.DB_HOST;
 
@@ -64,6 +71,9 @@ const singletonKey = explainSingletonKey({
 });
 
 const createdCounterKeys: string[] = [];
+
+/** The reader both asks are made as. Created in `before`, disposed in `after`. */
+let session: TestUserSession | null = null;
 
 /** One octet of a documentation-range address. */
 function octet(): number {
@@ -98,6 +108,7 @@ before(async () => {
   // The honest path: this registers the templates, so `enqueueExplain`'s
   // `orchestrator.start()` can resolve `explain-terms` and reach `boss.send`.
   await initializeWorkflows();
+  session = await createTestUserSession('explain-enqueue-result');
 });
 
 after(async () => {
@@ -121,6 +132,7 @@ after(async () => {
   if (createdCounterKeys.length > 0) {
     await db.delete(abuseCounters).where(inArray(abuseCounters.key, createdCounterKeys));
   }
+  await session?.dispose();
 
   await poolInitialized;
   await closePool();
@@ -131,12 +143,16 @@ describe('the explain enqueue result, carried through the panel', () => {
     'mints a row id for the first ask, and answers no id for the second ask of the same key, before either settles',
     { skip: !DB_HOST ? 'DB_HOST not set' : false },
     async () => {
+      const userId = session?.userId ?? 0;
+      assert.ok(userId > 0, 'the fixture user must exist before either ask');
+
       const first = await resolveTriggeredExplainPanel(db, {
         request: freshRequest(),
         question,
         questionNormalized,
         from: FROM,
         to: TO,
+        userId,
       });
       if (first.state !== 'translating') {
         assert.fail(`expected the first ask to queue a fresh run, got ${JSON.stringify(first)}`);
@@ -157,6 +173,7 @@ describe('the explain enqueue result, carried through the panel', () => {
         questionNormalized,
         from: FROM,
         to: TO,
+        userId,
       });
       if (second.state !== 'translating') {
         assert.fail(`expected the second ask to be translating too, got ${JSON.stringify(second)}`);

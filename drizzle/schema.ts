@@ -47,6 +47,12 @@ export * from './schema/explanations';
 // a repeat. Reached through `getRawDb()`.
 export * from './schema/explanation-asks';
 
+// Explanation authorship: who caused one explanation row to be written, and
+// what they chose to show beside it. The ledger above stays readerless: this is
+// the only edge between a person and one of its rows, and it points at the
+// ledger rather than the ledger pointing back. Reached through `getRawDb()`.
+export * from './schema/explanation-authorship';
+
 // Reader votes on an enrichment and on a single translation edge, plus the
 // per-headword re-enrichment cooldown. All three describe the shared
 // dictionary, and all three are reached through `getRawDb()`.

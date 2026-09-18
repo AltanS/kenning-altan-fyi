@@ -8,6 +8,12 @@
  *   `#app/lib/translation/explain-job-payload`, which states the rule in full
  *   and carries no server import, so the unit tier can hold it to that rule with
  *   no database in front of it.
+ *   THE `userId` BELOW DOES NOT WEAKEN THAT RULE. It lives on
+ *   `ExplainEnqueueRequest`, the caller's request object, which never leaves
+ *   this process: it is read once, inside the transaction, to write the
+ *   authorship row, and it is never on the job payload pg-boss carries to the
+ *   worker. `explainJobPayloadSchema.parse` below is built field by field and is
+ *   not handed the request, so the boundary is enforced rather than remembered.
  *
  * THE ROW IS WRITTEN BEFORE THE ENQUEUE, IN THE SAME REQUEST.
  *   The pane resolves what to show from the LATEST row for a key. A job queued
@@ -38,7 +44,9 @@ import {
   type ExplainJobPayload,
 } from '#app/lib/translation/explain-job-payload';
 import { getActiveModel } from '#app/models/app-settings.server';
+import { insertExplanationAuthorship } from '#app/models/explanation-authorship.server';
 import { deletePendingExplanation, insertPendingExplanation } from '#app/models/explanations.server';
+import { getUserProfile } from '#app/models/user-profiles.server';
 import { WORKFLOW_TYPES } from '#app/workflows/types';
 
 const log = createComponentLogger('ExplainEnqueue');
@@ -72,6 +80,13 @@ export interface ExplainEnqueueRequest {
   /** The folded form, which is the cache key and half the singleton key. */
   questionNormalized: string;
   promptVersion: number;
+  /**
+   * Who is asking. Required, because the two call sites both resolve a signed-in
+   * reader before they get here and there is no path that reaches this function
+   * signed out. It is written to `explanation_authorship` and NOWHERE else, and
+   * in particular never to the job payload. See the header.
+   */
+  userId: number;
 }
 
 /**
@@ -79,8 +94,8 @@ export interface ExplainEnqueueRequest {
  *
  * @param db The database handle, so the row is written on the caller's
  *   connection rather than through a second import of the pool.
- * @param request The question, the two languages and the prompt version. The row
- *   id is minted inside.
+ * @param request The question, the two languages, the prompt version and the
+ *   reader asking. The row id is minted inside.
  * @returns which of the three things happened, and the row id when one was
  *   queued. It does not throw for a duplicate or for a missing orchestrator.
  */
@@ -95,14 +110,35 @@ export async function enqueueExplain(db: DictionaryDb, request: ExplainEnqueueRe
   // action taken while the server is running, and the row has to name the
   // selection as it stood when the reader asked.
   const active = await getActiveModel();
-  const runId = await insertPendingExplanation(db, {
-    from: request.from,
-    to: request.to,
-    question: request.question,
-    questionNormalized: request.questionNormalized,
-    promptVersion: request.promptVersion,
-    provider: active.provider,
-    model: active.model,
+  // ONE TRANSACTION, AND IT CLOSES BEFORE THE JOB IS SENT. The ledger row and
+  // the row naming its author are committed together, so a crash between them
+  // rolls back both and there is no window in which an explanation exists with
+  // no author. It has to happen HERE rather than in the route that renders the
+  // answer: past this function `orchestrator.start()` has already sent the job
+  // on pg-boss's own connection, outside any transaction a caller could open,
+  // and a rollback after that point would leave a queued job pointing at a row
+  // that no longer exists.
+  const runId = await db.transaction(async (tx) => {
+    const id = await insertPendingExplanation(tx, {
+      from: request.from,
+      to: request.to,
+      question: request.question,
+      questionNormalized: request.questionNormalized,
+      promptVersion: request.promptVersion,
+      provider: active.provider,
+      model: active.model,
+    });
+    // THE INITIAL VISIBILITY IS THE READER'S OWN STANDING PREFERENCE, read in
+    // the same transaction and never taken from the request that arrived over
+    // HTTP. `getUserProfile` answers the all-defaults shape for a reader with no
+    // row, so a reader who has never opened `/settings` starts out public.
+    const profile = await getUserProfile(tx, request.userId);
+    await insertExplanationAuthorship(tx, {
+      explanationId: id,
+      userId: request.userId,
+      listed: !profile.hideNewExplanationsByDefault,
+    });
+    return id;
   });
 
   // Parsed again here even though the caller has a typed value, because this is

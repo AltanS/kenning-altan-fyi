@@ -121,6 +121,30 @@ export function isSourceSelection(value: string | null | undefined): value is So
   return value === DETECT || isPairLanguage(value);
 }
 
+/** A stored language code, and what to read it as when it no longer names a served language. */
+export interface StoredLanguageParams {
+  code: string;
+  fallback: LanguageCode;
+}
+
+/**
+ * A stored language code, narrowed for the callers that need a real one.
+ *
+ * THE COLUMNS ARE PLAIN TEXT, on purpose: a row written while a language was
+ * served must stay readable after it is withdrawn. The fallback keeps that row
+ * rendering rather than throwing a page away over a `lang` attribute.
+ *
+ * IT IS SHARED RATHER THAN COPIED INTO EACH CALLER, and that matters more than
+ * it looks: `/explanations/:id` and `resolveOwnAuthorship` both turn one stored
+ * ask row into a cache key, and two fallbacks that disagreed would resolve the
+ * page and its own write to two different explanations.
+ *
+ * @param params The stored code, and the reading to fall back to.
+ */
+export function storedLanguage(params: StoredLanguageParams): LanguageCode {
+  return isPairLanguage(params.code) ? params.code : params.fallback;
+}
+
 /**
  * The other side of a pair, when the two sides have collided.
  *

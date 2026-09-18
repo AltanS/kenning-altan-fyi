@@ -1,7 +1,7 @@
 import type { Route } from './+types/explanations.$id';
 import { ArrowLeft, Copy, Link2, RotateCcw, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { data, useNavigate, type MetaFunction } from 'react-router';
+import { data, useFetcher, useNavigate, type MetaFunction } from 'react-router';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { ItemActionsMenu } from '#app/components/item-actions-menu';
@@ -10,17 +10,21 @@ import { ExplanationBody } from '#app/components/explanation-body';
 import { Link } from '#app/components/link';
 import { languageName } from '#app/components/personal/saved-word-row';
 import { Button } from '#app/components/ui/button';
+import { Label } from '#app/components/ui/label';
 import { Skeleton } from '#app/components/ui/skeleton';
+import { Switch } from '#app/components/ui/switch';
 import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import type { TitleHandle } from '#app/lib/route-title';
-import { isPairLanguage } from '#app/lib/dictionary/language-pair';
-import type { LanguageCode } from '#app/lib/dictionary/detect-language';
+import { storedLanguage } from '#app/lib/dictionary/language-pair';
+import { resolveOwnAuthorship, type OwnAuthorship } from '#app/lib/authorship/resolve-own-authorship.server';
 import { explainBudgetKey } from '#app/components/explanation-card';
 import type { ExplainPaneTarget } from '#app/lib/translation/explain-pane';
 import { resolveExplainPanel, type ExplainPanel } from '#app/lib/translation/explain-panel.server';
 import { explanationToText } from '#app/lib/translation/explanation-text';
 import { resolveUser } from '#app/middleware/auth';
 import { getExplanationAsk, removeExplanationAsk } from '#app/models/explanation-asks.server';
+import { setListed, setShowName } from '#app/models/explanation-authorship.server';
+import { getUserProfile } from '#app/models/user-profiles.server';
 import { getRawDb } from '#drizzle/db';
 
 export const meta: MetaFunction = ({ matches }) => {
@@ -47,17 +51,6 @@ function askId(value: string | undefined): number | null {
 }
 
 /**
- * A stored language code, narrowed for the components that need a real one.
- *
- * THE COLUMNS ARE PLAIN TEXT, on purpose: a row written when a language was
- * served must stay readable after it is withdrawn. The fallback keeps that row
- * rendering rather than throwing a page away over a `lang` attribute.
- */
-function asLanguage(code: string, fallback: LanguageCode): LanguageCode {
-  return isPairLanguage(code) ? code : fallback;
-}
-
-/**
  * One question this reader asked, and wherever its answer has got to.
  *
  * THE ROW IS THE SOURCE OF EVERY VALUE ON THE SCREEN, and the URL supplies only
@@ -76,6 +69,13 @@ function asLanguage(code: string, fallback: LanguageCode): LanguageCode {
  * A ROW THAT IS NOT THIS READER'S IS A 404, indistinguishable from one that
  * never existed: the model puts the user in the WHERE clause, so there is
  * nothing here to tell the two apart with.
+ *
+ * THE AUTHORSHIP READ IS THE SAME CHECK THE ACTION MAKES, NOT A CHEAPER ONE.
+ * `resolveOwnAuthorship` is asked only once an answer exists, because there is
+ * nothing to grant or withdraw on a question that has none, and it answers
+ * `null` for a reader whose own ask resolved to a row somebody else's attempt
+ * produced. That reader gets no switch at all rather than a disabled one: a
+ * disabled control would promise a permission this page cannot give them.
  */
 export async function loader({ request, params }: Route.LoaderArgs) {
   const user = await resolveUser(request);
@@ -87,12 +87,18 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const ask = await getExplanationAsk(user.id, id);
   if (ask === null) throw data(null, { status: 404 });
 
-  const panel: ExplainPanel = await resolveExplainPanel(getRawDb(), {
+  const db = getRawDb();
+  const panel: ExplainPanel = await resolveExplainPanel(db, {
     question: ask.question,
     questionNormalized: ask.questionNormalized,
-    from: asLanguage(ask.fromLanguage, 'de'),
-    to: asLanguage(ask.toLanguage, 'en'),
+    from: storedLanguage({ code: ask.fromLanguage, fallback: 'de' }),
+    to: storedLanguage({ code: ask.toLanguage, fallback: 'en' }),
   });
+
+  const authorship = panel.state === 'ready' ? await resolveOwnAuthorship(db, { userId: user.id, askId: id }) : null;
+  // Read only for an author, and only to decide whether the byline switch has a
+  // name to show. A reader with no switch has no use for it.
+  const profile = authorship === null ? null : await getUserProfile(db, user.id);
 
   return {
     id: ask.id,
@@ -101,21 +107,46 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     to: ask.toLanguage,
     askedAt: ask.askedAt.getTime(),
     panel,
+    authorship,
+    hasPublicName: profile !== null && profile.publicName !== null,
   };
 }
 
-const INTENT = { REMOVE: 'remove' } as const;
+const INTENT = { REMOVE: 'remove', SHOW_NAME: 'show-name', LISTED: 'listed' } as const;
 
-const detailFormSchema = z.object({ intent: z.literal(INTENT.REMOVE) });
+/** A switch's value as a form sends it. */
+const flagField = z.enum(['true', 'false']).transform((value) => value === 'true');
+
+// NO `explanationId` ANYWHERE IN THIS UNION, AND THAT IS THE POINT. The two
+// toggles carry their intent and one boolean; the row they act on is derived
+// again, server-side, from the ask id in the path.
+const detailFormSchema = z.discriminatedUnion('intent', [
+  z.object({ intent: z.literal(INTENT.REMOVE) }),
+  z.object({ intent: z.literal(INTENT.SHOW_NAME), showName: flagField }),
+  z.object({ intent: z.literal(INTENT.LISTED), listed: flagField }),
+]);
+
+/** Every way this action can answer. */
+export type ExplanationDetailActionResult =
+  | { success: true }
+  | { success: false; error: 'unauthenticated' | 'invalid-form' | 'not-author' };
 
 /**
- * Removes this ask, and nothing else.
+ * Removes this ask, or changes what the reader shows beside the answer it
+ * resolved to.
  *
- * THE ANSWER IN `explanations` STAYS. It names nobody, so there is nothing of
- * this reader in it to remove, and it is the installation's record of a run it
- * paid for. What goes is the link between the person and the question.
+ * THE ANSWER IN `explanations` STAYS ON A REMOVE. It names nobody, so there is
+ * nothing of this reader in it to remove, and it is the installation's record of
+ * a run it paid for. What goes is the link between the person and the question.
+ *
+ * THE TWO TOGGLES RE-DERIVE THE ROW THEY WRITE TO, INDEPENDENTLY OF THE LOADER.
+ * `resolveOwnAuthorship` is called again here with the ask id out of the path,
+ * so nothing this action writes depends on a value the client sent, and a reader
+ * who pastes somebody else's explanation id into the form body changes nothing:
+ * the id is not read. A `null` answer is treated exactly as a stale id is,
+ * nothing happens and nothing 500s.
  */
-export async function action({ request, params }: Route.ActionArgs) {
+export async function action({ request, params }: Route.ActionArgs): Promise<ExplanationDetailActionResult> {
   const user = await resolveUser(request);
   if (user === null) return { success: false, error: 'unauthenticated' };
 
@@ -124,9 +155,23 @@ export async function action({ request, params }: Route.ActionArgs) {
 
   const parsed = detailFormSchema.safeParse(Object.fromEntries(await request.formData()));
   if (!parsed.success) return { success: false, error: 'invalid-form' };
+  const form = parsed.data;
 
-  await removeExplanationAsk(user.id, id);
-  return { success: true };
+  if (form.intent === INTENT.REMOVE) {
+    await removeExplanationAsk(user.id, id);
+    return { success: true };
+  }
+
+  const db = getRawDb();
+  const authorship = await resolveOwnAuthorship(db, { userId: user.id, askId: id });
+  if (authorship === null) return { success: false, error: 'not-author' };
+
+  const written =
+    form.intent === INTENT.SHOW_NAME ?
+      await setShowName(db, { explanationId: authorship.explanationId, userId: user.id, showName: form.showName })
+    : await setListed(db, { explanationId: authorship.explanationId, userId: user.id, listed: form.listed });
+
+  return written ? { success: true } : { success: false, error: 'not-author' };
 }
 
 /** The house recipe for a quiet line on this page. */
@@ -162,9 +207,12 @@ function AnswerSkeleton() {
 export default function ExplanationDetailRoute({ loaderData }: Route.ComponentProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { id, question, from, to, askedAt, panel } = loaderData;
+  const { id, question, from, to, askedAt, panel, authorship, hasPublicName } = loaderData;
 
-  const language = { from: asLanguage(from, 'de'), to: asLanguage(to, 'en') };
+  const language = {
+    from: storedLanguage({ code: from, fallback: 'de' }),
+    to: storedLanguage({ code: to, fallback: 'en' }),
+  };
   const target: ExplainPaneTarget = { kind: 'question', question, from: language.from, to: language.to };
   const explanation = useExplainPane({ panel, target });
   const { view, answer, waitingKey } = explanation;
@@ -196,6 +244,13 @@ export default function ExplanationDetailRoute({ loaderData }: Route.ComponentPr
         <h1 lang={to} className="font-display text-xl sm:text-2xl font-semibold tracking-tight leading-snug">
           {question}
         </h1>
+
+        {/* WHO AN ANSWER IS CREDITED TO, SAID ONCE AND TO EVERY READER. It is
+            background information rather than a control, so it does not sit
+            inside the author's own block below: the reader who most needs it is
+            the one who asked this question, was served an answer somebody else's
+            attempt produced, and therefore has no switch on this page at all. */}
+        {answer !== null && <p className={QUIET_LINE}>{t('explanations.retryCredit')}</p>}
 
         {/* THE ACTIONS SIT BESIDE THE METADATA, NOT ACROSS THE PAGE. They were
             a band of four buttons under the question, full width and stacked
@@ -297,6 +352,99 @@ export default function ExplanationDetailRoute({ loaderData }: Route.ComponentPr
         {view === 'no-entry' && <p className={QUIET_LINE}>{t('explanations.stateUnanswered')}</p>}
         {view === 'ready' && answer === null && <p className={QUIET_LINE}>{t('explanations.stateUnanswered')}</p>}
       </div>
+
+      {/* BELOW THE ANSWER, NOT ABOVE IT. The reader came here to read; what they
+          publish under it is the next question, not the first one. `authorship`
+          is null for everyone but this row's own author, so nobody else meets a
+          control they cannot use. */}
+      {authorship !== null && <AuthorshipControls authorship={authorship} hasPublicName={hasPublicName} />}
+    </div>
+  );
+}
+
+/** The value a switch shows: the one in flight if there is one, else the stored one. */
+function optimisticFlag(submitted: FormDataEntryValue | null | undefined, stored: boolean): boolean {
+  if (submitted === null || submitted === undefined) return stored;
+  return submitted === 'true';
+}
+
+/** What the author's own block needs: their two flags, and whether they have a name to show. */
+interface AuthorshipControlsProps {
+  authorship: OwnAuthorship;
+  hasPublicName: boolean;
+}
+
+/**
+ * What this reader publishes under the answer their question opened.
+ *
+ * TWO FETCHERS, ONE PER SWITCH, so flipping one does not grey out the other
+ * while it is in flight. Each switch's shown value comes from its own
+ * `fetcher.formData` first, the rule `/settings` states for the same control:
+ * the in-flight submission already holds what the reader chose, and a second
+ * copy in `useState` would disagree with it for one render on every toggle.
+ *
+ * NEITHER SWITCH SENDS A ROW ID. Both send their intent and one boolean; the
+ * action derives the row from the ask id in the path. See its own comment.
+ *
+ * THE CC0 NOTICE IS KEYED ON `listed` ALONE, never on the byline. An item is
+ * public by that flag whether or not a name is attached, so the disclosure says
+ * what is actually true rather than what feels most relevant to disclose.
+ */
+function AuthorshipControls({ authorship, hasPublicName }: AuthorshipControlsProps) {
+  const { t } = useTranslation();
+  const nameFetcher = useFetcher<ExplanationDetailActionResult>();
+  const listedFetcher = useFetcher<ExplanationDetailActionResult>();
+
+  const showName = optimisticFlag(nameFetcher.formData?.get('showName'), authorship.showName);
+  const listed = optimisticFlag(listedFetcher.formData?.get('listed'), authorship.listed);
+
+  function toggleShowName(next: boolean): void {
+    const body = new FormData();
+    body.set('intent', INTENT.SHOW_NAME);
+    body.set('showName', next ? 'true' : 'false');
+    void nameFetcher.submit(body, { method: 'post' });
+  }
+
+  function toggleListed(next: boolean): void {
+    const body = new FormData();
+    body.set('intent', INTENT.LISTED);
+    body.set('listed', next ? 'true' : 'false');
+    void listedFetcher.submit(body, { method: 'post' });
+  }
+
+  return (
+    <div className="flex flex-col gap-4 rounded-xl border bg-card p-6">
+      <div className="flex items-center gap-3">
+        <Switch
+          checked={listed}
+          onCheckedChange={toggleListed}
+          disabled={listedFetcher.state !== 'idle'}
+          aria-label={t('explanations.listedLabel')}
+        />
+        <Label>{t('explanations.listedLabel')}</Label>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={showName}
+            onCheckedChange={toggleShowName}
+            disabled={!hasPublicName || nameFetcher.state !== 'idle'}
+            aria-label={t('explanations.showNameLabel')}
+          />
+          <Label>{t('explanations.showNameLabel')}</Label>
+        </div>
+        {!hasPublicName && (
+          <p className={QUIET_LINE}>
+            {t('explanations.showNameNeedsName')}{' '}
+            <Link to="/settings" className="underline underline-offset-4">
+              {t('explanations.showNameSettingsLink')}
+            </Link>
+          </p>
+        )}
+      </div>
+
+      <p className={QUIET_LINE}>{listed ? t('explanations.cc0NoticeListed') : t('explanations.cc0NoticeHidden')}</p>
     </div>
   );
 }

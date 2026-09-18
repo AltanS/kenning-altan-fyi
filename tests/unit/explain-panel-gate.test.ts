@@ -34,7 +34,9 @@
 import { describe, it, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
+import type { DictionaryDb } from '#app/lib/dictionary/queries.server';
 import type { Explanation } from '#app/lib/llm/explain-schema';
+import type { ExplainEnqueueRequest } from '#app/lib/translation/explain-enqueue.server';
 import type { ExplanationView } from '#app/models/explanations.server';
 
 mock.module('#drizzle/db', {
@@ -102,10 +104,21 @@ mock.module('#app/lib/abuse/budget.server', {
   },
 });
 
+/**
+ * What the resolver last handed the enqueue.
+ *
+ * THE READER IS THE PART THIS FILE WATCHES. `enqueueExplain` opens a row and
+ * writes its author in one transaction, so a resolver that dropped the reader on
+ * the floor would leave every row it opened unauthored, and nothing in the
+ * returned panel would say so.
+ */
+let enqueued: ExplainEnqueueRequest | null = null;
+
 mock.module('#app/lib/translation/explain-enqueue.server', {
   namedExports: {
-    enqueueExplain: () => {
+    enqueueExplain: (_db: DictionaryDb, request: ExplainEnqueueRequest) => {
       calls.push('enqueue');
+      enqueued = request;
       return Promise.resolve(
         fake.enqueueOutcome === 'queued' ?
           { outcome: 'queued', runId: 'explain-1' }
@@ -136,6 +149,9 @@ const key = {
 } as const;
 
 const request = new Request('https://kenning.altan.fyi/explain?q=kennen%20wissen');
+
+/** The signed-in reader every trigger in this file asks as. */
+const READER_ID = 4242;
 
 /** One answered explanation, the smallest the card will draw. */
 const answer: Explanation = {
@@ -171,6 +187,7 @@ function row(status: ExplanationView['status'], overrides: Partial<ExplanationVi
 
 beforeEach(() => {
   calls = [];
+  enqueued = null;
   fake.answer = null;
   fake.latest = null;
   fake.rateLimitAllowed = true;
@@ -221,14 +238,14 @@ describe('the explain resolver, which never enqueues', () => {
 describe('the explain trigger, which may', () => {
   it('short-circuits a cached question before any guard runs, and never spends a rate-limit token', async () => {
     fake.answer = row('ok', { answer });
-    const panel = await resolveTriggeredExplainPanel(db, { ...key, request });
+    const panel = await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID });
     assert.equal(panel.state, 'ready');
     assert.deepEqual(calls, ['cache']);
   });
 
   it('short-circuits an open run, so a second identical question queues nothing', async () => {
     fake.latest = row('pending');
-    const panel = await resolveTriggeredExplainPanel(db, { ...key, request });
+    const panel = await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID });
     assert.equal(panel.state, 'translating');
     assert.equal(calls.includes('enqueue'), false);
     assert.equal(calls.includes('rateLimit'), false);
@@ -236,15 +253,29 @@ describe('the explain trigger, which may', () => {
 
   it('leaves a failure alone unless the reader asked again', async () => {
     fake.latest = row('failed');
-    const panel = await resolveTriggeredExplainPanel(db, { ...key, request });
+    const panel = await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID });
     assert.deepEqual(panel, { state: 'failed', canRetry: true, error: null });
     assert.equal(calls.includes('enqueue'), false);
   });
 
   it('enqueues for a question nobody has asked, asking the four guards in order', async () => {
-    const panel = await resolveTriggeredExplainPanel(db, { ...key, request });
+    const panel = await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID });
     assert.deepEqual(panel, { state: 'translating', queuedRunId: 'explain-1' });
     assert.deepEqual(calls, ['cache', 'latest', 'rateLimit', 'countRunsToday', 'budget', 'enqueue']);
+  });
+
+  it('hands the reader to the enqueue, so the row it opens can be written with its author', async () => {
+    await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID });
+    assert.equal(enqueued?.userId, READER_ID, 'the resolver dropped the reader on the way to the enqueue');
+    // And it is the resolver's own caller-supplied value, not a default: the
+    // whole question, the fold and the two languages travel beside it unchanged.
+    assert.equal(enqueued?.questionNormalized, key.questionNormalized);
+  });
+
+  it('never reaches the enqueue on a refused question, so no reader is recorded either', async () => {
+    fake.rateLimitAllowed = false;
+    await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID });
+    assert.equal(enqueued, null);
   });
 
   it('refuses a question over the length cap first of all, before any other question is asked', async () => {
@@ -254,6 +285,7 @@ describe('the explain trigger, which may', () => {
       question: tooLong,
       questionNormalized: tooLong,
       request,
+      userId: READER_ID,
     });
     assert.deepEqual(panel, { state: 'budget', reason: 'too-long' });
     // The two reads that decide the state still happen, because the cap is a
@@ -269,6 +301,7 @@ describe('the explain trigger, which may', () => {
       question: atCap,
       questionNormalized: atCap,
       request,
+      userId: READER_ID,
     });
     assert.deepEqual(panel, { state: 'translating', queuedRunId: 'explain-1' });
     assert.equal(calls.at(-1), 'enqueue');
@@ -276,41 +309,41 @@ describe('the explain trigger, which may', () => {
 
   it('refuses a rate-limited caller before it reads either installation-wide counter', async () => {
     fake.rateLimitAllowed = false;
-    const panel = await resolveTriggeredExplainPanel(db, { ...key, request });
+    const panel = await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID });
     assert.deepEqual(panel, { state: 'budget', reason: 'rate-limited' });
     assert.deepEqual(calls, ['cache', 'latest', 'rateLimit']);
   });
 
   it('refuses at the day cap before it asks the budget', async () => {
     fake.runsToday = MAX_EXPLAIN_RUNS_PER_DAY;
-    const panel = await resolveTriggeredExplainPanel(db, { ...key, request });
+    const panel = await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID });
     assert.deepEqual(panel, { state: 'budget', reason: 'daily-cap' });
     assert.deepEqual(calls, ['cache', 'latest', 'rateLimit', 'countRunsToday']);
   });
 
   it('refuses on an exhausted budget, last of the four', async () => {
     fake.budgetExhausted = true;
-    const panel = await resolveTriggeredExplainPanel(db, { ...key, request });
+    const panel = await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID });
     assert.deepEqual(panel, { state: 'budget', reason: 'budget' });
     assert.deepEqual(calls, ['cache', 'latest', 'rateLimit', 'countRunsToday', 'budget']);
   });
 
   it('re-enqueues a failure when the reader pressed retry', async () => {
     fake.latest = row('failed');
-    const panel = await resolveTriggeredExplainPanel(db, { ...key, request, retry: true });
+    const panel = await resolveTriggeredExplainPanel(db, { ...key, request, retry: true, userId: READER_ID });
     assert.deepEqual(panel, { state: 'translating', queuedRunId: 'explain-1' });
     assert.equal(calls.at(-1), 'enqueue');
   });
 
   it('treats a deduped enqueue as translating with no id of its own, and an unavailable queue as failed', async () => {
     fake.enqueueOutcome = 'deduped';
-    assert.deepEqual(await resolveTriggeredExplainPanel(db, { ...key, request }), {
+    assert.deepEqual(await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID }), {
       state: 'translating',
       queuedRunId: null,
     });
 
     fake.enqueueOutcome = 'unavailable';
-    const panel = await resolveTriggeredExplainPanel(db, { ...key, request });
+    const panel = await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID });
     assert.deepEqual(panel, {
       state: 'failed',
       canRetry: true,
@@ -319,7 +352,7 @@ describe('the explain trigger, which may', () => {
   });
 
   it('mints the row id on a fresh queue, and answers no id when the same key is asked again while it is still open', async () => {
-    const first = await resolveTriggeredExplainPanel(db, { ...key, request });
+    const first = await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID });
     assert.deepEqual(first, { state: 'translating', queuedRunId: 'explain-1' });
 
     // The real `enqueueExplain` answers `deduped` for the second reader who asks
@@ -327,7 +360,7 @@ describe('the explain trigger, which may', () => {
     // outcome directly here, since the singleton-key race itself is proved by
     // the integration test, not by this fake.
     fake.enqueueOutcome = 'deduped';
-    const second = await resolveTriggeredExplainPanel(db, { ...key, request });
+    const second = await resolveTriggeredExplainPanel(db, { ...key, request, userId: READER_ID });
     assert.deepEqual(second, { state: 'translating', queuedRunId: null });
   });
 });

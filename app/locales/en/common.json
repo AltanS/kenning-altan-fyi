@@ -194,7 +194,6 @@
     "publicNameTaken": "That name is already taken.",
     "hideNewExplanationsByDefaultTitle": "New explanations",
     "hideNewExplanationsByDefaultBody": "Choose whether your future explanations start out hidden from other readers.",
-    "hideNewExplanationsByDefaultNotEnforcedYet": "This choice is stored, but nothing that creates an explanation reads it yet.",
     "hideNewExplanationsByDefaultLabel": "Hide new explanations by default",
     "hideNewExplanationsByDefaultSavedToast": "Setting saved.",
     "installTitle": "Install the app",
@@ -447,6 +446,13 @@
     "down": "This word is wrong",
     "signIn": "Sign in to vote on a word"
   },
+  "explanationVote": {
+    "up": "This answer is accurate",
+    "down": "This answer is not accurate",
+    "signIn": "Sign in to vote on this answer",
+    "recorded": "Your vote was recorded.",
+    "invalid": "This answer is gone, so your vote was not saved."
+  },
   "explain": {
     "metaTitle": "Explain",
     "metaDescription": "Ask about a word, or about the difference between two words.",
@@ -511,7 +517,10 @@
       "literary": "literary",
       "dated": "dated",
       "regional": "regional"
-    }
+    },
+    "publicNoticeListed": "Questions you ask here are public by default, with their answers and without your name. Anyone may copy them, and hiding one later does not undo a copy.",
+    "publicNoticeHidden": "Questions you ask here start out hidden from the public pages. You can list one later from its page.",
+    "publicNoticeSettingsLink": "Change this in Settings"
   },
   "explanations": {
     "metaTitle": "Explanations",
@@ -542,7 +551,14 @@
     "removedToast": "Removed.",
     "actionsLabel": "Actions for this question",
     "rowActionsLabel": "Actions for {{question}}",
-    "open": "Open"
+    "open": "Open",
+    "showNameLabel": "Show my name on this answer",
+    "showNameNeedsName": "You have not chosen a public name yet.",
+    "showNameSettingsLink": "Choose one in Settings",
+    "listedLabel": "Show this answer on the public pages",
+    "cc0NoticeListed": "This question and its answer are public. They are released under CC0: anyone may copy them, and no credit is needed. Switching this off later does not undo a copy someone already made.",
+    "cc0NoticeHidden": "This question and its answer are hidden from the public pages.",
+    "retryCredit": "A public answer is credited to the person whose attempt produced it, not to everyone who asked the same question. If you retry a question that failed for someone else, your attempt can become the credited one."
   },
   "update": {
     "bundleReady": "A newer version of this page is ready.",
