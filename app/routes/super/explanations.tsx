@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { Button } from '#app/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '#app/components/ui/table';
+import { REPORT_REASON_MAX_CHARS } from '#app/lib/reports/limits';
 import { getUser } from '#app/middleware/helpers';
 import {
   hideQuestion,
@@ -12,7 +13,6 @@ import {
   resolveModerationKey,
   unhideQuestion,
 } from '#app/models/explanation-moderation.server';
-import { REPORT_REASON_MAX_CHARS } from '#app/models/explanation-reports.server';
 import { getRawDb } from '#drizzle/db';
 
 export const handle = {

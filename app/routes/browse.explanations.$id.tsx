@@ -17,10 +17,11 @@ import { Textarea } from '#app/components/ui/textarea';
 import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
 import { SIGN_IN_PATH } from '#app/lib/auth/paths';
 import { storedLanguage } from '#app/lib/dictionary/language-pair';
+import { REPORT_REASON_MAX_CHARS } from '#app/lib/reports/limits';
 import { resolveUser } from '#app/middleware/auth';
 import { resolvePublicByline } from '#app/models/explanation-authorship.server';
 import { getPublicExplanation } from '#app/models/explanation-browse.server';
-import { recordExplanationReport, REPORT_REASON_MAX_CHARS } from '#app/models/explanation-reports.server';
+import { recordExplanationReport } from '#app/models/explanation-reports.server';
 import { readVoteForAccount } from '#app/models/explanation-votes.server';
 import { getRawDb } from '#drizzle/db';
 

@@ -19,9 +19,6 @@ import { eq } from 'drizzle-orm';
 import type { DictionaryDb } from '#app/lib/dictionary/queries.server';
 import { explanationReports } from '#drizzle/schema';
 
-/** The most characters a reported reason may carry. The boundary schema cuts at the same figure. */
-export const REPORT_REASON_MAX_CHARS = 500;
-
 /** One report, as the page's own action sends it. */
 export interface RecordExplanationReportParams {
   /** The answer on screen. It is public, so accepting it from the client is safe: nothing is owned by anyone here. */
