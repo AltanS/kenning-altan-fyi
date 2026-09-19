@@ -108,7 +108,7 @@ export interface PublicExplanationRow {
   /** The language the answer is written in. */
   to: string;
   question: string;
-  /** The opening of the answer, cut at a word within `PUBLIC_PREVIEW_CHARS`, with an ellipsis. Never all of it. */
+  /** The opening of the answer, at most `PUBLIC_PREVIEW_CHARS` long. A longer answer is cut at a word and ends with an ellipsis. */
   preview: string;
   up: number;
   down: number;
