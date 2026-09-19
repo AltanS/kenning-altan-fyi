@@ -67,6 +67,39 @@ export const PUBLIC_EXPLANATIONS_MAX_ROWS = 200;
 /** How much of an answer a list row carries. The private list cuts at the same place. */
 export const PUBLIC_PREVIEW_CHARS = 140;
 
+/** What marks a preview as cut. It is one character, so it costs one character of the budget. */
+const PREVIEW_ELLIPSIS = '…';
+
+/** A cut that lands after these reads as a dangling clause, so the cut backs off them. */
+const PREVIEW_TRAILING_BREAK = /[\s,;:]+$/;
+
+/** The first half of a surrogate pair. A hard cut that ends on one would leave half a character. */
+const PREVIEW_HIGH_SURROGATE = /[\uD800-\uDBFF]$/;
+
+/**
+ * The opening of an answer for a list row, never longer than `maxChars` in total.
+ *
+ * A TEXT THAT FITS COMES BACK UNCHANGED, with no ellipsis. A longer one is cut at
+ * the last whitespace that leaves room for the ellipsis, so a row ends on a word
+ * and not in the middle of one, then loses trailing whitespace and `,;:` and gains
+ * a single ellipsis. A text with no usable whitespace in that window (a run of CJK
+ * is the ordinary case) is cut hard instead, and a hard cut never keeps half of a
+ * surrogate pair.
+ */
+export function truncatePreview(text: string, maxChars: number = PUBLIC_PREVIEW_CHARS): string {
+  if (text.length <= maxChars) return text;
+
+  const budget = maxChars - PREVIEW_ELLIPSIS.length;
+  // One character past the budget, so a space that sits exactly on the cut counts as a boundary.
+  const candidate = text.slice(0, budget + 1);
+  const lastGap = candidate.search(/\s\S*$/);
+  const atWord = lastGap === -1 ? '' : candidate.slice(0, lastGap).replace(PREVIEW_TRAILING_BREAK, '');
+  if (atWord.length > 0) return `${atWord}${PREVIEW_ELLIPSIS}`;
+
+  const hardCut = text.slice(0, budget).replace(PREVIEW_HIGH_SURROGATE, '').replace(PREVIEW_TRAILING_BREAK, '');
+  return `${hardCut}${PREVIEW_ELLIPSIS}`;
+}
+
 /** One public explanation, as a list row draws it. */
 export interface PublicExplanationRow {
   id: string;
@@ -75,7 +108,7 @@ export interface PublicExplanationRow {
   /** The language the answer is written in. */
   to: string;
   question: string;
-  /** The opening of the answer, cut at `PUBLIC_PREVIEW_CHARS`. Never the whole document. */
+  /** The opening of the answer, cut at a word within `PUBLIC_PREVIEW_CHARS`, with an ellipsis. Never all of it. */
   preview: string;
   up: number;
   down: number;
@@ -298,7 +331,7 @@ export async function listPublicExplanations(
         from: row.from,
         to: row.to,
         question: row.question,
-        preview: answer.answer.slice(0, PUBLIC_PREVIEW_CHARS),
+        preview: truncatePreview(answer.answer),
         up: row.up,
         down: row.down,
         bylineName: row.bylineName,

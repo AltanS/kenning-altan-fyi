@@ -182,7 +182,9 @@ export default function AppWrapper({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
+      {/* `min-w-0`: as a flex item beside the sidebar, `main` would otherwise grow to the
+          min-content width of a wide table and push the page sideways. */}
+      <SidebarInset className="min-w-0">
         <InnerContent title={title} backTo={backTo}>
           {children}
         </InnerContent>

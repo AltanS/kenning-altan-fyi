@@ -1,5 +1,5 @@
 import type { Route } from './+types/browse.explanations.$id';
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { data, useFetcher, type MetaFunction } from 'react-router';
@@ -230,6 +230,9 @@ function ReportControl({ explanationId: id, isSignedIn }: { explanationId: strin
   const { t } = useTranslation();
   const fetcher = useFetcher<BrowseReportResult>();
   const reported = useRef<object | null>(null);
+  // Counts the reports that were recorded. It keys the `<details>`, so a sent report remounts
+  // the block closed with an empty textarea, and a failed one leaves the reader's words alone.
+  const [sentCount, setSentCount] = useState(0);
   const fieldId = useId();
   const reasonId = `${fieldId}-reason`;
 
@@ -240,8 +243,12 @@ function ReportControl({ explanationId: id, isSignedIn }: { explanationId: strin
     const answer = fetcher.data;
     if (answer === undefined || reported.current === answer) return;
     reported.current = answer;
-    if (answer.success) toast.success(t('browse.reportSentToast'));
-    else toast.error(t('browse.reportFailedToast'));
+    if (!answer.success) {
+      toast.error(t('browse.reportFailedToast'));
+      return;
+    }
+    toast.success(t('browse.reportSentToast'));
+    setSentCount((count) => count + 1);
   }, [fetcher.data, t]);
 
   if (!isSignedIn) {
@@ -258,7 +265,7 @@ function ReportControl({ explanationId: id, isSignedIn }: { explanationId: strin
   }
 
   return (
-    <details className="rounded-xl border p-4">
+    <details key={sentCount} className="rounded-xl border p-4">
       <summary className="cursor-pointer text-sm font-medium">{t('browse.reportTitle')}</summary>
       <fetcher.Form method="post" className="mt-3 flex flex-col gap-3">
         <p className={QUIET_LINE}>{t('browse.reportBody')}</p>
