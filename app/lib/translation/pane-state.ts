@@ -170,12 +170,25 @@ export type TranslationPaneTarget =
   /** Nothing to translate: the landing screen, or a query with no matching headword. */
   | { kind: 'none' };
 
-/** The two routes one target is served by: the read-only poll, and the retry. */
+/** The routes one target is served by: the read-only poll, the retry, and the rejection. */
 export interface TranslationPaneEndpoints {
   /** GET. It can never enqueue, which is why the pane may call it every three seconds. */
   poll: string;
   /** POST. The one thing the pane does that can spend money, and only on a press. */
   retry: string;
+  /**
+   * POST. Where a reader says the answer they were given is wrong.
+   *
+   * `null` ON THE PHRASE BRANCH, AND THE UNION IS WHY, which is the same
+   * argument `translation-pane.tsx` makes about the vote control. A rejection
+   * is recorded against a `translation_runs` row, which is opened for one
+   * headword in one direction; a phrase answer has no headword and no run of
+   * that kind behind it, so there is nothing for this route to address and
+   * posting to it would name an id it has never heard of. It is `null` because
+   * the branch cannot produce a URL, not because a flag was set that way, so
+   * nobody can set it the wrong way.
+   */
+  reject: string | null;
 }
 
 /**
@@ -198,11 +211,15 @@ export interface TranslationPaneEndpoints {
 export function translationPaneEndpoints(target: TranslationPaneTarget): TranslationPaneEndpoints | null {
   if (target.kind === 'headword') {
     const id = encodeURIComponent(target.headwordId);
-    return { poll: `/api/translation/${id}?to=${target.to}`, retry: `/api/translation/${id}/retry?to=${target.to}` };
+    return {
+      poll: `/api/translation/${id}?to=${target.to}`,
+      retry: `/api/translation/${id}/retry?to=${target.to}`,
+      reject: `/api/translation/${id}/reject?to=${target.to}`,
+    };
   }
   if (target.kind === 'phrase') {
     const query = `q=${encodeURIComponent(target.text)}&from=${target.from}&to=${target.to}`;
-    return { poll: `/api/translation-phrase?${query}`, retry: `/api/translation-phrase/retry?${query}` };
+    return { poll: `/api/translation-phrase?${query}`, retry: `/api/translation-phrase/retry?${query}`, reject: null };
   }
   return null;
 }

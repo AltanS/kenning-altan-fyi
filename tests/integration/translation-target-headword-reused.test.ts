@@ -133,6 +133,7 @@ describe('a translation whose target word is already in the dictionary', () => {
         to: TO,
         promptVersion: PROMPT_VERSION,
         runId,
+        rerunReason: null,
       });
       assert.equal(summary.outcome, 'written', summary.reason ?? '');
 

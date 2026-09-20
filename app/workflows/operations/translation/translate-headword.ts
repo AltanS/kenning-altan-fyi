@@ -57,7 +57,8 @@ import { MAX_SENSES, TRANSLATION_TIMEOUT_MS } from '#app/lib/translation/limits'
 import type { TranslationJobPayload } from '#app/lib/translation/job-payload';
 import { getActiveModel } from '#app/models/app-settings.server';
 import { emptyWrittenRowIds, finishRun, getRun, type WrittenRowIds } from '#app/models/translation-runs.server';
-import { renderTranslationPrompt, type OfferedSense } from '#app/prompts/translation';
+import { renderTranslationPrompt, type OfferedSense, type RevisionRequest } from '#app/prompts/translation';
+import { listTranslationsInto } from '#app/lib/translation/translations-query.server';
 import { headwords, senseVersions, senses, sources, translations } from '#drizzle/schema';
 import { getRawDb } from '#drizzle/db';
 import { translateHeadwordContextSchema } from '#app/workflows/types';
@@ -494,6 +495,49 @@ export async function runTranslateHeadword(payload: TranslationJobPayload): Prom
   }
 }
 
+/**
+ * What a re-run has to tell the model, or `null` when this is a first run.
+ *
+ * A PLAIN RE-RUN OF THE SAME PROMPT RETURNS THE SAME WORDS. Nothing about the
+ * question has changed between the first call and the second: the same headword,
+ * the same direction, the same model. The reader would press a button and watch
+ * the identical two words come back. The only input that CAN change the answer
+ * is the dictionary's current contents, so a re-run states them and says a reader
+ * judged them insufficient.
+ *
+ * IT READS THROUGH `listTranslationsInto`, NEVER A SECOND QUERY OF ITS OWN. That
+ * function is what the pane renders from: it dedupes two sources asserting one
+ * word, filters both sides on the served licences, and ranks the survivors. A
+ * hand-written "select the lemmas" here would drift from it, and the drift would
+ * be silent and expensive, because the prompt would tell the model to avoid a
+ * set that is not the set on screen.
+ *
+ * NO `accountId` IS PASSED. The only thing it buys is `myVote`, which this
+ * caller does not read, and a job carries no reader to pass anyway.
+ *
+ * AN EMPTY LIST IS A FIRST RUN. The edges can be retracted between the rejection
+ * and the job running, and a revision block listing nothing would ask the model
+ * to avoid an empty set, which is noise in a paid prompt. It is logged, because
+ * a re-run that finds nothing to revise is worth seeing in the record even
+ * though it is not an error.
+ */
+async function resolveRevision(db: DictionaryDb, payload: TranslationJobPayload): Promise<RevisionRequest | null> {
+  if (payload.rerunReason === null) return null;
+
+  const rows = await listTranslationsInto(db, { headwordId: payload.headwordId, to: payload.to });
+  const existingLemmas = rows.map((row) => row.lemma);
+  if (existingLemmas.length === 0) {
+    log.info('Re-run found no recorded translations, asking as a first run', {
+      runId: payload.runId,
+      headwordId: payload.headwordId,
+      reason: payload.rerunReason,
+    });
+    return null;
+  }
+
+  return { existingLemmas, reason: payload.rerunReason };
+}
+
 /** The run proper. Every throw out of here is caught by `runTranslateHeadword`. */
 async function attemptTranslation(db: DictionaryDb, payload: TranslationJobPayload): Promise<TranslationRunSummary> {
   // READ PER JOB, NEVER AT MODULE LOAD. Switching the model is an operator
@@ -526,12 +570,15 @@ async function attemptTranslation(db: DictionaryDb, payload: TranslationJobPaylo
   const offered = entry.senses.slice(0, MAX_SENSES);
   const capped = entry.senses.length > offered.length;
 
+  const revision = await resolveRevision(db, payload);
+
   const prompt = renderTranslationPrompt({
     lemma: entry.lemma,
     pos: entry.pos,
     from: payload.from,
     to: payload.to,
     senses: offered.map(toOfferedSense),
+    revision,
   });
 
   const senseCount = offered.length === 0 ? AUTHORED_SENSE_ESTIMATE : offered.length;

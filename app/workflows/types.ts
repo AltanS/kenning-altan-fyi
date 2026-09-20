@@ -94,6 +94,12 @@ export type EnrichHeadwordContext = z.infer<typeof enrichHeadwordContextSchema>;
  * they cannot drift. The rules that shape enforces, and why it is a
  * `strictObject` carrying no account id, are written out in
  * `#app/lib/translation/job-payload`.
+ *
+ * IT IS THE SAME BINDING, NOT A COPY OF THE SHAPE, and that is what makes the
+ * two sides impossible to drift. `rerunReason` was added to the payload and
+ * reached the handler's decode through this line with nothing to edit here; a
+ * re-declared object would have needed remembering, and would have rejected the
+ * new key on a `strictObject` the moment the first re-run was queued.
  */
 export const translateHeadwordContextSchema = translationJobPayloadSchema;
 

@@ -34,6 +34,7 @@
 import { z } from 'zod';
 
 import { SERVED_LANGUAGES } from '#app/lib/dictionary/detect-language';
+import { REJECTION_REASONS } from '#app/lib/translation/rejection';
 
 /** The one shape a queued translation job may carry. See the file comment. */
 export const translationJobPayloadSchema = z.strictObject({
@@ -50,6 +51,24 @@ export const translationJobPayloadSchema = z.strictObject({
    * job's every exit path writes a terminal status onto this id.
    */
   runId: z.string().min(1),
+  /**
+   * Why this job is a RE-RUN, or `null` when nobody rejected anything.
+   *
+   * THIS IS NOT A HOLE IN THE PRIVACY RULE ABOVE, and the distinction is exact.
+   * A reason code is a judgement about the ANSWER, not about the reader: it says
+   * the recorded words are incomplete, or wrong, or wrongly registered. It names
+   * no account, and it is drawn from the same four-value vocabulary every
+   * rejection in this app uses, so the field has no room to carry anything
+   * identifying. Contrast a free-text reason, which would be a sentence somebody
+   * wrote about a word they looked up, sitting in a queue row: that is the thing
+   * `REJECTION_REASONS` exists to make impossible, and it is why this column is a
+   * code.
+   *
+   * `.default(null)` rather than `.optional()`. Every caller that does not
+   * re-run omits it and gets `null`, so the parsed payload has the field on every
+   * path and the job has one thing to branch on rather than two.
+   */
+  rerunReason: z.enum(REJECTION_REASONS).nullable().default(null),
 });
 
 export type TranslationJobPayload = z.infer<typeof translationJobPayloadSchema>;
@@ -63,6 +82,20 @@ export type TranslationJobPayload = z.infer<typeof translationJobPayloadSchema>;
  * every request by construction, so including it would make every key unique and
  * the dedupe could never fire once. The whole point of the key is that a second
  * reader asking the same question rides the first reader's job.
+ *
+ * `rerunReason` IS DELIBERATELY ABSENT TOO, and it stays absent. Two readers who
+ * reject the same headword within seconds should ride ONE re-run, not two: the
+ * work is the same work and the second call buys a second bill for it. Putting
+ * the reason in the key would split them apart by code, so a `missing` and a
+ * `wrong` on one word would be two paid calls answering the same question.
+ *
+ * It does not stop a re-run from being queued at all, which is the thing to
+ * check when reading this. The dedupe is pg-boss's `stately` policy, which
+ * blocks only while a job for the key is queued or active; by the time a reader
+ * can reject an answer, the run that produced it is terminal, so the key is free
+ * again. `RETRANSLATION_COOLDOWN_HOURS` is what limits the rate after that, and
+ * it is a better place for it: a spend guard belongs where the money is decided,
+ * not inside a string.
  */
 export function translationSingletonKey(payload: TranslationJobPayload): string {
   return `${payload.headwordId}:${payload.from}:${payload.to}:${payload.promptVersion}`;

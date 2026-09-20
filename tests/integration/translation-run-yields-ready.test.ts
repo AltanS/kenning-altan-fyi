@@ -145,7 +145,7 @@ describe('the state the polling route reports once a run finishes', () => {
         }),
       ]);
 
-      const summary = await runTranslateHeadword({ headwordId, from: FROM, to: TO, promptVersion: PROMPT_VERSION, runId });
+      const summary = await runTranslateHeadword({ headwordId, from: FROM, to: TO, promptVersion: PROMPT_VERSION, runId, rerunReason: null });
       assert.equal(summary.outcome, 'written', summary.reason ?? '');
 
       // THE ROWS THEMSELVES, not only the polled answer: the source headword

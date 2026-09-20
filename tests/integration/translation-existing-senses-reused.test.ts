@@ -119,6 +119,7 @@ describe('a translation run on a headword that already has senses', () => {
         to: TO,
         promptVersion: PROMPT_VERSION,
         runId,
+        rerunReason: null,
       });
       assert.equal(summary.outcome, 'written', summary.reason ?? '');
 
@@ -189,6 +190,7 @@ describe('a translation run on a headword that already has senses', () => {
         to: TO,
         promptVersion: PROMPT_VERSION,
         runId,
+        rerunReason: null,
       });
 
       assert.equal(summary.outcome, 'failed', 'an invented sense id was accepted');

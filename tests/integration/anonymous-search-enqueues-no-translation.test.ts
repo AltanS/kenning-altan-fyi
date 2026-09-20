@@ -122,6 +122,7 @@ before(async () => {
     to: TO,
     promptVersion: PROMPT_VERSION,
     runId: 'unused-the-key-drops-it',
+    rerunReason: null,
   });
 
   session = await createTestUserSession('trans-anon-wallet');

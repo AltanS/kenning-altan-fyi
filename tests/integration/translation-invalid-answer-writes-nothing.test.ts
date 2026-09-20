@@ -138,6 +138,7 @@ describe('a model answer that does not parse', () => {
         to: TO,
         promptVersion: PROMPT_VERSION,
         runId,
+        rerunReason: null,
       });
 
       assert.equal(summary.outcome, 'failed', 'a part of speech outside the import enum was accepted');

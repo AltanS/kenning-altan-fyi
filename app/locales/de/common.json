@@ -359,7 +359,20 @@
     "retrying": "Neuer Versuch.",
     "alternatives": "Weitere Übersetzungen",
     "useThis": "Diese Übersetzung als Antwort verwenden",
-    "copyAll": "Alle Übersetzungen kopieren"
+    "copyAll": "Alle Übersetzungen kopieren",
+    "reportAction": "Stimmt etwas nicht?",
+    "reportPrompt": "Was stimmt nicht?",
+    "reportCancel": "Abbrechen",
+    "reasonMissing": "Ein Wort fehlt",
+    "reasonWrong": "Ein Wort ist falsch",
+    "reasonRegister": "Ton oder Hinweis ist falsch",
+    "reasonOther": "Etwas anderes",
+    "rejectSignIn": "Melde dich an, um eine Antwort zu melden.",
+    "rejectRerunning": "Danke. Wird jetzt neu abgefragt.",
+    "rejectCooldown": "Danke. Dieses Wort wurde heute schon neu abgefragt, die Antwort bleibt vorerst.",
+    "rejectAlready": "Du hast diese Antwort schon gemeldet.",
+    "rejectNoRun": "Hier kann nichts neu abgefragt werden. Nutze den Daumen nach unten bei einem einzelnen Wort.",
+    "rejectFailed": "Das hat nicht geklappt. Versuch es noch einmal."
   },
   "attribution": {
     "metaTitle": "Quellen",

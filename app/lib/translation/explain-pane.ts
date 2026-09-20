@@ -47,7 +47,12 @@ export type ExplainPaneTarget =
 export function explainPaneEndpoints(target: ExplainPaneTarget): TranslationPaneEndpoints | null {
   if (target.kind === 'none') return null;
   const query = `q=${encodeURIComponent(target.question)}&from=${target.from}&to=${target.to}`;
-  return { poll: `/api/explain?${query}`, retry: `/api/explain/retry?${query}` };
+  // `reject` is null for the same reason the phrase branch's is: a rejection is
+  // recorded against a `translation_runs` row for one headword in one direction,
+  // and an explanation has no headword and no such run behind it. The explain
+  // pane has its own vote control, on `POST /api/explanation-vote`, and that is
+  // where a reader judges an answer here.
+  return { poll: `/api/explain?${query}`, retry: `/api/explain/retry?${query}`, reject: null };
 }
 
 /**

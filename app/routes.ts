@@ -98,6 +98,12 @@ export default [
 
   route('/api/translation/:headwordId', 'routes/api.translation.$headwordId.ts'),
   route('/api/translation/:headwordId/retry', 'routes/api.translation.$headwordId.retry.ts'),
+  // Where a reader says the generated answer is wrong (M197). A THIRD segment,
+  // like `retry` above and for the same reason: `:headwordId` matches exactly
+  // one segment, so this path cannot be swallowed by it. It carries
+  // `authMiddleware` in the file too, because it records a row against an
+  // account and may order a paid re-run.
+  route('/api/translation/:headwordId/reject', 'routes/api.translation.$headwordId.reject.ts'),
 
   // The same two halves for a typed SENTENCE (M195/01). Both sit BESIDE
   // `/api/translation/`, for the reason the vote route does: as

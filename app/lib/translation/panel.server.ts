@@ -35,6 +35,7 @@ import { checkTriggerRateLimit } from '#app/lib/abuse/rate-limit.server';
 import type { LanguageCode } from '#app/lib/dictionary/detect-language';
 import type { DictionaryDb } from '#app/lib/dictionary/queries.server';
 import { enqueueTranslation } from '#app/lib/translation/enqueue.server';
+import type { RejectionReason } from '#app/lib/translation/rejection';
 import { MAX_TRANSLATION_RUNS_PER_DAY } from '#app/lib/translation/limits';
 import { listTranslationsInto, type TranslationRow } from '#app/lib/translation/translations-query.server';
 import { countRunsToday, latestRun } from '#app/models/translation-runs.server';
@@ -192,6 +193,23 @@ export interface ResolveTriggeredTranslationPanelParams extends TranslationPanel
    * and the three guards decide.
    */
   retry?: boolean;
+  /**
+   * The reader rejected the answer they were shown, and this is why.
+   *
+   * IT IS THE ONE THING THAT STEPS OVER A `ready` PAIR, and therefore the one
+   * way a paid model call is made for a pair that already has an answer. Every
+   * other caller reads a `ready` pair and stops, which is what keeps a search
+   * free once a word has been translated. `null`, the default, is every caller
+   * but one.
+   *
+   * THE COOLDOWN IS THE CALLER'S, NOT THIS FUNCTION'S. This module owns the
+   * three guards, which are about the installation's money and the caller's
+   * rate; the re-run cooldown is keyed on the reader's ACT of rejecting, on a
+   * `(headword, direction)` pair, and nothing here has ever heard of it. So
+   * `app/routes/api.translation.$headwordId.reject.ts` reads and stamps it, and
+   * that route is the ONLY caller allowed to pass this field.
+   */
+  rerun?: { reason: RejectionReason } | null;
 }
 
 /**
@@ -221,20 +239,47 @@ export interface ResolveTriggeredTranslationPanelParams extends TranslationPanel
  * a queue or a guard having an opinion must not turn a search into a 500.
  *
  * @param db The database handle.
- * @param params The pair, the request, and whether this is a retry.
+ * @param params The pair, the request, whether this is a retry, and whether a
+ *   reader rejected the answer this pair already has.
  * @returns The panel to render.
  */
 export async function resolveTriggeredTranslationPanel(
   db: DictionaryDb,
   params: ResolveTriggeredTranslationPanelParams,
 ): Promise<TranslationPanel> {
-  const { request, retry = false, headwordId, from, to, accountId } = params;
+  const { request, retry = false, rerun = null, headwordId, from, to, accountId } = params;
   const key: TranslationPanelKey = { headwordId, from, to, accountId };
 
   const resolved = await resolveTranslationPanel(db, key);
-  if (resolved.state === 'ready' || resolved.state === 'translating') return resolved;
-  if (resolved.state === 'failed' && !retry) return resolved;
 
+  // A `translating` pair ALWAYS stops here, re-run or not. A job for this key is
+  // already in flight, so starting a second one buys nothing: the singleton key
+  // would dedupe it away in any case, and the reader is about to be handed a
+  // fresh answer whichever request queued the run they are waiting on.
+  if (resolved.state === 'translating') return resolved;
+
+  // A `ready` pair stops here too, UNLESS the reader rejected the answer. That
+  // exception is the one place in this app a paid call is made for a pair that
+  // already has one, and it is made on purpose: the reader has read the answer
+  // and said it is wrong, so serving them the same rows again is the one thing
+  // that certainly does not help. Every other caller reads `ready` and stops,
+  // which is what keeps a second search for a translated word free.
+  //
+  // THE COOLDOWN THAT BOUNDS THIS IS THE CALLER'S. It is keyed on the reader's
+  // act of rejecting rather than on the state of the pane, so this function
+  // cannot own it and does not try; the reject route reads it before calling
+  // here and stamps it only when work actually started.
+  if (resolved.state === 'ready' && rerun === null) return resolved;
+
+  // `failed` keeps its own rule: the search path leaves a failure alone, the
+  // retry button steps over it, and a rejection steps over it as well.
+  if (resolved.state === 'failed' && !retry && rerun === null) return resolved;
+
+  // A RE-RUN IS REFUSED BY THE THREE GUARDS EXACTLY LIKE A FIRST RUN, in the
+  // same order, below. A reject button that skipped them would be a money hole
+  // with a friendly label on it: an unbounded way to spend past the daily cap,
+  // past an exhausted budget and past the caller's own rate limit, reachable by
+  // anybody with a session.
   const refusal = await refuseTranslation(db, request);
   if (refusal !== null) return { state: 'budget', reason: refusal };
 
@@ -242,7 +287,13 @@ export async function resolveTriggeredTranslationPanel(
   // now carries an account id so the rows can be marked with the reader's own
   // vote, and a job payload must never carry one: a queued row naming a reader
   // and a headword is the search log this product says it does not keep.
-  const outcome = await enqueueTranslation(db, { headwordId, from, to, promptVersion: PROMPT_VERSION });
+  const outcome = await enqueueTranslation(db, {
+    headwordId,
+    from,
+    to,
+    promptVersion: PROMPT_VERSION,
+    rerunReason: rerun?.reason ?? null,
+  });
   // A DEDUPED ENQUEUE IS STILL `translating`. The work is already queued or
   // running under this key, which is what the singleton key exists to arrange,
   // and the run row the first caller opened is what the pane will poll.

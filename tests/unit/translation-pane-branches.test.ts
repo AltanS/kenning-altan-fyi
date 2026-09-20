@@ -137,6 +137,7 @@ describe('where each branch polls, which is the only thing that differs', () => 
     assert.deepEqual(translationPaneEndpoints(WORD), {
       poll: '/api/translation/a3f1?to=tr',
       retry: '/api/translation/a3f1/retry?to=tr',
+      reject: '/api/translation/a3f1/reject?to=tr',
     });
   });
 
@@ -144,10 +145,21 @@ describe('where each branch polls, which is the only thing that differs', () => 
     assert.deepEqual(translationPaneEndpoints(PHRASE), {
       poll: '/api/translation-phrase?q=Das%20auto%20volltanken&from=de&to=tr',
       retry: '/api/translation-phrase/retry?q=Das%20auto%20volltanken&from=de&to=tr',
+      // A sentence has no headword and no headword run behind it, so there is
+      // nothing for the reject route to address. It is null because the branch
+      // cannot produce a URL, not because a flag was set that way.
+      reject: null,
     });
   });
 
+  it('offers a rejection URL on a word and none on a sentence', () => {
+    assert.equal(translationPaneEndpoints(WORD)?.reject, '/api/translation/a3f1/reject?to=tr');
+    assert.equal(translationPaneEndpoints(PHRASE)?.reject, null);
+  });
+
   it('has nothing to poll when there is nothing to translate', () => {
+    // And therefore nothing to reject either: the whole object is null, so the
+    // third target cannot offer a URL even by accident.
     assert.equal(translationPaneEndpoints({ kind: 'none' }), null);
     assert.equal(translationPaneSeedKey({ kind: 'none' }), 'none');
   });

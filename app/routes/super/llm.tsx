@@ -31,7 +31,11 @@ import { readCorpusStats } from '#app/models/corpus-stats.server';
 import { listDownVotedExplanations } from '#app/models/explanation-votes.server';
 import { listDownVotedTranslations } from '#app/models/translation-votes.server';
 import { listFlaggedForReview } from '#app/models/votes.server';
+import { REJECTION_REASONS, type RejectionReason } from '#app/lib/translation/rejection';
+import type { DictionaryDb } from '#app/lib/dictionary/queries.server';
 import { getRawDb } from '#drizzle/db';
+import { headwords, translationRejectionSignals, translationRuns } from '#drizzle/schema';
+import { desc, eq, sql } from 'drizzle-orm';
 
 export const handle = {
   title: 'Language model',
@@ -71,6 +75,127 @@ const FLAGGED_LIMIT = 20;
 const DOWN_VOTED_LIMIT = 20;
 
 /**
+ * How many rejected runs the block at the foot of this page shows.
+ *
+ * THE SAME FIGURE AS THE TWO VOTE BLOCKS, for the same reason: these are pages a
+ * person scans, nothing automatic reads them, and one screenful of the newest
+ * complaints is what the operator can act on. A separate constant rather than a
+ * shared one, because "down-voted" and "rejected" are different signals and a
+ * name that covered both would invite a third list to join whichever it fits
+ * worse.
+ */
+const REJECTED_RUN_LIMIT = 20;
+
+/**
+ * One rejected run, as the block below renders it.
+ *
+ * NO READER APPEARS ON IT, AND NONE CAN. See the comment over
+ * {@link listRejectedRuns}.
+ */
+interface RejectedRunView {
+  runId: string;
+  /** The word the run was about. */
+  lemma: string;
+  from: string;
+  to: string;
+  model: string;
+  promptVersion: number;
+  /** How many complaints the run collected. */
+  rejections: number;
+  /** The reason codes and their counts, in the order `REJECTION_REASONS` declares them. */
+  reasons: string;
+  /** When the run itself was made, which is what "newest first" orders by. */
+  createdAt: Date;
+}
+
+/**
+ * Every run readers rejected, newest run first.
+ *
+ * IT READS `translation_rejection_signals`, JOINED ONLY TO `translation_runs`
+ * AND THE DICTIONARY. IT MUST NEVER READ `translation_rejections`.
+ *   The fact table carries the account id, and this page is where a per-reader
+ *   listing would be born: an operator screen is the one place somebody can
+ *   plausibly argue for "and who rejected it". The signal table names no reader
+ *   at all, and the counts here are counts of SIGNAL rows, which
+ *   `recordRejection` writes one of per genuinely new fact row, so the number is
+ *   the same number with the account column never entering a statement.
+ *
+ *   This is the rule `drizzle/schema/votes.ts` states for `explanation_votes`,
+ *   and the `listDownVotedExplanations` block further down this page already
+ *   obeys it: one join, onto the ledger, and nothing else. Do not add a voter or
+ *   a rejecter column, a per-reader filter, or an export, to any of the three.
+ *
+ * GROUPED BY RUN AND BY REASON, AND FOLDED AFTERWARDS. One counted column per
+ * code would have to name the four codes in SQL and would drift from
+ * `REJECTION_REASONS` the day a fifth is added.
+ *
+ * THE ROW LIMIT IS THE RUN LIMIT TIMES THE NUMBER OF CODES, which is the most
+ * rows the newest `REJECTED_RUN_LIMIT` runs can produce. Both ordering keys are
+ * per RUN, so one run's rows are contiguous and every run the slice below keeps
+ * is complete.
+ *
+ * @param db The database handle.
+ * @param limit How many runs to return.
+ */
+async function listRejectedRuns(db: DictionaryDb, limit: number): Promise<RejectedRunView[]> {
+  const rows = await db
+    .select({
+      runId: translationRuns.id,
+      lemma: headwords.lemma,
+      from: translationRuns.fromLanguageCode,
+      to: translationRuns.toLanguageCode,
+      model: translationRuns.model,
+      promptVersion: translationRuns.promptVersion,
+      createdAt: translationRuns.createdAt,
+      reason: translationRejectionSignals.reason,
+      signals: sql<number>`count(*)`.mapWith(Number),
+    })
+    .from(translationRejectionSignals)
+    .innerJoin(translationRuns, eq(translationRuns.id, translationRejectionSignals.runId))
+    .innerJoin(headwords, eq(headwords.id, translationRuns.headwordId))
+    .groupBy(translationRuns.id, headwords.lemma, translationRejectionSignals.reason)
+    .orderBy(desc(translationRuns.createdAt), translationRuns.id)
+    .limit(limit * REJECTION_REASONS.length);
+
+  const byRun = new Map<string, { view: RejectedRunView; counts: Map<RejectionReason, number> }>();
+  for (const row of rows) {
+    const reason = REJECTION_REASONS.find((candidate) => candidate === row.reason);
+    if (reason === undefined) continue;
+
+    const entry = byRun.get(row.runId) ?? {
+      view: {
+        runId: row.runId,
+        lemma: row.lemma,
+        from: row.from,
+        to: row.to,
+        model: row.model,
+        promptVersion: row.promptVersion,
+        rejections: 0,
+        reasons: '',
+        createdAt: row.createdAt,
+      },
+      counts: new Map<RejectionReason, number>(),
+    };
+
+    entry.counts.set(reason, row.signals);
+    entry.view.rejections += row.signals;
+    byRun.set(row.runId, entry);
+  }
+
+  // The breakdown is written onto the view rather than mapped into a copy: the
+  // view was built here and belongs to nobody else yet.
+  const views: RejectedRunView[] = [];
+  for (const { view, counts } of byRun.values()) {
+    if (views.length === limit) break;
+    view.reasons = REJECTION_REASONS.filter((reason) => counts.has(reason))
+      .map((reason) => `${reason} ${counts.get(reason) ?? 0}`)
+      .join(', ');
+    views.push(view);
+  }
+  return views;
+}
+
+/**
  * The switch form.
  *
  * `reasoningEffort` is optional rather than a union with the empty string:
@@ -105,12 +230,13 @@ export async function loader() {
   // each other and of the model reads above, so they are issued together.
   // Every one of them is a plain read: this page never grants, releases or
   // clears anything.
-  const [budget, rejections, flagged, downVoted, downVotedExplanations, corpus] = await Promise.all([
+  const [budget, rejections, flagged, downVoted, downVotedExplanations, rejectedRuns, corpus] = await Promise.all([
     readBudget(),
     readRejections(),
     listFlaggedForReview(getRawDb(), FLAGGED_LIMIT),
     listDownVotedTranslations(getRawDb(), DOWN_VOTED_LIMIT),
     listDownVotedExplanations(getRawDb(), DOWN_VOTED_LIMIT),
+    listRejectedRuns(getRawDb(), REJECTED_RUN_LIMIT),
     readCorpusStats(getRawDb()),
   ]);
 
@@ -145,6 +271,7 @@ export async function loader() {
     flagged,
     downVoted,
     downVotedExplanations,
+    rejectedRuns,
     corpus,
     // The two trigger ceilings travel as data rather than being read from the
     // module in the component, because `rate-limit.server` must never reach the
@@ -247,7 +374,7 @@ function describeSelection(selection: ActiveModelSelection | null): string {
 
 export default function SuperLlm({ loaderData, actionData }: Route.ComponentProps) {
   const { active, status, audit, providers, spend, rejections, flagged, corpus, triggerLimits } = loaderData;
-  const { downVoted, downVotedExplanations } = loaderData;
+  const { downVoted, downVotedExplanations, rejectedRuns } = loaderData;
   const navigation = useNavigation();
   const isSubmitting = navigation.state !== 'idle';
 
@@ -707,6 +834,59 @@ export default function SuperLlm({ loaderData, actionData }: Route.ComponentProp
                     <TableCell className="tabular-nums">{row.up}</TableCell>
                     <TableCell className="tabular-nums">{row.down}</TableCell>
                     <TableCell className="tabular-nums">{new Date(row.lastVotedAt).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </section>
+
+      <section className={CARD_CLASS}>
+        <h2 className={SECTION_LABEL_CLASS}>Rejected translation runs</h2>
+        {/* WHAT THIS LIST IS FOR. A reader pressed "this answer is off" on one
+            generated run and picked a reason code. The run's model and prompt
+            version are beside the complaint, because those two are what an
+            operator can actually change: a reason breakdown that clusters on one
+            prompt version is the signal this block exists to make visible.
+
+            IT NAMES THE WORD AND NEVER THE PERSON, AND THAT IS ENFORCED BY THE
+            QUERY. The statement behind it reads `translation_rejection_signals`,
+            which carries no account column at all, joined to the run and the
+            dictionary. The table that knows WHO rejected is deliberately out of
+            reach here; see the comment over `listRejectedRuns`. Do not add a
+            rejecter column, a per-reader filter or an export to this block. */}
+        <p className="mt-2 text-sm text-muted-foreground">
+          Generated answers readers marked as off, newest run first. The counts are complaints, not people who can be
+          named: the reason codes are stored apart from the accounts that gave them.
+        </p>
+        {rejectedRuns.length === 0 && <p className="mt-3 text-sm text-muted-foreground">No rejected runs.</p>}
+        {rejectedRuns.length > 0 && (
+          <div className="mt-3">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Word</TableHead>
+                  <TableHead>Pair</TableHead>
+                  <TableHead>Model</TableHead>
+                  <TableHead>Prompt</TableHead>
+                  <TableHead>Rejections</TableHead>
+                  <TableHead>Reasons</TableHead>
+                  <TableHead>Run</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rejectedRuns.map((row) => (
+                  <TableRow key={row.runId}>
+                    <TableCell className="font-mono">{row.lemma}</TableCell>
+                    <TableCell className="font-mono">
+                      {row.from} to {row.to}
+                    </TableCell>
+                    <TableCell className="font-mono">{row.model}</TableCell>
+                    <TableCell className="tabular-nums">v{row.promptVersion}</TableCell>
+                    <TableCell className="tabular-nums">{row.rejections}</TableCell>
+                    <TableCell>{row.reasons}</TableCell>
+                    <TableCell className="tabular-nums">{new Date(row.createdAt).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

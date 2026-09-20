@@ -109,3 +109,13 @@
 - [The phone chrome is one 56px header](project_kenning_mobile_density_pass.md) — the drawer trigger IS the mark, the language-bar labels went sr-only, and ModeSwitch is the one control under 44px
 - [Per-item actions live behind one overflow menu](project_item_actions_menu_is_the_per_item_surface.md) — four row kinds; a confirm row needs onSelect preventDefault and a non-modal dropdown
 - [theme-color must be script-owned, not JSX](project_kenning_theme_color_is_script_owned.md) — React 19 re-creates a rendered meta tag on hydration, stranding the boot script's fix
+- [Removing an ask withdraws the authorship first](project_authorship_withdraw_on_remove.md) — keyed on the question, never a `ready` panel; the setters' own userId clause needs a direct-call test
+- [A rejection is two rows, the fact and the signal](project_rejection_split_fact_and_signal.md) — the reason tuple lives in a pure client-safe module the schema imports back for its check constraint
+- [A re-run is a second QUESTION, not a second call](project_rerun_prompt_is_a_second_question.md) — v3.md's `{{situation}}`/`{{revision}}`, the PROMPT_VERSION bump AND `rerunReason`; the singleton key stays unchanged
+- [The translation writer was already idempotent](project_translate_writer_already_upserts.md) — the edge upserts and `xmax = 0` keeps `written` to genuine inserts; no re-run change was needed
+- [The reject route is the only `rerun` caller](project_reject_route_is_the_only_rerun_caller.md) — it owns the cooldown, and TranslationPaneEndpoints has THREE producers including explain-pane.ts
+- [A Drizzle `sql` array renders as `($1, $2)`](project_drizzle_sql_array_renders_parenthesised.md) — so `= any(${ids}::text[])` and `in (${ids})` both fail; write `in ${ids}`
+- [The feedback export is corpus-only](project_translation_feedback_export_is_corpus_only.md) — signals never the fact table; the operator page and both CLI commands inherit it
+- [A queued re-run supersedes the run it judged](project_a_queued_rerun_supersedes_the_run_it_judged.md) — latestRun goes pending, so a second press answers no-run; test the repeat against a WITHHELD pair
+- [An en-only locale key breaks typecheck too](project_en_only_locale_key_breaks_typecheck.md) — app/emails/i18n.server.ts types de against en; prove your code with a scratch fill, then restore
+- [ResultField is keyed on the answer text](project_result_field_is_keyed_on_the_answer.md) — a child of the pane loses its state when the answer changes; survivors live in useTranslationPane

@@ -6,6 +6,8 @@ import { Button } from '#app/components/ui/button';
 import { Skeleton } from '#app/components/ui/skeleton';
 import type { LanguageCode } from '#app/lib/dictionary/detect-language';
 import type { TranslationPanel, TranslationRefusal, TranslationRow } from '#app/lib/translation/panel.server';
+import { REJECTION_REASONS, type RejectionReason } from '#app/lib/translation/rejection';
+import type { RejectOutcome, RejectRerun } from '#app/routes/api.translation.$headwordId.reject';
 import {
   initialTranslationPaneState,
   isTranslationPanePolling,
@@ -50,6 +52,109 @@ import {
 
 /** The house recipe for a quiet line inside the answer card. */
 const QUIET_LINE = 'text-sm text-muted-foreground';
+
+/**
+ * The four reason codes, each as the locale key of its button.
+ *
+ * A TABLE OVER THE TUPLE, for the reason `REFUSAL_KEYS` further down is one:
+ * `satisfies Record<RejectionReason, string>` checks the keys against the union
+ * without widening the values, so a fifth code added to `REJECTION_REASONS`
+ * fails the typecheck here rather than rendering a button with no words on it.
+ */
+export const REJECTION_REASON_KEYS = {
+  missing: 'translation.reasonMissing',
+  wrong: 'translation.reasonWrong',
+  register: 'translation.reasonRegister',
+  other: 'translation.reasonOther',
+} satisfies Record<RejectionReason, string>;
+
+/**
+ * What each re-run outcome says, or `null` when the pane itself says it.
+ *
+ * `refused` CARRIES NO SENTENCE ON PURPOSE. The route hands back the refusing
+ * panel, which is a `budget` panel, so adopting it moves the pane to its budget
+ * branch and that branch already prints the right line, chosen by
+ * `translationBudgetKey` from the refusal reason. A sentence here would be a
+ * second, less accurate line under the first.
+ */
+const REJECT_RERUN_KEYS = {
+  queued: 'translation.rejectRerunning',
+  cooldown: 'translation.rejectCooldown',
+  already: 'translation.rejectAlready',
+  refused: null,
+} satisfies Record<RejectRerun, string | null>;
+
+/** What a settled rejection leaves on screen, and what it hands to the pane. */
+export interface RejectResolution {
+  /** The one quiet line to print, or `null` when nothing is to be said here. */
+  noticeKey: string | null;
+  /** The panel the re-run produced, for the pane to adopt, or `null`. */
+  panel: TranslationPanel | null;
+  /** Whether the control is finished for this answer and must not be offered again. */
+  isDone: boolean;
+}
+
+/**
+ * What became of one rejection, as a pure function over the route's union.
+ *
+ * PURE, SO THE CHOICE CAN BE ASSERTED WITHOUT A DOM, exactly as
+ * `translationBudgetKey` above is. This repo has no DOM library, so a mapping
+ * that lived inside the control's JSX could not be tested at all.
+ *
+ * `isDone` IS WHAT STOPS A SECOND PRESS. A reader who has reported an answer has
+ * said their piece: the route records nothing further from them and buys nothing
+ * further, and offering the control again would collect a press that does
+ * nothing. The two outcomes that are NOT the reader's fault, a refused sign-in
+ * and a body the route would not accept, leave it open, because in both cases
+ * nothing was recorded and a second attempt can still succeed.
+ *
+ * @param outcome What the route answered, or `null` when the POST settled with
+ *   no body this pane can read. A proxy error page is not a rejection, so it is
+ *   reported as a failure the reader can retry rather than as a silent success.
+ * @returns The line to print, the panel to adopt and whether the control is spent.
+ */
+export function rejectResolution(outcome: RejectOutcome | null): RejectResolution {
+  if (outcome === null) return { noticeKey: 'translation.rejectFailed', panel: null, isDone: false };
+  if (outcome.state === 'unauthenticated') return { noticeKey: outcome.messageKey, panel: null, isDone: false };
+  if (outcome.state === 'invalid') return { noticeKey: 'translation.rejectFailed', panel: null, isDone: false };
+  if (outcome.state === 'no-run') return { noticeKey: 'translation.rejectNoRun', panel: null, isDone: true };
+  return { noticeKey: REJECT_RERUN_KEYS[outcome.rerun], panel: outcome.panel, isDone: true };
+}
+
+/** Everything the answer-level rejection control needs, and nothing else. */
+export interface TranslationRejectionController {
+  /**
+   * Whether the control may be shown at all.
+   *
+   * THREE CONDITIONS, EACH FOR ITS OWN REASON, and the hook is where they are
+   * resolved because that is where all three are in scope:
+   *   1. THE VIEW IS `ready`. There has to be an answer on screen for a reader
+   *      to have an opinion about.
+   *   2. THE TARGET HAS A REJECT URL. `translationPaneEndpoints` offers one for
+   *      a headword and `null` for a phrase, because a rejection is recorded
+   *      against a `translation_runs` row and a sentence has none behind it. The
+   *      branch cannot produce a URL, so nobody can set a flag the wrong way.
+   *   3. AT LEAST ONE ROW WAS WRITTEN BY A MODEL. An answer built entirely from
+   *      imported edges has no model output to reject, and the route would
+   *      answer `no-run`. It is read off the rows rather than passed in beside
+   *      them, so the button and the route cannot come to disagree.
+   * It also goes false once this reader has reported this answer, because a
+   * second press records nothing and buys nothing.
+   *
+   * A SIGNED-OUT READER IS NOT A FOURTH CONDITION. They see the control, press
+   * it, and are told to sign in by the route's own locale key. Hiding it would
+   * teach them nothing about why it is absent.
+   */
+  isOffered: boolean;
+  /** The one quiet line the control prints, or `null` while it has nothing to say. */
+  noticeKey: string | null;
+  /** Which reason is in flight, so exactly one button reports itself busy. */
+  sending: RejectionReason | null;
+  /** Whether any reason is in flight, so the others refuse a second press. */
+  isSending: boolean;
+  /** Record one reason, and buy the re-run it may buy. */
+  send: (reason: RejectionReason) => void;
+}
 
 export interface TranslationPaneController {
   /** The one value the pane renders from. */
@@ -120,6 +225,22 @@ export interface TranslationPaneController {
   allText: string;
   /** Ask the server to try again. Only ever called from the `failed` view. */
   retry: () => void;
+  /**
+   * The answer-level rejection: whether it may be offered, what it has to say,
+   * and how a reason is sent.
+   *
+   * IT IS HELD BY THE HOOK RATHER THAN BY THE CONTROL, AND THE CARD AROUND THIS
+   * PANE IS WHY. `ResultField` in `search-panes.tsx` is keyed on the answer
+   * text, so the moment a rejection buys a re-run the answer empties, that card
+   * remounts, and every component under it is destroyed. A confirmation held
+   * inside the control would be thrown away in the same render that earned it,
+   * which is the one sentence this feature exists to show.
+   *
+   * IT IS NOT A SECOND STATE VALUE. Nothing here decides which of the pane's six
+   * views renders. The re-run's panel reaches the machine through the ordinary
+   * `adopted` transition, exactly as the retry button's does.
+   */
+  rejection: TranslationRejectionController;
   /** Whether a retry is in flight, so the button can say so and refuse a second press. */
   isRetrying: boolean;
   /**
@@ -188,6 +309,14 @@ export function useTranslationPane({ panel, target }: UseTranslationPaneParams):
   // and every transition had to carry, for a thing no transition depends on.
   const [chosenId, setChosenId] = useState<string | null>(null);
 
+  // WHETHER THIS READER HAS POSTED A REJECTION FOR THE ANSWER IN FRONT OF THEM.
+  // It is held here rather than in the control for the reason written on
+  // `TranslationPaneController.rejection`, and it is what tells "the POST has
+  // not happened yet" apart from "the POST settled with nothing readable": the
+  // fetcher answers `undefined` for both, and one of them is a failure the
+  // reader has to be told about.
+  const [hasRejected, setHasRejected] = useState(false);
+
   // RE-SEEDING ON A NEW ANSWER, IN RENDER RATHER THAN IN AN EFFECT. A search for
   // another word arrives as new props on the same component, and an effect that
   // corrected the state afterwards would render one frame of the previous word's
@@ -207,6 +336,11 @@ export function useTranslationPane({ panel, target }: UseTranslationPaneParams):
     setSeededFrom(seed);
     setState(initialTranslationPaneState(loaded));
     setChosenId(null);
+    // THE REJECTION IS DROPPED ON THE SAME RE-SEED, for the same reason the
+    // choice is: it was about the previous answer. The fetcher's own data is
+    // left where it is and simply stops being read, so a stale confirmation
+    // cannot reappear under a word nobody reported.
+    setHasRejected(false);
   }
 
   const endpoints = translationPaneEndpoints(target);
@@ -271,16 +405,63 @@ export function useTranslationPane({ panel, target }: UseTranslationPaneParams):
     void fetcher.submit(null, { method: 'post', action: retryUrl });
   };
 
+  // THE REJECTION, ON ITS OWN FETCHER. It must not share the retry fetcher: the
+  // two post to different routes and answer with different unions, and one
+  // fetcher would make each press overwrite the other's answer.
+  const rejectFetcher = useFetcher<RejectOutcome>();
+  const rejectUrl = endpoints?.reject ?? null;
+  const isRejectSettled = hasRejected && rejectFetcher.state === 'idle';
+  const rejected = isRejectSettled ? rejectResolution(rejectFetcher.data ?? null) : null;
+
+  // A BOUGHT RE-RUN ENTERS THE MACHINE THROUGH THE ORDINARY `adopted`
+  // TRANSITION, so the pane moves to `translating` and the poll loop above takes
+  // it from there. The dependency is the fetcher's own panel object, which is
+  // the same object until the next answer arrives, so this fires once per
+  // rejection rather than once per render.
+  const rejectedPanel = rejected?.panel ?? null;
+  useEffect(() => {
+    if (rejectedPanel === null) return;
+    setState((previous) => translationPaneReducer(previous, { type: 'adopted', panel: rejectedPanel }));
+  }, [rejectedPanel]);
+
+  const view = translationPaneView(state);
+  const rows = translationPaneRows(state);
+
+  // Matched against the tuple rather than read as a raw form value, so the
+  // controller hands the render a reason code and never a bare form entry.
+  const submittedReason = rejectFetcher.formData?.get('reason') ?? null;
+  const sending = REJECTION_REASONS.find((reason) => reason === submittedReason) ?? null;
+
+  // The three conditions and the spent rule, written once. See
+  // `TranslationRejectionController.isOffered` for why each one is there.
+  const isRejectOffered =
+    view === 'ready' && rejectUrl !== null && rows.some((row) => row.generated) && rejected?.isDone !== true;
+
+  const sendRejection = (reason: RejectionReason): void => {
+    if (rejectUrl === null) return;
+    const body = new FormData();
+    body.set('reason', reason);
+    setHasRejected(true);
+    void rejectFetcher.submit(body, { method: 'post', action: rejectUrl });
+  };
+
   return {
-    view: translationPaneView(state),
+    view,
     waitPhase: translationPaneWaitPhase(state),
-    rows: translationPaneRows(state),
+    rows,
     primary: translationPanePrimary(state, chosenId),
     alternatives: translationPaneAlternatives(state, chosenId),
     choose,
     text: translationPaneText(state, chosenId),
     allText: translationPaneAllText(state),
     retry,
+    rejection: {
+      isOffered: isRejectOffered,
+      noticeKey: rejected?.noticeKey ?? null,
+      sending,
+      isSending: rejectFetcher.state !== 'idle',
+      send: sendRejection,
+    },
     isRetrying: fetcher.state !== 'idle',
     refusalReason: state.panel.state === 'budget' ? state.panel.reason : null,
     target,
@@ -439,9 +620,118 @@ function TranslatingView({ phase }: { phase: TranslationWaitPhase }) {
   );
 }
 
+/**
+ * The one control that judges the ANSWER rather than a word in it.
+ *
+ * IT IS NOT A SECOND SET OF THUMBS, AND THAT IS THE WHOLE REASON IT EXISTS. A
+ * vote is cast on one dictionary edge, so it can only ever say "this word is
+ * right" or "this word is wrong". It cannot say that the answer AS A WHOLE is
+ * insufficient, which is the commonest thing actually wrong with one. A reader
+ * looking up German `Baumstämme` into Turkish is given `gövde` and `tomruk`.
+ * Both are defensible, so no thumbs down belongs on either, and `kütük`, the
+ * word they wanted, is missing. Every per-edge control on that card is silent
+ * about the only fault the card has.
+ *
+ * TWO STEPS, NO DIALOG. The first press only reveals the four reasons, so a
+ * mis-tap records nothing, and a reason press is the one thing here that can
+ * spend money. A modal for four short buttons would take the answer off the
+ * screen the reader is judging.
+ *
+ * THE REASONS ARE TOLD APART BY SHAPE, NEVER BY HUE. Kenning is a mono amber
+ * palette (DESIGN.md), so a control coded by colour alone is an invisible
+ * control: these are bordered buttons, and the trigger above them is underlined.
+ * There is no accent rule down the side of the block either, which DESIGN.md
+ * section 10 bans outright.
+ *
+ * ONLY THE OPEN AND CLOSED STEP IS HELD HERE, the way `GeneratedMarker` holds
+ * its own. Everything that outlives the answer, the confirmation and the fact
+ * that this reader has reported, is on the controller, because the card around
+ * this pane remounts the moment the answer changes.
+ */
+function TranslationReject({ rejection }: { rejection: TranslationRejectionController }) {
+  const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+  const { isOffered, noticeKey, sending, isSending } = rejection;
+
+  // Nothing to offer and nothing to say is nothing to draw. It is a guard rather
+  // than an empty block, so the pane above keeps its own spacing.
+  if (!isOffered && noticeKey === null) return null;
+
+  return (
+    <div className="mt-3 flex flex-col gap-2">
+      {noticeKey !== null && <p className={QUIET_LINE}>{t(noticeKey)}</p>}
+
+      {isOffered && !isOpen && (
+        <div>
+          <Button type="button" variant="link" size="sm" className="px-0" onClick={() => setIsOpen(true)}>
+            {t('translation.reportAction')}
+          </Button>
+        </div>
+      )}
+
+      {isOffered && isOpen && (
+        <>
+          <p className={QUIET_LINE}>{t('translation.reportPrompt')}</p>
+          <ul className="flex flex-wrap items-center gap-2">
+            {REJECTION_REASONS.map((reason) => (
+              <li key={reason}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  // ONE SPINNER, ON THE BUTTON THAT WAS PRESSED. The other three
+                  // are disabled and say nothing: four spinners would report four
+                  // calls in flight, and there is exactly one.
+                  pending={sending === reason}
+                  disabled={isSending}
+                  onClick={() => rejection.send(reason)}
+                >
+                  {t(REJECTION_REASON_KEYS[reason])}
+                </Button>
+              </li>
+            ))}
+            <li>
+              <Button type="button" variant="ghost" size="sm" disabled={isSending} onClick={() => setIsOpen(false)}>
+                {t('translation.reportCancel')}
+              </Button>
+            </li>
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
 export interface TranslationPaneProps {
   controller: TranslationPaneController;
   to: LanguageCode;
+}
+
+/**
+ * The pane, and under it the one control that judges the whole answer.
+ *
+ * WHY THE CONTROL IS A SIBLING OF THE BRANCHES RATHER THAN INSIDE THE `ready`
+ * ONE. A rejection that buys a re-run moves the pane straight off `ready`, so a
+ * control mounted inside that branch would unmount in the same render that its
+ * answer arrived, taking the reader's confirmation with it. As a sibling it
+ * keeps its place, and its line sits under the waiting skeleton the re-run just
+ * produced.
+ *
+ * WHEN IT IS OFFERED AT ALL is resolved in the hook and read off
+ * `controller.rejection`, which carries the three conditions and the reason for
+ * each one.
+ */
+export function TranslationPane({ controller, to }: TranslationPaneProps) {
+  return (
+    <>
+      <TranslationPaneBody controller={controller} to={to} />
+      {/* KEYED ON THE POLL URL, which names the word and the direction, so the
+          open-or-closed step collapses the moment the pane is looking at
+          something else. It is the same key the hook re-seeds its own state on,
+          rather than a second idea of when the target changed. */}
+      <TranslationReject key={translationPaneSeedKey(controller.target)} rejection={controller.rejection} />
+    </>
+  );
 }
 
 /**
@@ -461,7 +751,7 @@ export interface TranslationPaneProps {
  *   which means the phrase branch has no expression that could produce one. It
  *   is not a flag anybody can set the wrong way.
  */
-export function TranslationPane({ controller, to }: TranslationPaneProps) {
+function TranslationPaneBody({ controller, to }: TranslationPaneProps) {
   const { t } = useTranslation();
   const { view, primary, alternatives, target } = controller;
 

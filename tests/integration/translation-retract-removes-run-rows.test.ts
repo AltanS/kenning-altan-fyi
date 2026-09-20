@@ -98,6 +98,7 @@ async function generate(headwordId: string, targetLemma: string, gloss: string):
     to: TO,
     promptVersion: PROMPT_VERSION,
     runId,
+    rerunReason: null,
   });
   assert.equal(summary.outcome, 'written', summary.reason ?? '');
   return runId;

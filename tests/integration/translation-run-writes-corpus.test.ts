@@ -131,6 +131,7 @@ describe('a translation run on a headword with no senses', () => {
         to: TO,
         promptVersion: PROMPT_VERSION,
         runId,
+        rerunReason: null,
       });
 
       assert.equal(summary.outcome, 'written', summary.reason ?? '');
@@ -242,6 +243,7 @@ describe('a translation run on a headword with no senses', () => {
         to: TO,
         promptVersion: PROMPT_VERSION,
         runId,
+        rerunReason: null,
       });
       assert.equal(summary.outcome, 'written', summary.reason ?? '');
 

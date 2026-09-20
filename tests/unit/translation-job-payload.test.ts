@@ -24,6 +24,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { REJECTION_REASONS } from '../../app/lib/translation/rejection';
 import {
   translationJobPayloadSchema,
   translationSingletonKey,
@@ -36,6 +37,7 @@ const VALID: TranslationJobPayload = {
   to: 'tr',
   promptVersion: 1,
   runId: '7c0d1e2f-0000-4000-8000-000000000001',
+  rerunReason: null,
 };
 
 /**
@@ -93,6 +95,29 @@ describe('translationJobPayloadSchema', () => {
     assert.equal(translationJobPayloadSchema.safeParse(withoutRun).success, false);
     assert.equal(translationJobPayloadSchema.safeParse({ ...VALID, runId: '' }).success, false);
   });
+
+  it('defaults rerunReason to null when the caller omits it', () => {
+    // Every ordinary search enqueues without one, so the default is the common
+    // path rather than a fallback. `null` and not `undefined`: the job branches
+    // on one value, and the field is present on every parsed payload.
+    const { rerunReason: _dropped, ...withoutReason } = VALID;
+    const parsed = translationJobPayloadSchema.parse(withoutReason);
+    assert.equal(parsed.rerunReason, null);
+    assert.equal('rerunReason' in parsed, true, 'the field was absent rather than null');
+  });
+
+  it('accepts each of the four rejection codes', () => {
+    for (const reason of REJECTION_REASONS) {
+      const parsed = translationJobPayloadSchema.parse({ ...VALID, rerunReason: reason });
+      assert.equal(parsed.rerunReason, reason);
+    }
+  });
+
+  it('rejects a reason outside the four codes', () => {
+    // The vocabulary is closed on purpose: a code is a judgement about the
+    // answer and cannot carry anything identifying, which free text could.
+    assert.equal(translationJobPayloadSchema.safeParse({ ...VALID, rerunReason: 'bogus' }).success, false);
+  });
 });
 
 describe('translationSingletonKey', () => {
@@ -125,5 +150,19 @@ describe('translationSingletonKey', () => {
   it('separates the two directions of one headword', () => {
     const reversed: TranslationJobPayload = { ...VALID, from: 'tr', to: 'de' };
     assert.notEqual(translationSingletonKey(VALID), translationSingletonKey(reversed));
+  });
+
+  it('leaves the rerun reason out, so two readers rejecting one word ride one re-run', () => {
+    // Splitting the key by reason would buy a second paid call for the same
+    // work: the question a re-run asks is "what is this set missing", and it
+    // does not change because the second reader pressed a different button.
+    for (const reason of REJECTION_REASONS) {
+      const rerun: TranslationJobPayload = { ...VALID, rerunReason: reason };
+      assert.equal(
+        translationSingletonKey(rerun),
+        translationSingletonKey(VALID),
+        `a "${reason}" re-run produced its own key, so it would be a second bill`,
+      );
+    }
   });
 });

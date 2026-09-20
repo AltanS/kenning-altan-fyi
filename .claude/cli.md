@@ -99,6 +99,31 @@ account column away before anything is selected. It goes through
 with the importers: they operate on the shared dictionary and have to work when
 the web application is the thing behaving badly.
 
+### Translation feedback (the fine-tuning corpus)
+
+```bash
+pnpm cli translation feedback [--json]
+pnpm cli translation export-feedback [--out <path>] [--verdict rejected|endorsed|all]
+```
+
+`feedback` summarises what readers have said about the generated corpus: how
+many runs were rejected, the breakdown by reason code, the most rejected words,
+and how many edges readers endorsed. `export-feedback` writes the corpus itself
+as JSONL, one record per line, to stdout unless `--out` names a file.
+
+There are two record kinds behind one `verdict` discriminant. `rejected` is one
+generated run readers marked as off, with its stored answer verbatim, its model
+and prompt version, and its reason breakdown. `endorsed` is one dictionary edge
+whose net vote score meets `VOTE_MARGIN_THRESHOLD`, with the run that wrote it
+where one exists and `null` where the edge was imported rather than generated.
+
+**Neither command may ever name a reader.** Both go through
+`app/lib/reports/translation-feedback-export.server.ts`, which reads
+`translation_rejection_signals` and never `translation_rejections`: the reason
+codes are stored apart from the accounts that gave them, and a count of
+"distinct readers" would collapse that split. See the module header and
+`drizzle/schema/translation-feedback.ts`.
+
 ### Dictionary imports
 
 Load an open-data dump into the shared dictionary zone. These commands talk to

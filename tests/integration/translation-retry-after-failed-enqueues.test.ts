@@ -154,6 +154,7 @@ before(async () => {
     to: TO,
     promptVersion: PROMPT_VERSION,
     runId: 'unused-the-key-drops-it',
+    rerunReason: null,
   });
 
   // OPEN THE FIRST RUN FOR REAL, through the search loader, exactly like

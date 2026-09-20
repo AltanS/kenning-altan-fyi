@@ -263,6 +263,11 @@ export const ROUTE_CLASSIFICATION = {
     reason:
       'It exports `middleware = [authMiddleware]`, which under `/api/` refuses with a 401 in JSON. It starts a billed run, so it is the one half of the translation pair that needs an account.',
   },
+  'api.translation.$headwordId.reject.ts': {
+    access: 'gated-inline',
+    reason:
+      'It exports `middleware = [authMiddleware]`, and its action reads the account before the body. A rejection row names the reader who wrote it, and the rejection may order a billed re-run, so neither half of it works without an account.',
+  },
   'api.translation-phrase.ts': {
     access: 'gated-inline',
     reason:

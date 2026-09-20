@@ -126,6 +126,7 @@ before(async () => {
     from: FROM,
     to: TO,
     promptVersion: PROMPT_VERSION,
+    rerunReason: null,
     runId: 'unused-the-key-drops-it',
   });
 });

@@ -1,6 +1,17 @@
 /**
- * `pnpm cli translation runs` and `pnpm cli translation retract <runId>`, the
- * operator's view of the generated corpus and the way to take a run back.
+ * `pnpm cli translation runs`, `translation retract <runId>`, `translation
+ * feedback` and `translation export-feedback`: the operator's view of the
+ * generated corpus, the way to take a run back, and the corpus of judgements
+ * readers have made about it.
+ *
+ * WHAT THE FEEDBACK PAIR MAY READ, AND WHAT IT MAY NOT
+ *   Both go through `app/lib/reports/translation-feedback-export.server.ts`,
+ *   and that module's header is the rule: no account id, no session and no IP
+ *   reaches a record, and nothing touches `translation_rejections`. THIS FILE
+ *   MUST NOT WORK AROUND IT by reading the fact table itself to count distinct
+ *   readers. A command that printed "three different people rejected this" is
+ *   the per-account read `drizzle/schema/translation-feedback.ts` forbids, and
+ *   the CLI is the easiest place to add one by accident.
  *
  * WHY THIS COMMAND READS AND WRITES POSTGRES DIRECTLY
  *   ADR-0001 says the CLI wraps the HTTP API and keeps a short list of
@@ -24,6 +35,8 @@
  *   it. Every skip is printed, because a retraction that silently left rows
  *   behind would read as a clean removal and would not be one.
  */
+
+import { writeFileSync } from 'node:fs';
 
 import { Command } from 'commander';
 import { and, inArray, or, sql } from 'drizzle-orm';
@@ -49,8 +62,26 @@ import {
   type TranslationRunView,
 } from '#app/models/translation-runs.server';
 import { listPhraseRuns, type PhraseTranslationView } from '#app/models/phrase-runs.server';
+import {
+  buildTranslationFeedbackExport,
+  EXPORT_VERDICTS,
+  type ExportVerdict,
+  type RejectedTranslationRecord,
+  type TranslationFeedbackRecord,
+} from '#app/lib/reports/translation-feedback-export.server';
+import { REJECTION_REASONS, type RejectionReason } from '#app/lib/translation/rejection';
 import type { DictionaryDb } from '#app/lib/dictionary/queries.server';
-import { createTable, formatDate, outputJson, outputTable, printError, printInfo, printSection, printSuccess } from '../lib/output';
+import {
+  createTable,
+  formatDate,
+  outputJson,
+  outputTable,
+  printError,
+  printField,
+  printInfo,
+  printSection,
+  printSuccess,
+} from '../lib/output';
 import { translationVotesListSchema, type DownVotedTranslationRow } from '../lib/schemas';
 import { transport } from '../lib/transport';
 import type { OutputFormat, TableColumn } from '../lib/types';
@@ -172,6 +203,23 @@ export function registerTranslationCommands(program: Command): void {
     });
 
   translation
+    .command('feedback')
+    .description('Summarise what readers rejected and what they endorsed')
+    .option('--json', 'Output as JSON', false)
+    .action(async (options: { json: boolean }) => {
+      await feedbackCmd(options);
+    });
+
+  translation
+    .command('export-feedback')
+    .description('Write the fine-tuning corpus as JSONL, one record per line')
+    .option('--out <path>', 'Write to this file instead of stdout')
+    .option('--verdict <verdict>', `Which half: ${EXPORT_VERDICTS.join(', ')}`, 'all')
+    .action(async (options: { out?: string; verdict: string }) => {
+      await exportFeedbackCmd(options);
+    });
+
+  translation
     .command('retract <runId>')
     .description('Delete the dictionary rows one run created, skipping any row still in use')
     .option('--json', 'Output as JSON', false)
@@ -263,6 +311,142 @@ async function votesCmd(options: { format: OutputFormat; limit: string; offset: 
     limit: envelope.limit,
     offset: envelope.offset,
   });
+}
+
+// ---------------------------------------------------------------------------
+// feedback and export-feedback
+// ---------------------------------------------------------------------------
+
+/** How many rejected headwords the summary names. */
+const TOP_REJECTED_LIMIT = 10;
+
+/** One line of the summary's "most rejected words" table. */
+interface RejectedWordRow {
+  readonly lemma: string;
+  readonly pair: string;
+  readonly rejections: number;
+  readonly model: string;
+}
+
+const REJECTED_WORD_COLUMNS: TableColumn<RejectedWordRow>[] = [
+  { header: 'Word', key: 'lemma' },
+  { header: 'Pair', key: 'pair' },
+  { header: 'Rejections', key: (row) => String(row.rejections), align: 'right' },
+  { header: 'Model', key: 'model' },
+];
+
+/** The verdict option, as the declared union, or `null` when the operator typed something else. */
+function toExportVerdict(value: string): ExportVerdict | null {
+  return EXPORT_VERDICTS.find((verdict) => verdict === value) ?? null;
+}
+
+/** The records of one verdict, which is how the summary counts each half. */
+function rejectedOnly(records: TranslationFeedbackRecord[]): RejectedTranslationRecord[] {
+  const rejected: RejectedTranslationRecord[] = [];
+  for (const record of records) {
+    if (record.verdict === 'rejected') rejected.push(record);
+  }
+  return rejected;
+}
+
+/**
+ * How many complaints each reason code collected across every rejected run.
+ *
+ * THE ORDER IS `REJECTION_REASONS`, not the order the rows arrived in, so two
+ * runs of this command on different days print the same columns in the same
+ * places and can be read side by side.
+ */
+function totalReasonCounts(rejected: RejectedTranslationRecord[]): Map<RejectionReason, number> {
+  const totals = new Map<RejectionReason, number>(REJECTION_REASONS.map((reason) => [reason, 0]));
+  for (const record of rejected) {
+    for (const reason of REJECTION_REASONS) {
+      totals.set(reason, (totals.get(reason) ?? 0) + record.reasons[reason]);
+    }
+  }
+  return totals;
+}
+
+/**
+ * What readers have said about the generated corpus, in figures.
+ *
+ * IT COUNTS COMPLAINTS, NEVER PEOPLE. `rejections` is a count of signal rows,
+ * and the table those rows live in carries no account column at all. See this
+ * file's header for why no variant of this command may count readers.
+ */
+async function feedbackCmd(options: { json: boolean }): Promise<void> {
+  const db = getRawDb();
+  const records = await buildTranslationFeedbackExport({ db });
+  const rejected = rejectedOnly(records);
+  const endorsed = records.length - rejected.length;
+  const reasons = totalReasonCounts(rejected);
+  const rejectionTotal = rejected.reduce((sum, record) => sum + record.rejections, 0);
+
+  const top = rejected
+    .toSorted((left, right) => right.rejections - left.rejections)
+    .slice(0, TOP_REJECTED_LIMIT)
+    .map((record) => ({
+      lemma: record.lemma,
+      pair: `${record.from} to ${record.to}`,
+      rejections: record.rejections,
+      model: record.model,
+    }));
+
+  if (options.json) {
+    outputJson([
+      {
+        rejectedRuns: rejected.length,
+        rejections: rejectionTotal,
+        endorsedEdges: endorsed,
+        reasons: Object.fromEntries(reasons),
+        topRejected: top,
+      },
+    ]);
+    return;
+  }
+
+  printSection('Translation feedback');
+  printField('Rejected runs', rejected.length);
+  printField('Rejections', rejectionTotal);
+  printField('Endorsed edges', endorsed);
+  for (const reason of REJECTION_REASONS) printField(`  ${reason}`, reasons.get(reason) ?? 0);
+
+  if (top.length === 0) {
+    printInfo('Nobody has rejected a translation run.');
+    return;
+  }
+  printSection(`Most rejected words (${top.length})`);
+  outputTable(top, REJECTED_WORD_COLUMNS);
+}
+
+/**
+ * The corpus itself, as JSONL.
+ *
+ * ONE RECORD PER LINE, AND NOTHING ELSE ON STDOUT when no `--out` is given, so
+ * the command can be piped straight into a file or a training pipeline. The
+ * confirmation line is printed only when the records went to a file, because
+ * there is then somewhere else for it to go.
+ */
+async function exportFeedbackCmd(options: { out?: string; verdict: string }): Promise<void> {
+  const verdict = toExportVerdict(options.verdict);
+  if (verdict === null) {
+    printError(`--verdict must be one of ${EXPORT_VERDICTS.join(', ')}, got "${options.verdict}"`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const db = getRawDb();
+  const records = await buildTranslationFeedbackExport({ db, verdict });
+  // A trailing newline, so appending a second export to the same file cannot
+  // join two records into one unreadable line.
+  const jsonl = records.map((record) => JSON.stringify(record)).join('\n') + (records.length > 0 ? '\n' : '');
+
+  if (options.out === undefined) {
+    process.stdout.write(jsonl);
+    return;
+  }
+
+  writeFileSync(options.out, jsonl, 'utf8');
+  printSuccess(`Wrote ${records.length} record(s) to ${options.out}`);
 }
 
 // ---------------------------------------------------------------------------

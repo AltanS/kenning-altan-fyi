@@ -64,6 +64,13 @@ export * from './schema/explanation-moderation';
 // unique index. Nothing automatic reads it. Reached through `getRawDb()`.
 export * from './schema/explanation-reports';
 
+// Rejecting a generated translation: the fact (who rejected which run), the
+// signal (what was wrong with it, naming nobody) and the per-headword
+// re-translation cooldown. The two halves of a rejection live in two tables on
+// purpose and nothing joins them in an export: the file header argues it in
+// full. Reached through `getRawDb()`.
+export * from './schema/translation-feedback';
+
 // Reader votes on an enrichment, on a single translation edge and on one
 // written explanation, plus the per-headword re-enrichment cooldown. All of
 // them are reached through `getRawDb()`. The explanation votes carry the same

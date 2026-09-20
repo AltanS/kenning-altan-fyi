@@ -173,7 +173,7 @@ describe('translation enqueue dedupe', () => {
       skip: !DB_HOST ? 'DB_HOST not set' : false,
     },
     async () => {
-      const request = { headwordId, from: FROM, to: TO, promptVersion: PROMPT_VERSION } as const;
+      const request = { headwordId, from: FROM, to: TO, promptVersion: PROMPT_VERSION, rerunReason: null } as const;
       const singletonKey = translationSingletonKey({ ...request, runId: 'not-part-of-the-key' });
 
       const results = await Promise.all(Array.from({ length: BURST_SIZE }, () => enqueueTranslation(db, request)));
@@ -221,7 +221,7 @@ describe('translation enqueue dedupe', () => {
       // dedupes, everything queues and this passes while proving nothing. It is
       // here to catch the opposite mistake, a key so coarse that a re-worded
       // prompt can never be asked again.
-      const request = { headwordId, from: FROM, to: TO, promptVersion: PROMPT_VERSION + 1 } as const;
+      const request = { headwordId, from: FROM, to: TO, promptVersion: PROMPT_VERSION + 1, rerunReason: null } as const;
       const result = await enqueueTranslation(db, request);
 
       assert.equal(result.outcome, 'queued', 'a new prompt version was deduped against the old one');

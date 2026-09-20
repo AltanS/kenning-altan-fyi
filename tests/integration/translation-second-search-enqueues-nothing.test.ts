@@ -121,6 +121,7 @@ before(async () => {
     to: TO,
     promptVersion: PROMPT_VERSION,
     runId: 'unused-the-key-drops-it',
+    rerunReason: null,
   });
 
   // SEED THE READY STATE FOR REAL, the same way `translation-run-yields-ready`
@@ -147,7 +148,7 @@ before(async () => {
       ],
     }),
   ]);
-  const summary = await runTranslateHeadword({ headwordId, from: FROM, to: TO, promptVersion: PROMPT_VERSION, runId });
+  const summary = await runTranslateHeadword({ headwordId, from: FROM, to: TO, promptVersion: PROMPT_VERSION, runId, rerunReason: null });
   assert.equal(summary.outcome, 'written', summary.reason ?? '');
 });
 
