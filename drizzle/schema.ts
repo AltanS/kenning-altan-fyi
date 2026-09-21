@@ -102,6 +102,11 @@ export * from './schema/search-history';
 // identifies a reader. Read via `getRawDb()`.
 export * from './schema/abuse';
 
+// The quiz scaffold: a shared, global pool of starter flashcards per language
+// pair, generated once and reused by every reader. Deliberately NOT dictionary
+// data, for the reasons the file header gives. Reached through `getRawDb()`.
+export * from './schema/quiz';
+
 // =============================================================================
 // API Keys (Global — the bearer credential for `/api/v1/*`)
 // =============================================================================

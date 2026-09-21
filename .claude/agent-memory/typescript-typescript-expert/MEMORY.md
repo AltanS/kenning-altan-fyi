@@ -120,3 +120,5 @@
 - [An en-only locale key breaks typecheck too](project_en_only_locale_key_breaks_typecheck.md) — prove your code with a scratch fill, then restore
 - [ResultField is keyed on the answer text](project_result_field_is_keyed_on_the_answer.md) — survivors live in useTranslationPane
 - [The alternative chip is a visible "Use this" pill](project_translate_alternative_chip_useThisShort.md) — lang moves off the button onto the lemma span alone
+- [quiz_scaffold_runs needs a reclaimable claim, not DO NOTHING](project_quiz_scaffold_reclaimable_run_row.md) — a single-row dedupe table strands on any refusal unless failed/budget reopen
+- [design-rules em-dash scan covers cli/**/*.ts comments too](project_design_rules_em_dash_scope.md) — not just app/**/*.tsx copy

@@ -195,6 +195,7 @@ export const ROUTE_CLASSIFICATION = {
   },
   'favourites.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },
   'history.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },
+  'quiz.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },
   'settings.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },
 
   // ── The public layout ──────────────────────────────────────────────────
@@ -252,6 +253,11 @@ export const ROUTE_CLASSIFICATION = {
     access: 'gated-inline',
     reason:
       'Its action calls `resolveUser` first and answers 401 before it reads the body, so a signed-out post learns nothing from a well-formed one. Every row it writes belongs to the reader the cookie names, so there is no version of it that works without an account.',
+  },
+  'api.quiz-deck.ts': {
+    access: 'gated-inline',
+    reason:
+      'Its loader calls `resolveUser` first and answers an empty deck for a signed-out caller rather than 401, because the fetch behind it has no navigation to fail: every row it would otherwise read (search history, explanation asks) belongs to the reader the cookie names, and it may enqueue a billed scaffold run, so there is nothing useful or spendable here without an account.',
   },
   'api.translation.$headwordId.ts': {
     access: 'public',
@@ -313,6 +319,10 @@ export const ROUTE_CLASSIFICATION = {
   // spend guard the screen applies runs inside the shared resolver behind it.
   'api.v1.translate.ts': { access: 'bearer-token', reason: 'requireApiKey.' },
   'api.v1.translation-votes.ts': { access: 'bearer-token', reason: 'requireSuperadminApiKey.' },
+  // The quiz scaffold pool's delete-by-pair escape hatch (M203/04). Superadmin
+  // only, the same tier as revoking an API key: it removes shared,
+  // model-written content every reader of the pair sees.
+  'api.v1.quiz-scaffold.ts': { access: 'bearer-token', reason: 'requireSuperadminApiKey.' },
 
   // ── The operator screens under `/super/` ───────────────────────────────
   // What is left of the inherited admin surface. The org tree, `/dashboard`,

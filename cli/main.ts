@@ -23,6 +23,7 @@ import { registerImportCommands } from './commands/import/index';
 import { registerDictionaryCommands } from './commands/dictionary';
 import { registerTranslationCommands } from './commands/translation';
 import { registerTranslateCommand } from './commands/translate';
+import { registerQuizCommands } from './commands/quiz';
 
 interface GlobalCliOptions {
   color?: boolean;
@@ -90,6 +91,7 @@ async function main(): Promise<void> {
   registerDictionaryCommands(program);
   registerTranslationCommands(program);
   registerTranslateCommand(program);
+  registerQuizCommands(program);
 
   await program.parseAsync(process.argv);
 }

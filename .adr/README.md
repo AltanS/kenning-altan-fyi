@@ -59,3 +59,4 @@ gets an edit.
 | [0009](0009-invite-only-accounts.md) | Invite-only accounts, bootstrapped by a one-shot token | Superseded by 0011 |
 | [0010](0010-drop-the-inherited-tenancy.md) | Drop the inherited tenancy, org and CMS surfaces | Accepted |
 | [0011](0011-plain-accounts-replace-the-encrypted-layer.md) | Plain accounts replace the encrypted layer | Accepted |
+| [0012](0012-quiz-scaffold-is-not-dictionary-data.md) | The quiz scaffold is a shared pool, not dictionary data, and dedupes on a database row, not a pg-boss policy | Accepted |

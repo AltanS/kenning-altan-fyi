@@ -14,7 +14,8 @@
     "admin": "Admin",
     "favourites": "Favoriten",
     "explain": "Erklären",
-    "explanations": "Erklärungen"
+    "explanations": "Erklärungen",
+    "quiz": "Quiz"
   },
   "theme": {
     "selector": "Farbschema",
@@ -158,6 +159,19 @@
     "sessionEmptyTitle": "Gespeicherte Wörter wurden entfernt",
     "sessionEmptyBody": "Diese Wörter wurden aus deiner Liste gelöscht. Speichere neue Wörter, um eine neue Wiederholung zu starten.",
     "toLists": "Gespeicherte Listen ansehen"
+  },
+  "quiz": {
+    "metaTitle": "Quiz",
+    "metaDescription": "Ein schnelles Quiz basierend auf deinen gespeicherten Wörtern, deinen bisherigen Suchen und deinen gestellten Fragen.",
+    "heading": "Quiz",
+    "cardLabel": "Quizkarte für {{lemma}}",
+    "summaryTitle": "Quiz abgeschlossen",
+    "summaryBody": "Du bist {{total}} Karten durchgegangen. Du hast {{stillLearning}} markiert, um sie noch einmal zu sehen.",
+    "streak": "{{count}} in Folge",
+    "bestStreak": "Beste Serie: {{count}} in Folge",
+    "again": "Quiz wiederholen",
+    "emptyTitle": "Noch nicht genug Wörter",
+    "emptyBody": "Speichere ein paar Wörter, suche nach weiteren oder stelle eine Frage unter Erklären, und komm dann zurück, um dich abzufragen."
   },
   "history": {
     "metaTitle": "Verlauf",

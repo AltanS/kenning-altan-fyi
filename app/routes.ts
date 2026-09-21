@@ -27,6 +27,10 @@ export default [
   // The operator's complaint queue, the rows `/super/llm` renders. Superadmin
   // only: a score is an operator's instrument here, never public data.
   route('/api/v1/translation-votes', 'routes/api.v1.translation-votes.ts'),
+  // The quiz scaffold pool's delete-by-pair escape hatch (M203/04, ADR-0012).
+  // Superadmin only, the same tier as revoking an API key: it removes shared,
+  // model-written content every reader of the pair sees.
+  route('/api/v1/quiz-scaffold', 'routes/api.v1.quiz-scaffold.ts'),
 
   // DB admin endpoints (superadmin only)
   route('/api/v1/admin/db/check', 'routes/api.v1.admin.db.check.ts'),
@@ -95,6 +99,13 @@ export default [
   // component inside a rendered page, not a script. The two screens that RENDER
   // the log read it through their own loaders, so this path only writes.
   route('/api/search-history', 'routes/api.search-history.ts'),
+  // One quiz deck's server half: this reader's matching search history, their
+  // answered `/explain` questions, and the shared scaffold pool for the pair
+  // (M203). It resolves the session itself rather than sitting under
+  // `_app.gated`, because `routes/quiz.tsx`'s `clientLoader` calls it with
+  // `fetch`, the same way `routes/api.search-history.ts` is called from
+  // `RecordSearch`.
+  route('/api/quiz-deck', 'routes/api.quiz-deck.ts'),
 
   route('/api/translation/:headwordId', 'routes/api.translation.$headwordId.ts'),
   route('/api/translation/:headwordId/retry', 'routes/api.translation.$headwordId.retry.ts'),
@@ -257,6 +268,13 @@ export default [
       // nothing here for a server loader to read.
       route('/favourites', 'routes/favourites.tsx'),
       route('/history', 'routes/history.tsx'),
+      // The dynamic quiz: favourites, history and answered explanations
+      // merged into one flip-card session, topped up from the shared scaffold
+      // pool when a pair is thin (M203). Client only, like `/favourites`
+      // beside it: favourites live in this device's own store and the server
+      // has no query for them, so the loader reads local rows AND calls
+      // `/api/quiz-deck` for the server half.
+      route('/quiz', 'routes/quiz.tsx'),
       route('/settings', 'routes/settings.tsx'),
     ]),
   ]),

@@ -14,7 +14,8 @@
     "admin": "Admin",
     "favourites": "Favourites",
     "explain": "Explain",
-    "explanations": "Explanations"
+    "explanations": "Explanations",
+    "quiz": "Quiz"
   },
   "theme": {
     "selector": "Color theme",
@@ -158,6 +159,19 @@
     "sessionEmptyTitle": "Saved words were removed",
     "sessionEmptyBody": "These words were deleted from your list, so save new words to start another review.",
     "toLists": "View saved lists"
+  },
+  "quiz": {
+    "metaTitle": "Quiz",
+    "metaDescription": "A quick quiz built from your saved words, your past searches and the questions you have asked.",
+    "heading": "Quiz",
+    "cardLabel": "Quiz card for {{lemma}}",
+    "summaryTitle": "Quiz complete",
+    "summaryBody": "You went through {{total}} cards. You marked {{stillLearning}} to see again.",
+    "streak": "{{count}} in a row",
+    "bestStreak": "Best streak: {{count}} in a row",
+    "again": "Take the quiz again",
+    "emptyTitle": "Not enough words yet",
+    "emptyBody": "Save a few words, search a few more, or ask a question on Explain, then come back to quiz yourself on them."
   },
   "history": {
     "metaTitle": "History",

@@ -11,6 +11,7 @@ import { enrichmentJobPayloadSchema } from '#app/lib/enrichment/job-payload';
 import { translationJobPayloadSchema } from '#app/lib/translation/job-payload';
 import { explainJobPayloadSchema } from '#app/lib/translation/explain-job-payload';
 import { phraseJobPayloadSchema } from '#app/lib/translation/phrase-job-payload';
+import { quizScaffoldJobPayloadSchema } from '#app/lib/quiz/scaffold-job-payload';
 
 // =============================================================================
 // WORKFLOW TYPES
@@ -22,6 +23,7 @@ export const WORKFLOW_TYPES = {
   TRANSLATE_HEADWORD: 'translate-headword',
   TRANSLATE_PHRASE: 'translate-phrase',
   EXPLAIN_TERMS: 'explain-terms',
+  SCAFFOLD_VOCAB: 'quiz.scaffold-vocab',
 } as const;
 
 export type WorkflowType = (typeof WORKFLOW_TYPES)[keyof typeof WORKFLOW_TYPES];
@@ -126,3 +128,14 @@ export type TranslatePhraseContext = z.infer<typeof translatePhraseContextSchema
 export const explainTermsContextSchema = explainJobPayloadSchema;
 
 export type ExplainTermsContext = z.infer<typeof explainTermsContextSchema>;
+
+/**
+ * The quiz scaffold job's context, which is the enqueue payload unchanged.
+ *
+ * THE SAME BINDING, NOT A COPY, for the reason every context schema above
+ * gives: a loader and a handler that each declared their own shape could
+ * drift with nothing to catch it.
+ */
+export const scaffoldVocabContextSchema = quizScaffoldJobPayloadSchema;
+
+export type ScaffoldVocabContext = z.infer<typeof scaffoldVocabContextSchema>;

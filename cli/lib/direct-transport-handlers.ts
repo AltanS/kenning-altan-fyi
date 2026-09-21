@@ -17,10 +17,11 @@
 import { getRawDb, pool } from '#drizzle/db';
 import { listApiKeys, revokeApiKey } from '#app/models/api-keys.server';
 import { listDownVotedTranslationsPage } from '#app/models/translation-votes.server';
+import { deleteScaffoldPool } from '#app/models/quiz.server';
 import { parsePaginationParams } from '#app/lib/pagination.server';
-import { SERVED_LANGUAGES } from '#app/lib/dictionary/detect-language';
+import { isServedLanguage, SERVED_LANGUAGES } from '#app/lib/dictionary/detect-language';
 import { resolveTranslateRequest } from '#app/lib/translation/translate-request.server';
-import { CliApiError, type DirectTransport } from './transport';
+import { CliApiError, singleQueryParam, type DirectTransport } from './transport';
 import { z } from 'zod';
 
 /** Body accepted by `POST /api/v1/admin/db/query`. */
@@ -105,6 +106,20 @@ export function registerDirectTransportHandlers(direct: DirectTransport): void {
     const pagination = parsePaginationParams(query);
     const { rows, total } = await listDownVotedTranslationsPage(getRawDb(), pagination);
     return { data: rows, total, limit: pagination.limit, offset: pagination.offset };
+  });
+
+  // ---------------------------------------------------------------------------
+  // Quiz scaffold
+  // ---------------------------------------------------------------------------
+
+  // DELETE /api/v1/quiz-scaffold
+  direct.register('DELETE', '/api/v1/quiz-scaffold', async ({ query }) => {
+    const from = singleQueryParam(query, 'from');
+    const to = singleQueryParam(query, 'to');
+    if (!isServedLanguage(from) || !isServedLanguage(to)) {
+      throw new CliApiError('from and to must both be served languages', 400);
+    }
+    return deleteScaffoldPool(getRawDb(), { from, to });
   });
 
   // ---------------------------------------------------------------------------

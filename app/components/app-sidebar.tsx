@@ -2,6 +2,7 @@ import * as React from 'react';
 import {
   BookMarked,
   Download,
+  GraduationCap,
   History,
   MessagesSquare,
   ScrollText,
@@ -118,6 +119,10 @@ export const navigationItems: NavigationItem[] = [
   // had to be the one a reader consults rather than works in. History keeps its
   // sidebar and drawer row, so nothing became unreachable.
   { labelKey: 'nav.history', to: '/history', icon: History, group: 'primary', requiresAccount: true },
+  // No `tab`, for the same reason History has none: the bar stays four tabs,
+  // and a quiz is a place a reader visits deliberately rather than one they
+  // work in on every search (M203).
+  { labelKey: 'nav.quiz', to: '/quiz', icon: GraduationCap, group: 'primary', requiresAccount: true },
   { labelKey: 'nav.settings', to: '/settings', icon: Settings, group: 'footer' },
   { labelKey: 'nav.account', to: '/account', icon: UserRound, group: 'footer' },
   // No `tab`: the mobile bar stays four tabs. Sources is a licence

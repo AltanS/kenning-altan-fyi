@@ -177,3 +177,10 @@ export const downVotedTranslationSchema = z.object({
 export type DownVotedTranslationRow = z.infer<typeof downVotedTranslationSchema>;
 
 export const translationVotesListSchema = paginatedSchema(downVotedTranslationSchema);
+
+/** What `DELETE /api/v1/quiz-scaffold` answers: what the delete actually removed. */
+export const quizScaffoldDeleteSchema = z.object({
+  cardsDeleted: z.number(),
+  runDeleted: z.boolean(),
+});
+export type QuizScaffoldDeleteResult = z.infer<typeof quizScaffoldDeleteSchema>;

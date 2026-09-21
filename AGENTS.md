@@ -327,6 +327,51 @@ server once and then clears it, so nobody loses a history to this change. When
 the devices in use have all handed over, it and `app/lib/local-store/history.ts`
 can both go.
 
+### A dynamic vocabulary quiz (M203)
+
+The code: `drizzle/schema/quiz.ts`, `app/models/quiz.server.ts`,
+`app/lib/quiz/build-deck.ts`, `app/lib/quiz/scaffold-enqueue.server.ts`,
+`app/lib/quiz/scaffold-job-payload.ts`, `app/lib/llm/quiz-scaffold-schema.ts`,
+`app/prompts/quiz-scaffold/`, `app/workflows/operations/quiz/scaffold-vocab.ts`,
+`app/workflows/templates/scaffold-vocab.ts`, the routes `quiz.tsx` and
+`api.quiz-deck.ts`, and on the screen `app/components/quiz/quiz-flip-card.tsx`
+and `quiz-session.tsx`. See [ADR-0012](.adr/0012-quiz-scaffold-is-not-dictionary-data.md)
+for the full design.
+
+One deck, four sources, in priority order: favourites, search history,
+answered `/explain` questions, and, when that organic material is thin, the
+shared `quiz_scaffold_cards` pool for the pair. The scaffold pool is never
+dictionary data (the same class of reason a phrase answer is not, M195): it is
+a flashcard-shaped fact, generated once per language pair and reused by every
+later reader, gated by ONE reclaimable row in `quiz_scaffold_runs` rather than
+a `stately` pg-boss policy, because this job fires at most once per served
+pair, ever.
+
+**A `failed` or `budget` run row is reclaimed, not a permanent lock.**
+`claimScaffoldRun` opens the pair's row with `ON CONFLICT ... DO UPDATE ...
+WHERE status IN ('failed', 'budget')`, so a routine budget refusal, a missing
+provider key, or `orchestrator.start()` throwing right after the claim, all
+put the row back into a state the next reader of that pair can reopen. A
+`pending` or `ok` row is left alone. This table has no append-only fallback
+the way `translation_runs` does: it is one mutable row per pair, so leaving a
+dead-end status un-reclaimed would strand that pair's scaffold pool forever.
+
+**The pair must differ, the same rule `POST /api/v1/translate` enforces.**
+`api.quiz-deck.ts` refuses `from === to` the same way it refuses an
+unrecognised language, an empty envelope rather than a 400: the client never
+sends one, so this guard exists for a caller hitting the endpoint directly,
+and without it a signed-in reader could trigger a real, billed scaffold call
+to translate a language into itself.
+
+**`pnpm cli quiz scaffold-delete <from> <to>`** is the operator escape hatch
+for the pool: no per-card edit, no moderation queue, delete-by-pair only,
+following [.claude/cli.md](.claude/cli.md). It deletes both tables' rows for
+the pair, not just the cards, because an `ok` run row left behind would make
+`claimScaffoldRun` treat the pair as already served.
+
+**Quiz progress is session-only**, and favourites never cross the wire to the
+server; both are ADR-0012 decisions, not omissions.
+
 ## Prerequisites
 
 The four `@sprqvntrs/*` dependencies are published to npmjs and need no
@@ -623,6 +668,7 @@ Significant decisions — anything that constrains future work, locks in a trade
 | [0009](.adr/0009-invite-only-accounts.md) | Invite-only accounts, bootstrapped by a one-shot token | Superseded by 0011 |
 | [0010](.adr/0010-drop-the-inherited-tenancy.md) | Drop the inherited tenancy, org and CMS surfaces | Accepted |
 | [0011](.adr/0011-plain-accounts-replace-the-encrypted-layer.md) | Plain accounts replace the encrypted layer | Accepted |
+| [0012](.adr/0012-quiz-scaffold-is-not-dictionary-data.md) | The quiz scaffold is a shared pool, not dictionary data, and dedupes on a database row, not a pg-boss policy | Accepted |
 
 ## Coding Style Summary
 

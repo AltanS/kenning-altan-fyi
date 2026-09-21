@@ -124,6 +124,21 @@ codes are stored apart from the accounts that gave them, and a count of
 "distinct readers" would collapse that split. See the module header and
 `drizzle/schema/translation-feedback.ts`.
 
+### Quiz scaffold
+
+```bash
+pnpm cli quiz scaffold-delete <from> <to>
+```
+
+Deletes one language pair's `quiz_scaffold_cards` rows and its
+`quiz_scaffold_runs` row (M203/04, ADR-0012). This is the whole operator
+escape hatch for the shared, model-written scaffold pool: delete-by-pair only,
+no listing, no per-card edit. Deleting the run row along with the cards
+matters: an `ok` row left behind would make `claimScaffoldRun` treat the pair
+as already served and refuse to ever queue a fresh backfill. Goes through
+`DELETE /api/v1/quiz-scaffold`, which requires a superadmin key, the same tier
+as revoking an API key.
+
 ### Dictionary imports
 
 Load an open-data dump into the shared dictionary zone. These commands talk to
@@ -225,6 +240,7 @@ cli/
 │   ├── dictionary.ts
 │   ├── translate.ts
 │   ├── translation.ts
+│   ├── quiz.ts
 │   ├── data-migration/
 │   └── import/        # Open-data dictionary importers
 │       ├── index.ts

@@ -10,6 +10,7 @@ import { enrichHeadwordTemplate } from './enrich-headword';
 import { translateHeadwordTemplate } from './translate-headword';
 import { translatePhraseTemplate } from './translate-phrase';
 import { explainTermsTemplate } from './explain-terms';
+import { scaffoldVocabTemplate } from './scaffold-vocab';
 
 /**
  * All workflow templates with their handler references.
@@ -20,6 +21,7 @@ export const workflowTemplates: WorkflowTemplateWithHandlers[] = [
   translateHeadwordTemplate,
   translatePhraseTemplate,
   explainTermsTemplate,
+  scaffoldVocabTemplate,
 ];
 
 // Re-export individual templates for direct access
@@ -28,3 +30,4 @@ export { enrichHeadwordTemplate } from './enrich-headword';
 export { translateHeadwordTemplate } from './translate-headword';
 export { translatePhraseTemplate } from './translate-phrase';
 export { explainTermsTemplate } from './explain-terms';
+export { scaffoldVocabTemplate } from './scaffold-vocab';
