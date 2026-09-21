@@ -102,6 +102,17 @@ interface CopyButtonProps {
   label: string;
   /** The icon at rest. The tick that replaces it after a copy is the same on every button. */
   icon: ReactNode;
+  /**
+   * Short text printed beside the icon, or `undefined` for an icon alone.
+   *
+   * THE PLAIN COPY BUTTON STAYS ICON-ONLY. One button that puts the answer on
+   * the clipboard is the universal copy convention and needs no caption. The
+   * copy-ALL button is the one an operator read as unlabelled and could not
+   * place next to it: two icon buttons in a row with no text told them nothing
+   * about how the second one differs from the first, so it alone gets a
+   * printed word.
+   */
+  visibleLabel?: string;
 }
 
 /**
@@ -117,7 +128,7 @@ interface CopyButtonProps {
  * answer, so a new answer, or a different one chosen from the alternatives, is a
  * new button with a fresh state rather than an effect watching a prop.
  */
-function CopyButton({ text, label, icon }: CopyButtonProps) {
+function CopyButton({ text, label, icon, visibleLabel }: CopyButtonProps) {
   const { t } = useTranslation();
   const [isCopied, setIsCopied] = useState(false);
   const [hasClipboard, setHasClipboard] = useState(false);
@@ -170,7 +181,7 @@ function CopyButton({ text, label, icon }: CopyButtonProps) {
     <Button
       type="button"
       variant="ghost"
-      size="icon-sm"
+      size={visibleLabel === undefined ? 'icon-sm' : 'sm'}
       onClick={handleCopy}
       disabled={!canCopy}
       aria-label={isCopied ? t('search.copied') : label}
@@ -178,6 +189,7 @@ function CopyButton({ text, label, icon }: CopyButtonProps) {
       {isCopied ?
         <Check className="size-4" aria-hidden="true" />
       : icon}
+      {visibleLabel !== undefined && <span className="text-xs">{visibleLabel}</span>}
     </Button>
   );
 }
@@ -285,6 +297,11 @@ function ResultField({ text, allText, hasAlternatives, body, favorite, isStale }
                 text={allText}
                 label={t('translation.copyAll')}
                 icon={<CopyPlus className="size-4" aria-hidden="true" />}
+                // VISIBLE, UNLIKE THE PLAIN COPY BUTTON ABOVE. Two unlabelled
+                // icon buttons side by side told an operator nothing about how
+                // this one differs from the first, so it alone prints its
+                // short name beside the icon.
+                visibleLabel={t('translation.copyAllShort')}
               />
             )}
           </div>

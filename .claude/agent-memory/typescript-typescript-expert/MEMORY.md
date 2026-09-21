@@ -2,120 +2,121 @@
 
 ## Project
 
-- [e2ee is copied, not extracted](project_e2ee_copied_not_extracted.md) — protocol.ts is the SERVICE half and stays the only transcription; client code needing the client half is trimmed, not accommodated
-- [translate: drizzle/seed.ts creates one dev account](project_translate_dev_seed_m192.md) — dynamic import to guard before the pool opens, BCRYPT_COST duplicated not imported
-- [drizzle-kit cannot change a column type](project_drizzle_kit_cannot_change_a_column_type.md) — no USING clause, and ADD CONSTRAINT before ADD COLUMN; split the schema edit across generate runs
+- [e2ee is copied, not extracted](project_e2ee_copied_not_extracted.md) — protocol.ts is the SERVICE half only; client-half code is trimmed, not accommodated
+- [translate: drizzle/seed.ts creates one dev account](project_translate_dev_seed_m192.md) — dynamic import to guard before the pool opens
+- [drizzle-kit cannot change a column type](project_drizzle_kit_cannot_change_a_column_type.md) — no USING clause; split the schema edit across generate runs
 - [oxlint anti-slop fix patterns](project_oxlint_anti_slop_patterns.md) — clean fixes for each anti-slop rule; no suppressions needed
-- [oxlint promise(always-return) kills .then(setState)](project_oxlint_promise_always_return.md) — in a useEffect use an inner async function plus `void`, never a then-chain
-- [Verification commands and the pre-push gate](project_verify_commands.md) — lint/typecheck/test:unit via ts-dev; the gate skips tests/integration
+- [oxlint promise(always-return) kills .then(setState)](project_oxlint_promise_always_return.md) — use an inner async function plus `void`, never a then-chain
+- [Verification commands and the pre-push gate](project_verify_commands.md) — lint/typecheck/test:unit via ts-dev; gate skips tests/integration
 - [tests/integration must self-skip](project_integration_self_skip_guard.md) — a unit test enforces the TEST_API_KEY skip guard on every case
-- [readdirSync recursive needs an encoding](project_node_readdirsync_recursive_typing.md) — without it the result types as (string | Buffer)[] and typecheck fails
-- [pg-boss singletonKey needs a queue policy](project_pgboss_queue_policy_dedupe.md) — inert under `standard`; enrichment owns a `stately` queue set by createQueue AND updateQueue
-- [import.meta.url asset reads die in the bundle](project_bundled_module_asset_reads.md) — lazy read, cwd fallback, and cut the static route edge that put it on the boot path
-- [A union member with two literal states never narrows away](project_ts_union_member_with_two_literal_states.md) — `state: 'pending' | 'ready'` survives both exhaustive checks; one literal per member
-- [RR8 fetcher.load is stable, the fetcher object is not](project_rr8_fetcher_load_is_stable.md) — depend on `fetcher.load`, never the fetcher, or a polling interval restarts every render and fires nothing
-- [Transient typecheck failures in a shared worktree](project_transient_typecheck_failures_shared_worktree.md) — typegen sees a half-written routes.ts; re-run and md5 the file before diagnosing
-- [Local-only sync_blobs reads sit outside the adapter](project_blob_usage_read_lives_outside_the_adapter.md) — select size_bytes, never getBlob; the adapter mirrors upstream and must stay drift-free
-- [key-records answers the document, not the port](project_key_records_envelope_is_the_document.md) — `records` on GET, a BARE record on PUT; the 409 keeps `error` beside `currentUpdatedAt` on purpose
-- [The local-store barrel is the one seam](project_local_store_barrel_is_the_one_seam.md) — `getPrimaryStore` is re-exported for SUBSCRIBING; deep-importing persist.ts bypasses the save lock
-- [Toast a mutation from an effect, not the render](project_toast_after_client_action.md) — sonner mid-render warns, and `t` in the deps re-fires it on a language change
-- [One projection decides the blob's keys](project_one_projection_decides_the_blob_keys.md) — readLocalSnapshot feeds toSyncedSnapshot and takes `{ store }`; blob-schema.ts must stay free of the token `history`
-- [sync-client schemas pin the document](project_sync_client_schemas_pin_the_document.md) — all four wire schemas are exported so a test can parse a PROTOCOL.md literal through them
-- [root's clientLoader keeps offline mutations alive](project_root_clientloader_offline_revalidation.md) — every clientAction revalidates root's server loader over uncacheable `.data`; only a network failure is absorbed
-- [root data's `headers` is an all-undefined method bag on the client](project_root_data_headers_serialized.md) — single fetch strips methods, so a fallback cannot return `combineHeaders()`
-- [A public /api/v1 route needs a bearer-guard exemption](project_api_v1_bearer_guard_exemptions.md) — an Express 401 lands before the router; route-level tests never see it
-- [The LLM registry owns the audio call too](project_llm_registry_owns_the_audio_call.md) — @sprqvntrs/llm has no audio input; use registry.transcribeAudio, fake it with withAudioPort
-- [Sync triggers, and the locked-but-signed-in state](project_sync_triggers_and_locked_state.md) — an empty outbox never pulls, and a reload leaves a device signed in with no data key
-- [cli/index.ts is a dynamic-import launcher](project_cli_json_output_polluted_by_pool_log.md) — a static import there is hoisted above the LOG_LEVEL assignment and puts a pool log on JSON stdout
-- [The CLI has no global --format](project_cli_format_option_is_per_subcommand.md) — it is per subcommand, so `pnpm cli --format=json <group> <cmd>` errors
-- [The invite pepper is a third SERVER_SECRET subkey](project_invite_token_pepper_is_a_third_subkey.md) — derived in app/lib/invites/, never by extending the copied server-secrets.ts
-- [The GET ?q= ceiling is 16 KiB of headers](project_get_q_url_ceiling.md), 16000 ASCII chars pass, 17000 gives 431; ~2700 non-ASCII; do not switch to POST
-- [VoiceInput takes a sink, not an input element](project_voice_input_takes_a_sink.md), `{ value: string }`, because the search box is a textarea; one query path for speech
-- [Signup admission lives in the store](project_signup_admission_lives_in_the_store.md), a required field on CreateAccountInput enforced inside the insert's transaction; 'open' mode is refused
-- [The zero-account bootstrap check needs an advisory lock](project_bootstrap_zero_account_check_needs_an_advisory_lock.md), FOR UPDATE cannot lock an empty table; a test that needs one clones the tables into its own schema
-- [node --test's pass line is never in tail -5](project_node_test_summary_never_in_tail_5.md), a checklist piping through tail -5 is unsatisfiable, not failing
-- [searchPhrase caps the word list at six and calls no LLM](project_translate_phrase_token_limit.md), the loader reports the shortfall as `phraseWordsOmitted`
-- [A tracker grep check is case sensitive](project_tracker_grep_is_case_sensitive.md), an ALL-CAPS comment heading defeats one; the Expected clause tests the matched LINE
-- [The enrichment trigger is the shared seam](project_enrichment_trigger_is_the_shared_seam.md), one machine for the entry route and the search pane; a grep demands identical enrichment imports
-- [search.tsx has source-grep unit tests](project_search_tsx_has_source_grep_tests.md), moving a call out of that loader fails a check about intent; repair the literal, not the code
-- [The two idle reasons already read differently](project_enrichment_idle_reasons_already_differ.md), EnrichmentSection splits not-configured from not-requested; never write a second idle line
-- [The post-M184 public surface](project_public_surface_contract_m184.md), the gate is request-keyed in search.tsx's loader; `_app.gated.tsx` carries accountMiddleware, never authMiddleware
-- [A public-surface test needs a liveness case](feedback_public_surface_test_needs_liveness_case.md), asserting a route is open passes on an instance with no gate at all; run the real gate for contrast
-- [Tailwind 4 resolves --color-* at :root](project_tailwind4_theme_vars_resolve_at_root.md), a scoped palette override needs the raw token AND the --color-* line
-- [typegen runs in production mode](project_typegen_runs_in_production_mode.md), a dev-only route gets no ./+types, so it reads useLoaderData
-- [account.* owns the UI vocabulary](project_account_namespace_owns_the_ui_vocabulary.md), sync.* keeps only pending/offline/genericError; a handle is a "sign-in name"
-- [The account doors are /sign-in and /sign-up](project_sign_in_up_routes_m187.md), the old sync paths are 301 hops that keep the query string; the no-signup-prompt rule is dead
-- [SearchPanes is the shared surface](project_search_panes_is_the_shared_surface.md), the two-pane markup left search.tsx and two source-grep tests followed it
-- [account components live in one directory](project_account_components_directory.md), `app/components/sync/` is gone; UI names say account/password, wire names keep sync/passphrase
-- [The recovery-code gate is a checkbox](project_recovery_code_gate_is_a_checkbox.md), the reducer re-checks it; the retype module and its tests were deleted
-- [The doors are a hero above the pane](project_landing_doors_above_the_pane.md), `LandingDoors` has no card; the example goes in `SearchPanes`' `emptyPane`
-- [The voice hint waits for a transcription](project_voice_hint_waits_for_a_transcription.md), `VoiceControl` takes `hasTranscript`; a fresh page shows no best-effort note
-- [The doors redirect a signed-in reader](project_doors_redirect_a_signed_in_reader.md), both loaders use `getAccountSession`, never the cookie-only display read
-- [Render a route component with createRoutesStub](project_render_a_route_component_in_a_test.md), `MemoryRouter` throws on `useNavigation`
-- [The tenancy is gone, ADR-0010](project_the_tenancy_is_gone_adr_0010.md), no tenantDb and no `users`; root.tsx returns no `user` and `actorEmail` now holds a handle
-- [`_super` is a top-level layout](project_super_is_a_top_level_layout.md), it stacks accountMiddleware then superadminMiddleware, and `/super` hops to `/super/llm`
-- [getRawDb is the only handle](project_getrawdb_is_the_only_handle.md), tenant-db.ts is gone with the eight inherited tables; apiKeys carries its own isSuperadmin
-- [drizzle:generate needs a pty](project_drizzle_generate_needs_a_pty.md), and a DROP TABLE CASCADE beside a DROP CONSTRAINT fails at apply; split the runs
-- [Plain accounts (M191)](project_plain_accounts_m191.md) — where non-disclosure, single-statement token consumption, the session epoch and the limiter address live, plus the three-run migration
-- [strip-types tests need a .ts extension](project_strip_types_test_imports.md) — no `#app/*` aliases under bare node, and the tap reporter for `# pass`
-- [Node 24's test runner prints spec, not tap](project_node24_test_reporter_is_spec.md) — a check grepping `# pass` from `pnpm run test:unit` is unsatisfiable; pass `--test-reporter=tap`
-- [An integration skip guard must be inline](project_integration_skip_guard_must_be_inline.md) — the enforcing test reads source TEXT, so a shared `SKIP` constant fails it
-- [jsonb reorders object keys](project_jsonb_reorders_object_keys.md) — a blob round-trip cannot assert literal bytes; compare a key-sorted encoding
-- [Sign-out wipes the device in a clientAction](project_sign_out_wipes_via_clientaction.md) — sync, clear, wipe, CLEAR_CACHE, then `serverAction()` LAST, because it throws the redirect
-- [The sync session comes from root's `userId`](project_sync_session_is_installed_from_root_data.md) — nothing called `setSyncSession` after M191/01, so sync ran for nobody while every gate stayed green
-- [A TinyBase poll re-creates a deleted database](project_tinybase_poll_recreates_a_deleted_db.md) — `deleteDatabase` alone wipes nothing; destroy the persisters first, and assert the ORDER
-- [The account doors left the app shell](project_auth_doors_left_the_app_shell.md) — the sidebar pushed the card 128px off centre; `_auth-shell.tsx`, and the undecorated typography variants
-- [`unconfirmed` needs the right password](project_unverified_signin_is_not_an_oracle.md) — a three-member `signIn` result; check the password BEFORE the confirmed state
-- [The language pair is stated, never pinned](project_language_pair_is_stated_not_pinned.md) — language-pair.ts must stay free of VALUE imports from detect-language, or drizzle lands in the client bundle
-- [A store VALUE needs no SCHEMA_VERSION bump](project_store_values_do_not_bump_schema_version.md) — only entity shapes are versioned; values reach neither the backup envelope nor the blob
-- [translate.tsx's pair must be reconciled with direction](project_translate_pair_direction_reconcile_m187.md) — `from=detect` hides the collision from `resolveLanguagePair`; only a loader-level test catches the two disagreeing
-- [The translator surface is one column](project_translator_surface_is_one_column.md), the bar is a three-cell grid and neither card carries `.surface-brand`; the class-attribute tests are what keep the misalignment out
-- [checkTriggerRateLimit spends on every call](project_translate_rate_limit_last_of_three_guards_m193.md), so panel.server.ts asks it last; enrichment's own call site is a separate, out-of-scope gap
-- [The budget view collapses its reason](project_translate_budget_view_collapses_reason.md), pane-state.ts owns layout not copy; translation-pane.tsx reads state.panel.reason itself
-- [Attribution's generated-source check is DB-free by extraction site](project_translate_attribution_generated_source_slug.md) — isGeneratedSource lives in generated-source.ts, not attribution.tsx, because attribution.tsx imports drizzle/db
-- [rank.ts is the one reading order](project_translate_rank_is_the_one_order.md) — myVote is never a sort key and a vote needs a margin of 2; the SQL ORDER BY stays the DEDUPE's
-- [One row is the answer, the rest are alternatives](project_translate_primary_answer_and_alternatives.md) — `translationPaneText` takes a chosenId and returns ONE lemma; the tap is ephemeral and posts nothing
-- [A candidate carries an optional usage note](project_translate_candidate_note_prompt_v2.md) — prompt v2 renames v1.md away, and note is refreshed to null on a re-run
-- [A browser probe read during render ships the server's answer](project_translate_env_probe_needs_a_mount_effect.md) — SSR emits `disabled=""`, React never repairs the mismatch; probe in a mount effect
-- [The CLI boundary schema strips fields](project_cli_boundary_schema_strips_fields.md) — a field absent from cli/lib/schemas.ts is DISCARDED, not missing; layers 1 and 2 pass the panel through untouched
-- [A sentence goes under the CLI table](project_cli_note_renders_under_the_table.md) — never a fifth column; a null value prints nothing
-- [The canonical-host 301 comes from the container](project_canonical_host_301_lives_in_the_container.md) — kenning is canonical, translate is legacy; `req.hostname`, a dot-boundary suffix swap, and `/healthcheck` excluded
-- [role="img" is banned on an inline svg](project_role_img_is_banned_on_an_inline_svg.md) — the mark names itself with aria-label plus a `<title>`, and its two brand fills are the one raw-colour exception
-- [The install entry is a catalog action, not a destination](project_install_entry_is_a_catalog_action.md) — `useInstallPrompt` starts unavailable, so the row is absent before mount rather than dead
-- [translate.altan.fyi renamed to Kenning](project_translate_kenning_rename.md) — APP_NAME in app/lib/app-name.ts is the single source; historical launch-check docs keep the old domain
-- [A parallel visual rebrand can be mid-edit, uncommitted, in the same tree](project_translate_dirty_tree_parallel_rebrand.md) — check git status before touching anything, don't revert files outside your task's scope
-- [Explain is the third sibling](project_explain_is_the_third_sibling_m198.md) — M198 copies the phrase path but takes its OWN panel union, its own `explain-terms` queue and its own refusal copy
-- [The pane reducer is generic, pinned by NoInfer](project_pane_reducer_is_generic_with_noinfer.md) — without NoInfer, `Panel` narrows to one union member and the `polled` transition stops compiling
-- [A jsonb column needs `.$type<JsonValue>()`](project_jsonb_column_needs_a_type_for_the_lint_gate.md) — a bare one selects as `unknown`, which the anti-slop gate refuses at every reader
-- [A synced collection has nine seams](project_synced_collection_has_nine_seams.md) — nine enumerations plus two literal key-set assertions and BLOB-CONTENTS.md; miss one and the rows strand
-- [A new explain-schema field must be defaulted](project_explain_references_default_is_load_bearing.md) — the stored jsonb is re-parsed on EVERY read, so a required field makes every cached answer re-run and re-charge
-- [`/welcome` is the front door](project_welcome_is_the_front_door_m199.md) — M199 gated `/translate` and `/explain` by layout; the INDEX cannot follow and keeps the loader rule
-- [A new locale namespace touches four places](project_a_new_locale_namespace_touches_four_places.md) — i18n.ts AND meta-title.ts; the locales test's 20-key floor now applies to common and legal only
-- [Button's `pending` is the one busy signal](project_button_pending_is_the_one_busy_signal.md) — spinner, disabled and aria-busy together; ignored under `asChild` because Slot takes one child
-- [The two translator cards' class list must stay a literal](project_search_panes_card_recipe_must_stay_a_literal.md) — a unit test greps `className="..."`; a conditional class goes on a wrapper
-- [`requiresAccount` drives the signed-out rail](project_nav_catalog_carries_requires_account.md) — `visiblePrimaryNavigationItems`, `BottomNav` returns null, and AppWrapper's bottom padding follows it
-- [The 8s/25s waiting phases ride the poll tick](project_translation_wait_phases_ride_the_tick_counter.md) — `elapsedMs` advances 3s at a time, so a threshold turns at the first tick past it; never add a second timer
-- [The ask log is the reader half of explain](project_the_ask_log_is_the_reader_half_of_explain.md) — explanation_asks carries the reader, explanations stays readerless, and a unit test guards the absence
-- [ExplanationBody is the one rendering](project_explanation_body_is_the_one_rendering.md) — its variant may change only the lead size and heading level; explanationToText names no section
-- [The language bar always shows labels](project_language_bar_labels_and_allow_detect.md) — label cells inside the same grid, aria-labelledby not aria-label, and allowDetect=false on /explain
-- [The clipboard has a fallback, behind a port](project_clipboard_has_a_fallback_port.md) — plain-http origins have no `navigator.clipboard`; `copyText` never throws and the CHOICE is what a unit test drives
-- [A terminal write always writes `error`](project_a_terminal_write_always_writes_error.md) — pg-boss retries on the SAME row, so a conditional spread leaves a timeout message beside a good answer
-- [The header account slot needs two `min-w-0`s](project_header_account_slot_truncation.md) — `truncate` cannot act on a flex item that may not shrink; the percentage cap goes on the cell
-- [The avatar menu is the header's right side](project_avatar_menu_is_the_header_right_side.md) — AccountSlot and the theme slot are gone; one hook, `use-theme-preference.ts`, backs both theme controls
-- [The account door is a pure resolver](project_avatar_menu_door_resolver.md) — no DOM test environment, so the rule leaves the JSX; sign-out is a POST so its clientAction runs
-- [The shell's legal footer was tried and removed](project_kenning_legal_footer_removed.md) — settings.tsx's LegalLinksCard is now the sole home for imprint/privacy/terms links; don't re-add a shell-wide footer without asking
-- [The build stamp is one object, two deliveries](project_kenning_build_stamp.md) — `__KENNING_BUILD__` plus `build/build-info.json`, parked on globalThis because the build evaluates vite.config twice
-- [/api/build is public, no-store, and live in dev](project_kenning_api_build_endpoint.md) — reading the stamp file in dev pins a permanent false "reload" ribbon
-- [The phone chrome is one 56px header](project_kenning_mobile_density_pass.md) — the drawer trigger IS the mark, the language-bar labels went sr-only, and ModeSwitch is the one control under 44px
-- [Per-item actions live behind one overflow menu](project_item_actions_menu_is_the_per_item_surface.md) — four row kinds; a confirm row needs onSelect preventDefault and a non-modal dropdown
-- [theme-color must be script-owned, not JSX](project_kenning_theme_color_is_script_owned.md) — React 19 re-creates a rendered meta tag on hydration, stranding the boot script's fix
-- [Removing an ask withdraws the authorship first](project_authorship_withdraw_on_remove.md) — keyed on the question, never a `ready` panel; the setters' own userId clause needs a direct-call test
-- [A rejection is two rows, the fact and the signal](project_rejection_split_fact_and_signal.md) — the reason tuple lives in a pure client-safe module the schema imports back for its check constraint
-- [A re-run is a second QUESTION, not a second call](project_rerun_prompt_is_a_second_question.md) — v3.md's `{{situation}}`/`{{revision}}`, the PROMPT_VERSION bump AND `rerunReason`; the singleton key stays unchanged
-- [The translation writer was already idempotent](project_translate_writer_already_upserts.md) — the edge upserts and `xmax = 0` keeps `written` to genuine inserts; no re-run change was needed
-- [The reject route is the only `rerun` caller](project_reject_route_is_the_only_rerun_caller.md) — it owns the cooldown, and TranslationPaneEndpoints has THREE producers including explain-pane.ts
-- [A Drizzle `sql` array renders as `($1, $2)`](project_drizzle_sql_array_renders_parenthesised.md) — so `= any(${ids}::text[])` and `in (${ids})` both fail; write `in ${ids}`
-- [The feedback export is corpus-only](project_translation_feedback_export_is_corpus_only.md) — signals never the fact table; the operator page and both CLI commands inherit it
-- [A queued re-run supersedes the run it judged](project_a_queued_rerun_supersedes_the_run_it_judged.md) — latestRun goes pending, so a second press answers no-run; test the repeat against a WITHHELD pair
-- [An en-only locale key breaks typecheck too](project_en_only_locale_key_breaks_typecheck.md) — app/emails/i18n.server.ts types de against en; prove your code with a scratch fill, then restore
-- [ResultField is keyed on the answer text](project_result_field_is_keyed_on_the_answer.md) — a child of the pane loses its state when the answer changes; survivors live in useTranslationPane
+- [readdirSync recursive needs an encoding](project_node_readdirsync_recursive_typing.md) — without it it types as (string | Buffer)[]
+- [pg-boss singletonKey needs a queue policy](project_pgboss_queue_policy_dedupe.md) — inert under `standard`; enrichment owns a `stately` queue
+- [import.meta.url asset reads die in the bundle](project_bundled_module_asset_reads.md) — lazy read, cwd fallback, cut the static route edge
+- [A union member with two literal states never narrows away](project_ts_union_member_with_two_literal_states.md) — one literal per member
+- [RR8 fetcher.load is stable, the fetcher object is not](project_rr8_fetcher_load_is_stable.md) — depend on `fetcher.load` or a poll restarts every render
+- [Transient typecheck failures in a shared worktree](project_transient_typecheck_failures_shared_worktree.md) — typegen sees half-written routes.ts; re-run
+- [Local-only sync_blobs reads sit outside the adapter](project_blob_usage_read_lives_outside_the_adapter.md) — select size_bytes, never getBlob
+- [key-records answers the document, not the port](project_key_records_envelope_is_the_document.md) — `records` on GET, a BARE record on PUT
+- [The local-store barrel is the one seam](project_local_store_barrel_is_the_one_seam.md) — deep-importing persist.ts bypasses the save lock
+- [Toast a mutation from an effect, not the render](project_toast_after_client_action.md) — sonner mid-render warns; `t` in deps re-fires on language change
+- [One projection decides the blob's keys](project_one_projection_decides_the_blob_keys.md) — blob-schema.ts must stay free of the token `history`
+- [sync-client schemas pin the document](project_sync_client_schemas_pin_the_document.md) — all four wire schemas exported so a test can parse PROTOCOL.md
+- [root's clientLoader keeps offline mutations alive](project_root_clientloader_offline_revalidation.md) — only a network failure is absorbed
+- [root data's `headers` is an all-undefined method bag on the client](project_root_data_headers_serialized.md) — a fallback cannot return `combineHeaders()`
+- [A public /api/v1 route needs a bearer-guard exemption](project_api_v1_bearer_guard_exemptions.md) — an Express 401 lands before the router
+- [The LLM registry owns the audio call too](project_llm_registry_owns_the_audio_call.md) — use registry.transcribeAudio, fake it with withAudioPort
+- [Sync triggers, and the locked-but-signed-in state](project_sync_triggers_and_locked_state.md) — a reload leaves a device signed in with no data key
+- [cli/index.ts is a dynamic-import launcher](project_cli_json_output_polluted_by_pool_log.md) — a static import hoists above LOG_LEVEL, pollutes JSON stdout
+- [The CLI has no global --format](project_cli_format_option_is_per_subcommand.md) — it is per subcommand
+- [The invite pepper is a third SERVER_SECRET subkey](project_invite_token_pepper_is_a_third_subkey.md) — derived in app/lib/invites/
+- [The GET ?q= ceiling is 16 KiB of headers](project_get_q_url_ceiling.md) — 16000 ASCII chars pass, 17000 gives 431; do not switch to POST
+- [VoiceInput takes a sink, not an input element](project_voice_input_takes_a_sink.md) — `{ value: string }`, because the search box is a textarea
+- [Signup admission lives in the store](project_signup_admission_lives_in_the_store.md) — enforced inside the insert's transaction; 'open' mode is refused
+- [The zero-account bootstrap check needs an advisory lock](project_bootstrap_zero_account_check_needs_an_advisory_lock.md) — FOR UPDATE can't lock an empty table
+- [node --test's pass line is never in tail -5](project_node_test_summary_never_in_tail_5.md) — a checklist piping through tail -5 is unsatisfiable
+- [searchPhrase caps the word list at six and calls no LLM](project_translate_phrase_token_limit.md) — loader reports shortfall as `phraseWordsOmitted`
+- [A tracker grep check is case sensitive](project_tracker_grep_is_case_sensitive.md) — an ALL-CAPS heading defeats one
+- [The enrichment trigger is the shared seam](project_enrichment_trigger_is_the_shared_seam.md) — a grep demands identical enrichment imports
+- [search.tsx has source-grep unit tests](project_search_tsx_has_source_grep_tests.md) — repair the literal, not the code
+- [The two idle reasons already read differently](project_enrichment_idle_reasons_already_differ.md) — never write a second idle line
+- [The post-M184 public surface](project_public_surface_contract_m184.md) — `_app.gated.tsx` carries accountMiddleware, never authMiddleware
+- [A public-surface test needs a liveness case](feedback_public_surface_test_needs_liveness_case.md) — run the real gate for contrast
+- [Tailwind 4 resolves --color-* at :root](project_tailwind4_theme_vars_resolve_at_root.md) — a scoped override needs the raw token AND the --color-* line
+- [typegen runs in production mode](project_typegen_runs_in_production_mode.md) — a dev-only route gets no ./+types, reads useLoaderData
+- [account.* owns the UI vocabulary](project_account_namespace_owns_the_ui_vocabulary.md) — a handle is a "sign-in name"
+- [The account doors are /sign-in and /sign-up](project_sign_in_up_routes_m187.md) — old sync paths 301-redirect, keeping the query string
+- [SearchPanes is the shared surface](project_search_panes_is_the_shared_surface.md) — two-pane markup left search.tsx; two source-grep tests followed
+- [account components live in one directory](project_account_components_directory.md) — `app/components/sync/` is gone; wire names keep sync/passphrase
+- [The recovery-code gate is a checkbox](project_recovery_code_gate_is_a_checkbox.md) — the retype module and its tests were deleted
+- [The doors are a hero above the pane](project_landing_doors_above_the_pane.md) — `LandingDoors` has no card; example goes in `emptyPane`
+- [The voice hint waits for a transcription](project_voice_hint_waits_for_a_transcription.md) — a fresh page shows no best-effort note
+- [The doors redirect a signed-in reader](project_doors_redirect_a_signed_in_reader.md) — both loaders use `getAccountSession`
+- [Render a route component with createRoutesStub](project_render_a_route_component_in_a_test.md) — `MemoryRouter` throws on `useNavigation`
+- [The tenancy is gone, ADR-0010](project_the_tenancy_is_gone_adr_0010.md) — root.tsx returns no `user`; `actorEmail` now holds a handle
+- [`_super` is a top-level layout](project_super_is_a_top_level_layout.md) — accountMiddleware then superadminMiddleware; `/super` hops to `/super/llm`
+- [getRawDb is the only handle](project_getrawdb_is_the_only_handle.md) — tenant-db.ts is gone; apiKeys carries its own isSuperadmin
+- [drizzle:generate needs a pty](project_drizzle_generate_needs_a_pty.md) — a DROP TABLE CASCADE beside a DROP CONSTRAINT fails at apply
+- [Plain accounts (M191)](project_plain_accounts_m191.md) — non-disclosure, token consumption, session epoch, limiter address, three-run migration
+- [strip-types tests need a .ts extension](project_strip_types_test_imports.md) — no `#app/*` aliases under bare node
+- [Node 24's test runner prints spec, not tap](project_node24_test_reporter_is_spec.md) — pass `--test-reporter=tap` to grep `# pass`
+- [An integration skip guard must be inline](project_integration_skip_guard_must_be_inline.md) — the enforcing test reads source TEXT
+- [jsonb reorders object keys](project_jsonb_reorders_object_keys.md) — a blob round-trip cannot assert literal bytes
+- [Sign-out wipes the device in a clientAction](project_sign_out_wipes_via_clientaction.md) — `serverAction()` LAST, because it throws the redirect
+- [The sync session comes from root's `userId`](project_sync_session_is_installed_from_root_data.md) — nothing called `setSyncSession` after M191/01
+- [A TinyBase poll re-creates a deleted database](project_tinybase_poll_recreates_a_deleted_db.md) — destroy the persisters first; assert the ORDER
+- [The account doors left the app shell](project_auth_doors_left_the_app_shell.md) — sidebar pushed the card 128px off centre; `_auth-shell.tsx`
+- [`unconfirmed` needs the right password](project_unverified_signin_is_not_an_oracle.md) — check the password BEFORE the confirmed state
+- [The language pair is stated, never pinned](project_language_pair_is_stated_not_pinned.md) — no VALUE imports from detect-language, or drizzle bundles
+- [A store VALUE needs no SCHEMA_VERSION bump](project_store_values_do_not_bump_schema_version.md) — values reach neither the backup envelope nor the blob
+- [translate.tsx's pair must be reconciled with direction](project_translate_pair_direction_reconcile_m187.md) — `from=detect` hides the collision
+- [The translator surface is one column](project_translator_surface_is_one_column.md) — the bar is a three-cell grid; neither card carries `.surface-brand`
+- [checkTriggerRateLimit spends on every call](project_translate_rate_limit_last_of_three_guards_m193.md) — panel.server.ts asks it last
+- [The budget view collapses its reason](project_translate_budget_view_collapses_reason.md) — translation-pane.tsx reads state.panel.reason itself
+- [Attribution's generated-source check is DB-free](project_translate_attribution_generated_source_slug.md) — lives in generated-source.ts, not attribution.tsx
+- [rank.ts is the one reading order](project_translate_rank_is_the_one_order.md) — myVote is never a sort key; a vote needs a margin of 2
+- [One row is the answer, the rest are alternatives](project_translate_primary_answer_and_alternatives.md) — `translationPaneText(state, chosenId)` returns ONE lemma
+- [A candidate carries an optional usage note](project_translate_candidate_note_prompt_v2.md) — prompt v2 renames v1.md away; note refreshed to null on re-run
+- [A browser probe read during render ships the server's answer](project_translate_env_probe_needs_a_mount_effect.md) — probe in a mount effect
+- [The CLI boundary schema strips fields](project_cli_boundary_schema_strips_fields.md) — a field absent from cli/lib/schemas.ts is DISCARDED
+- [A sentence goes under the CLI table](project_cli_note_renders_under_the_table.md) — never a fifth column
+- [The canonical-host 301 comes from the container](project_canonical_host_301_lives_in_the_container.md) — kenning canonical, translate legacy
+- [role="img" is banned on an inline svg](project_role_img_is_banned_on_an_inline_svg.md) — aria-label plus a `<title>`; two brand fills exempt raw colour
+- [The install entry is a catalog action, not a destination](project_install_entry_is_a_catalog_action.md) — `useInstallPrompt` starts unavailable
+- [translate.altan.fyi renamed to Kenning](project_translate_kenning_rename.md) — APP_NAME in app/lib/app-name.ts is the single source
+- [A parallel visual rebrand can be mid-edit, uncommitted](project_translate_dirty_tree_parallel_rebrand.md) — check git status first, don't revert out-of-scope files
+- [Explain is the third sibling](project_explain_is_the_third_sibling_m198.md) — M198 has its OWN panel union, own `explain-terms` queue, own refusal copy
+- [The pane reducer is generic, pinned by NoInfer](project_pane_reducer_is_generic_with_noinfer.md) — without it `Panel` narrows to one union member
+- [A jsonb column needs `.$type<JsonValue>()`](project_jsonb_column_needs_a_type_for_the_lint_gate.md) — a bare one selects as `unknown`
+- [A synced collection has nine seams](project_synced_collection_has_nine_seams.md) — miss one and the rows strand
+- [A new explain-schema field must be defaulted](project_explain_references_default_is_load_bearing.md) — jsonb re-parsed on EVERY read
+- [`/welcome` is the front door](project_welcome_is_the_front_door_m199.md) — M199 gated `/translate` and `/explain` by layout
+- [A new locale namespace touches four places](project_a_new_locale_namespace_touches_four_places.md) — i18n.ts AND meta-title.ts
+- [Button's `pending` is the one busy signal](project_button_pending_is_the_one_busy_signal.md) — spinner, disabled, aria-busy together; ignored under `asChild`
+- [The two translator cards' class list must stay a literal](project_search_panes_card_recipe_must_stay_a_literal.md) — a conditional class goes on a wrapper
+- [`requiresAccount` drives the signed-out rail](project_nav_catalog_carries_requires_account.md) — `BottomNav` returns null; AppWrapper padding follows it
+- [The 8s/25s waiting phases ride the poll tick](project_translation_wait_phases_ride_the_tick_counter.md) — never add a second timer
+- [The ask log is the reader half of explain](project_the_ask_log_is_the_reader_half_of_explain.md) — explanations stays readerless
+- [ExplanationBody is the one rendering](project_explanation_body_is_the_one_rendering.md) — variant may change only lead size and heading level
+- [The language bar always shows labels](project_language_bar_labels_and_allow_detect.md) — aria-labelledby not aria-label; allowDetect=false on /explain
+- [The clipboard has a fallback, behind a port](project_clipboard_has_a_fallback_port.md) — `copyText` never throws
+- [A terminal write always writes `error`](project_a_terminal_write_always_writes_error.md) — pg-boss retries on the SAME row
+- [The header account slot needs two `min-w-0`s](project_header_account_slot_truncation.md) — the percentage cap goes on the cell
+- [The avatar menu is the header's right side](project_avatar_menu_is_the_header_right_side.md) — one hook, `use-theme-preference.ts`, backs both theme controls
+- [The account door is a pure resolver](project_avatar_menu_door_resolver.md) — sign-out is a POST so its clientAction runs
+- [The shell's legal footer was tried and removed](project_kenning_legal_footer_removed.md) — settings.tsx's LegalLinksCard is the sole home now
+- [The build stamp is one object, two deliveries](project_kenning_build_stamp.md) — `__KENNING_BUILD__` plus `build/build-info.json`
+- [/api/build is public, no-store, and live in dev](project_kenning_api_build_endpoint.md) — else it pins a permanent false "reload" ribbon
+- [The phone chrome is one 56px header](project_kenning_mobile_density_pass.md) — drawer trigger IS the mark; ModeSwitch is the one control under 44px
+- [Per-item actions live behind one overflow menu](project_item_actions_menu_is_the_per_item_surface.md) — a confirm row needs onSelect preventDefault
+- [theme-color must be script-owned, not JSX](project_kenning_theme_color_is_script_owned.md) — React 19 re-creates the meta tag on hydration
+- [Removing an ask withdraws the authorship first](project_authorship_withdraw_on_remove.md) — keyed on the question, never a `ready` panel
+- [A rejection is two rows, the fact and the signal](project_rejection_split_fact_and_signal.md) — the reason tuple lives in a pure client-safe module
+- [A re-run is a second QUESTION, not a second call](project_rerun_prompt_is_a_second_question.md) — v3.md's placeholders, PROMPT_VERSION bump, `rerunReason`
+- [The translation writer was already idempotent](project_translate_writer_already_upserts.md) — `xmax = 0` keeps `written` to genuine inserts
+- [The reject route is the only `rerun` caller](project_reject_route_is_the_only_rerun_caller.md) — TranslationPaneEndpoints has THREE producers
+- [A Drizzle `sql` array renders as `($1, $2)`](project_drizzle_sql_array_renders_parenthesised.md) — write `in ${ids}`, not `in (${ids})`
+- [The feedback export is corpus-only](project_translation_feedback_export_is_corpus_only.md) — signals never the fact table
+- [A queued re-run supersedes the run it judged](project_a_queued_rerun_supersedes_the_run_it_judged.md) — test the repeat against a WITHHELD pair
+- [An en-only locale key breaks typecheck too](project_en_only_locale_key_breaks_typecheck.md) — prove your code with a scratch fill, then restore
+- [ResultField is keyed on the answer text](project_result_field_is_keyed_on_the_answer.md) — survivors live in useTranslationPane
+- [The alternative chip is a visible "Use this" pill](project_translate_alternative_chip_useThisShort.md) — lang moves off the button onto the lemma span alone

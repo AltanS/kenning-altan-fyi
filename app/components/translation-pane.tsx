@@ -797,7 +797,16 @@ function TranslationPaneBody({ controller, to }: TranslationPaneProps) {
             TAPPING ONE MAKES IT THE ANSWER, AND POSTS NOTHING. The vote buttons
             sit BESIDE this button and never inside it: a button inside a button
             is invalid markup, and nesting them would let a vote swallow the
-            selection press. */}
+            selection press.
+
+            THE ACTION CARRIES A VISIBLE CHIP, NOT ONLY AN `aria-label`. The
+            underline alone read as a glossary link, not as "tap to make this
+            your answer": a reader upvoted a note-backed alternative expecting
+            that to be their choice, and the answer, the copy button, the star
+            and the history all stayed on the model's own top pick instead. A
+            vote judges the shared corpus (`TranslationVotes` above); this chip
+            is the one control that is this reader's own answer, so it has to
+            read as a control rather than as styling on the word. */}
         {alternatives.length > 0 && (
           <section className="flex flex-col gap-2 border-t pt-3">
             <h3 className="text-sm font-medium text-muted-foreground">{t('translation.alternatives')}</h3>
@@ -810,12 +819,16 @@ function TranslationPaneBody({ controller, to }: TranslationPaneProps) {
                     word={
                       <button
                         type="button"
-                        lang={to}
                         aria-label={t('translation.useThis')}
                         onClick={() => controller.choose(row.translationId)}
-                        className="font-mono text-base underline underline-offset-4 hover:no-underline"
+                        className="group inline-flex items-center gap-2"
                       >
-                        {row.lemma}
+                        <span lang={to} className="font-mono text-base underline underline-offset-4 group-hover:no-underline">
+                          {row.lemma}
+                        </span>
+                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground group-hover:bg-primary/5 group-hover:text-brand-ink">
+                          {t('translation.useThisShort')}
+                        </span>
                       </button>
                     }
                   />
