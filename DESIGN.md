@@ -480,8 +480,8 @@ true.** Apply these priority rules:
 6. **"Coming soon" is a dead end.** Explain what is missing, provide current
    workarounds, and estimate how long the alternative takes.
 7. **One phrasing per idea.** Do not duplicate text across different screens.
-8. **All copy and all translations go through `pnpm -C djinn wordsmith`.** Never
-   write or translate interface strings by hand. The tool blocks changes that
+8. **All copy and all translations go through the `wordsmith` skill (dev-tools plugin).** Never
+   write or translate interface strings by hand. The skill blocks changes that
    drop keys or translate code placeholders, preventing human errors.
 
 ---

@@ -2,7 +2,7 @@
  * The claims the legal copy must keep making, and the ones it must never make.
  *
  * WHY A TEST AND NOT A REVIEW. The copy in `app/locales/<locale>/legal.json` is
- * GENERATED (`pnpm -C djinn wordsmith`), so a re-run can quietly reword a
+ * GENERATED (the `wordsmith` skill), so a re-run can quietly reword a
  * sentence out of existence. Two classes of change matter enough to fail the
  * gate:
  *

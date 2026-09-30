@@ -27,8 +27,8 @@ import { useLocation } from 'react-router';
  */
 
 /**
- * The Matomo site id for `kenning.altan.fyi`, registered in djinn's site map
- * under the `translate` alias.
+ * The Matomo site id for `kenning.altan.fyi`, registered in the workspace site map
+ * (`tools/matomo/lib/sites.ts`) under the `kenning` alias.
  *
  * Written as a literal inside the snippet below rather than interpolated: an id
  * that only appears after string interpolation is exactly the kind of value

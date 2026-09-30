@@ -52,7 +52,7 @@ file changes.
 
 ## M175/03 matomo
 
-**Site:** Matomo site id `19`, alias `translate` in `djinn/matomo/lib/sites.ts`,
+**Site:** Matomo site id `19`, alias `translate` in `tools/matomo/lib/sites.ts` (renamed to `kenning` since),
 on `https://matomo.sprqvntrs.com/`.
 
 **Tag:** `app/components/site/matomo.tsx`, rendered from `app/root.tsx` only when
@@ -71,11 +71,11 @@ posted twice to `matomo.php?idsite=19` (HTTP 204), with
 query string, which is the privacy claim holding.
 
 ```
-$ pnpm -C djinn matomo live --site translate --count 5
+$ pnpm -C tools matomo live --site translate --count 5
 Time (UTC)           Country  Pages  Duration  Referrer  Entry Page
 2026-09-03 08:53:18  Germany      2       26s  direct    Search
 
-$ pnpm -C djinn matomo summary --site translate
+$ pnpm -C tools matomo summary --site translate
   Visits: 1   Unique visitors: 1   Pageviews: 2   Avg duration: 26s
 ```
 
