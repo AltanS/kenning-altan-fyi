@@ -1,0 +1,35 @@
+name = "translate"
+fleet = "sprqvntrs"
+port = 3000
+health = "/healthcheck"
+memory = "512m"
+zero_downtime = true
+secrets = ["SESSION_SECRET", "PIGEON_API_KEY", "OPENROUTER_API_KEY"]
+
+[needs.pigeon]
+env = "PIGEON_BASE_URL"
+
+[needs.postgres]
+
+[build]
+dockerfile = "Dockerfile.pnpm"
+context = "."
+strategy = "remote"
+
+[env]
+NODE_ENV = "production"
+PORT = "3000"
+APP_URL = "https://kenning.altan.fyi"
+TRUST_PROXY = "1"
+EMAIL_FROM = "no-reply@kenning.altan.fyi"
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
+[access]
+mode = "public"
+locked = ["/super"]
+
+[deploy.production]
+box = "eu"
+domain = "kenning.altan.fyi"
+aliases = ["translate.altan.fyi"]
+redirect = false
