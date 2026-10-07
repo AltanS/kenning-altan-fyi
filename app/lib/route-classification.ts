@@ -239,6 +239,11 @@ export const ROUTE_CLASSIFICATION = {
     reason:
       'Its action calls `requireVoterAccount` first and answers 401 before any path that could reach `enqueueEnrichment` on a downvote.',
   },
+  'api.enrichment-request.$headwordId.ts': {
+    access: 'gated-inline',
+    reason:
+      'It exports `middleware = [authMiddleware]`, which under `/api/` refuses with a 401 in JSON. It queues a billed enrichment job, through the same rate limit and budget guard a page load runs, so it is the half of the enrichment pair that needs an account.',
+  },
   'api.translation-vote.ts': {
     access: 'gated-inline',
     reason:

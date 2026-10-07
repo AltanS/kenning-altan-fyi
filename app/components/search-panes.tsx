@@ -687,8 +687,25 @@ export function SearchPanes({
                 the loader prefers the EXACT lemma match over the fuzzy top hit
                 (M193, decision 1), so reading the array again here would poll
                 one word for a panel resolved against another. */}
+            {/* WITH A DEVICE DICTIONARY THE EXPLANATION WAITS FOR THE READER
+                (M209). The loader sends an `on-request` panel instead of
+                queueing, and this section draws the button, or asks once by
+                itself on a device miss. It takes the SAME lookup the translation
+                area above reads: the hook is called once, in this component, and
+                its status is the only thing passed down. The hit stays here.
+
+                KEYED ON THE WORD AND THE DIRECTION, so a search for another word
+                starts a fresh section. Without it one section instance lives
+                across searches, and the answer a request or a poll left in its
+                fetchers would be read as the answer for the next word. */}
             {panel !== null && translationHeadwordId !== null && (
-              <EnrichmentSection panel={panel} headwordId={translationHeadwordId} to={direction.to} />
+              <EnrichmentSection
+                key={`${translationHeadwordId}:${direction.from}:${direction.to}`}
+                panel={panel}
+                headwordId={translationHeadwordId}
+                to={direction.to}
+                onRequest={deviceDictionary ? { mode: 'deferred', lookup: deviceLookup.status } : { mode: 'automatic' }}
+              />
             )}
             {/* The correction is a link and nothing else. It renders under the
                 empty-result message rather than in place of it, so the reader

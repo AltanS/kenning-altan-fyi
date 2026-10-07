@@ -67,8 +67,9 @@ SQLite package is added.
 - The settings card shows the WikDict attribution and the CC BY-SA 4.0 licence.
 - The cookie can outlive a cleared IndexedDB. That reads as a miss, so the AI
   runs as it did before. Nothing breaks.
-- Open: the enrichment panel (`resolveTriggeredPanel`) still queues its own job
-  for a headword that has senses. It is a separate cost and is not deferred here.
+- The enrichment card waits behind a hit too (M209, same day). It was found by the
+  M208 browser walk: the enrichment job was still queued on page load. It now
+  follows the same rule as the translation. The entry page is not deferred.
 - Open: the operator still owes a legal check of the CC BY-SA terms for the
   on-screen display next to Kenning's own content.
 

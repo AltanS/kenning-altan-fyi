@@ -16,6 +16,8 @@ import { entrySensesQuery } from '#app/lib/dictionary/entry.server';
 import { loadLandingExample } from '#app/lib/dictionary/landing-example';
 import { reconcilePairWithDirection, resolveLanguagePair } from '#app/lib/dictionary/language-pair';
 import { normalizeForLanguage, normalizeQuery } from '#app/lib/dictionary/normalize';
+import { resolveWordEnrichmentPanel } from '#app/lib/enrichment/device-dictionary-gate';
+import { resolveEnrichmentPanel } from '#app/lib/enrichment/state.server';
 import { resolveTriggeredPanel } from '#app/lib/enrichment/trigger.server';
 import { isDeviceDictionaryDirection, resolveWordTranslationPanel } from '#app/lib/translation/device-dictionary-gate';
 import {
@@ -417,28 +419,46 @@ export async function loader({ request }: Route.LoaderArgs) {
   //   flag is true whether or not the corpus found a headword, because a word
   //   the corpus has never seen is exactly where a device hit matters most.
   //
-  //   IT DEFERS THE TRANSLATION PANEL AND NOTHING ELSE. `resolveTranslationPanel`
-  //   is the read-only half, so a pair nobody has translated comes back `none`
-  //   and queues nothing; the screen then looks the word up on the device and
-  //   either offers a button or asks by itself. The enrichment panel above is a
-  //   different job and is deliberately not deferred yet.
+  //   IT DEFERS BOTH PANELS. `resolveTranslationPanel` is the read-only half of
+  //   the translation, so a pair nobody has translated comes back `none` and
+  //   queues nothing (M208). The enrichment panel is deferred the same way
+  //   (M209): `resolveWordEnrichmentPanel` reads the cache and maps a `pending`
+  //   that has nothing queued behind it to `on-request`. The screen then looks
+  //   the word up on the device and either offers a button or asks by itself,
+  //   once per panel, each through its own guarded route.
   const deviceDictionary = isDeviceDictionaryDirection({ cookieHeader, from: direction.from, to: direction.to });
 
   const [panel, translationPanel] = await Promise.all([
     chosenHit === undefined ? null : (
-      resolveTriggeredPanel({
-        db,
-        request,
-        headwordId: chosenHit.headwordId,
-        senseIds,
-        from: direction.from,
-        to: direction.to,
-        // The reader's own votes on the rows the panel renders. It comes from
-        // the session the gate above already resolved and validated, rather
-        // than from a second read of the same cookie: this branch is only
-        // reachable with `q !== ''`, so `user` is never null here, and
-        // re-reading would risk two answers to one question in one request.
-        accountId: user?.id ?? null,
+      resolveWordEnrichmentPanel({
+        isDeferred: deviceDictionary,
+        // The cache read, with no guard and no enqueue. Used only when the device
+        // dictionary comes first; see `device-dictionary-gate.ts`.
+        read: () =>
+          resolveEnrichmentPanel(db, {
+            headwordId: chosenHit.headwordId,
+            senseIds,
+            from: direction.from,
+            to: direction.to,
+            accountId: user?.id ?? null,
+          }),
+        // THE ONLY CALL TO `resolveTriggeredPanel` IN THIS LOADER, and it is the
+        // path every cookie-less request takes, unchanged.
+        trigger: () =>
+          resolveTriggeredPanel({
+            db,
+            request,
+            headwordId: chosenHit.headwordId,
+            senseIds,
+            from: direction.from,
+            to: direction.to,
+            // The reader's own votes on the rows the panel renders. It comes from
+            // the session the gate above already resolved and validated, rather
+            // than from a second read of the same cookie: this branch is only
+            // reachable with `q !== ''`, so `user` is never null here, and
+            // re-reading would risk two answers to one question in one request.
+            accountId: user?.id ?? null,
+          }),
       })
     ),
     // NO HEADWORD AT ALL IS `no-entry`, AND ONLY THE LOADER CAN SAY SO. Both

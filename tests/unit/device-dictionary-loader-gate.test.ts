@@ -346,10 +346,12 @@ describe('the loader wires the gate into the single-word branch only', () => {
     assert.match(ROUTE_SOURCE, /read: \(\) =>\s*resolveTranslationPanel\(db, \{/);
   });
 
-  it('leaves the enrichment panel un-deferred: it is a different job and a follow-up', () => {
-    const call = /resolveTriggeredPanel\(\{[\s\S]*?\n {6}\}\)/.exec(ROUTE_SOURCE);
-    assert.ok(call, 'the enrichment panel call is gone from the loader');
-    assert.doesNotMatch(call[0], /deviceDictionary/, 'the enrichment panel is deferred, which this spec does not do');
+  it('defers the enrichment panel through its own gate, from the same flag (M209)', () => {
+    // This case used to assert the opposite, "leaves the enrichment panel
+    // un-deferred", when the explanation job was a follow-up. M209 deferred it,
+    // through `resolveWordEnrichmentPanel` and not through the translation gate;
+    // `enrichment-device-dictionary-gate.test.ts` holds the rest of that wiring.
+    assert.match(ROUTE_SOURCE, /resolveWordEnrichmentPanel\(\{\s*isDeferred: deviceDictionary,/);
   });
 
   it('defers the controller from the same flag the loader returned', () => {

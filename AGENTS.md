@@ -408,8 +408,12 @@ daily cap and the rate limit still apply. The pane still has five states.
 
 **`SERVED_LICENCES` is not touched.** The device dictionary is not a way around
 that list. It is a different path: the reader's own file, on the reader's own
-device. The enrichment panel (`resolveTriggeredPanel`) still queues its own job
-and is not deferred yet.
+device. The enrichment card is deferred the same way (M209): with the cookie, the
+loader reads the cache read-only and the card shows a "Write the explanation"
+button on a device hit, or asks once by itself on a device miss. It posts to
+`POST /api/enrichment-request/:headwordId`, which runs the same two guards as a
+page load. The entry page `/entry/:headwordId` is not deferred and still enriches
+by itself.
 
 ## Prerequisites
 

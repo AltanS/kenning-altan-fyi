@@ -41,8 +41,15 @@ export type EnrichmentState = 'idle' | 'pending' | 'ready' | 'failed';
  * no key for the active provider, so the notes can never arrive and saying
  * "once this entry is enriched" would be a promise nobody can keep.
  * `not-requested` means the work simply has not been asked for yet.
+ *
+ * `on-request` (M209) is the third: the work COULD run and nothing is queued,
+ * because a device dictionary answers first and the reader has not asked for the
+ * explanation. {@link resolveEnrichmentPanel} never returns it. The loader's gate
+ * (`device-dictionary-gate.ts`) maps a read-only `pending` or retryable `failed`
+ * to it, so the screen draws a button instead of skeletons for work that does
+ * not exist.
  */
-export type EnrichmentIdleReason = 'not-configured' | 'not-requested';
+export type EnrichmentIdleReason = 'not-configured' | 'not-requested' | 'on-request';
 
 /**
  * One cached row as a panel renders it, with the reader's view of its score.

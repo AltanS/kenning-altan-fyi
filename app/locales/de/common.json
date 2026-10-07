@@ -401,7 +401,12 @@
     "voteImproving": "Wir verbessern diese Notizen gerade.",
     "voteRecorded": "Ihre Bewertung wurde gespeichert.",
     "budgetReached": "Neue Lernnotizen sind heute nicht verfügbar. Sie können den Wörterbucheintrag oben weiterhin lesen.",
-    "rateLimited": "Sie haben zu oft neue Notizen angefordert. Bitte warten Sie einige Minuten, bevor Sie es erneut versuchen."
+    "rateLimited": "Sie haben zu oft neue Notizen angefordert. Bitte warten Sie einige Minuten, bevor Sie es erneut versuchen.",
+    "onRequest": {
+      "hint": "Die Erklärung und die zusätzlichen Beispiele werden von einem Sprachmodell verfasst, wenn du danach fragst.",
+      "button": "Erklärung schreiben",
+      "pending": "Wird geschrieben..."
+    }
   },
   "translation": {
     "translating": "Wird übersetzt. Dauert einen Moment.",

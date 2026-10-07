@@ -401,7 +401,12 @@
     "voteImproving": "We are improving these notes now.",
     "voteRecorded": "Your vote was recorded.",
     "budgetReached": "New study notes are unavailable today. You can still read the dictionary entry above.",
-    "rateLimited": "You have requested new notes too many times. Please wait a few minutes before trying again."
+    "rateLimited": "You have requested new notes too many times. Please wait a few minutes before trying again.",
+    "onRequest": {
+      "hint": "The explanation and extra examples are written by a language model when you ask.",
+      "button": "Write the explanation",
+      "pending": "Writing..."
+    }
   },
   "translation": {
     "translating": "Translating. This takes a moment.",

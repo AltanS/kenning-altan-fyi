@@ -1,16 +1,23 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFetcher } from 'react-router';
 import { EnrichmentVotes } from '#app/components/enrichment-votes';
 import { Link } from '#app/components/link';
+import { Button } from '#app/components/ui/button';
 import { Skeleton } from '#app/components/ui/skeleton';
 import type { LanguageCode } from '#app/lib/dictionary/detect-language';
+import {
+  enrichmentRequestKey,
+  planEnrichmentRequest,
+  type EnrichmentOnRequest,
+} from '#app/lib/enrichment/request-plan';
 import type {
   EnrichmentIdleReason,
   EnrichmentPanel,
   EnrichmentPanelSense,
   EnrichmentRefusal,
 } from '#app/lib/enrichment/state.server';
+import type { DeferredAskPlan } from '#app/lib/translation/pane-state';
 
 /**
  * The four states of the generated explanation and extra examples.
@@ -62,6 +69,17 @@ import type {
  *   answers are worth re-running. The controls sit inside the sense rather than
  *   at the foot of the panel, because a vote judges ONE cached answer and a
  *   panel can hold several.
+ *
+ * `idle` WITH THE REASON `on-request` IS THE FIFTH THING A READER CAN SEE (M209).
+ *   With a device dictionary for the direction the loader does not queue the
+ *   explanation, so the panel is a quiet card with one button, "Write the
+ *   explanation". Pressing it posts to `/api/enrichment-request/:headwordId`,
+ *   which runs the same two guards a page load does, and the answer replaces what
+ *   is shown: a `pending` panel then polls exactly as before, and a refusal draws
+ *   the refusal line. On a device MISS the card presses the button once by itself,
+ *   keyed on the word and the direction, so a miss behaves as it did before the
+ *   device dictionary existed. Waiting for the reader never polls and never draws
+ *   skeletons: nothing is running, and a skeleton would say it is.
  */
 
 /** How long between two polls of the companion route. */
@@ -82,6 +100,20 @@ const REFUSAL_MESSAGE_KEY = {
   'rate-limited': 'enrichment.rateLimited',
 } satisfies Record<EnrichmentRefusal, string>;
 
+/**
+ * What each idle panel that is NOT waiting for a request says, as a table rather
+ * than a comparison. `on-request` is absent on purpose: it has a button, so it
+ * is drawn by {@link RequestPanel}, and the `Exclude` makes a fourth reason fail
+ * the typecheck here instead of falling into whatever the last branch said.
+ */
+const IDLE_MESSAGE_KEY = {
+  'not-configured': 'enrichment.notConfigured',
+  'not-requested': 'enrichment.idle',
+} satisfies Record<Exclude<EnrichmentIdleReason, 'on-request'>, string>;
+
+/** The default for `onRequest`, a module constant so the default prop is a stable reference. */
+const AUTOMATIC: EnrichmentOnRequest = { mode: 'automatic' };
+
 export interface EnrichmentSectionProps {
   /**
    * The resolved panel. The type comes from a `.server` module, which is safe
@@ -90,18 +122,48 @@ export interface EnrichmentSectionProps {
   panel: EnrichmentPanel;
   headwordId: string;
   to: LanguageCode;
+  /**
+   * Whether the explanation waits for the reader (M209). Omitted means
+   * `automatic`, which is every caller that does not defer, the entry page
+   * included. `deferred` carries where the device dictionary lookup stands.
+   */
+  onRequest?: EnrichmentOnRequest;
 }
 
 /** The quiet card for "nothing is arriving", with the reason it is not. */
-function IdlePanel({ reason }: { reason: EnrichmentIdleReason }) {
+function IdlePanel({ reason }: { reason: Exclude<EnrichmentIdleReason, 'on-request'> }) {
   const { t } = useTranslation();
 
   return (
     <section className="rounded-lg border border-dashed bg-muted/40 p-4">
       <h2 className="font-display text-base font-semibold">{t('enrichment.title')}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {reason === 'not-configured' ? t('enrichment.notConfigured') : t('enrichment.idle')}
-      </p>
+      <p className="mt-1 text-sm text-muted-foreground">{t(IDLE_MESSAGE_KEY[reason])}</p>
+    </section>
+  );
+}
+
+/**
+ * The card for an explanation that waits for the reader.
+ *
+ * - `wait` and `ask-now`: a neutral empty block. The device lookup is running or
+ *   the one automatic request is in flight, and nothing is being written, so no
+ *   text and no skeleton. It holds the card's height so the column does not jump
+ *   when the card or the pending panel takes its place.
+ * - anything else: the quiet card with one button. The press is the only thing
+ *   that spends, and the button reports itself busy through `pending`.
+ */
+function RequestPanel({ plan, isAsking, onAsk }: { plan: DeferredAskPlan; isAsking: boolean; onAsk: () => void }) {
+  const { t } = useTranslation();
+
+  if (plan === 'wait' || plan === 'ask-now') return <div aria-hidden="true" className="h-28" />;
+
+  return (
+    <section className="rounded-lg border border-dashed bg-muted/40 p-4">
+      <h2 className="font-display text-base font-semibold">{t('enrichment.title')}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">{t('enrichment.onRequest.hint')}</p>
+      <Button type="button" variant="outline" size="sm" className="mt-3" pending={isAsking} onClick={onAsk}>
+        {isAsking ? t('enrichment.onRequest.pending') : t('enrichment.onRequest.button')}
+      </Button>
     </section>
   );
 }
@@ -381,13 +443,24 @@ function pickPanel({ loaded, polled }: { loaded: EnrichmentPanel; polled: Enrich
   return loaded;
 }
 
-export function EnrichmentSection({ panel, headwordId, to }: EnrichmentSectionProps) {
+export function EnrichmentSection({ panel, headwordId, to, onRequest = AUTOMATIC }: EnrichmentSectionProps) {
   const fetcher = useFetcher<EnrichmentPanel>();
   const [attempts, setAttempts] = useState(0);
   const load = fetcher.load;
 
+  // THE REQUEST, ON ITS OWN FETCHER. The poll above only ever LOADS, and the two
+  // answer with the same union, so one fetcher would make the button's answer and
+  // a poll overwrite each other. The request's answer replaces the loader's panel
+  // as the thing a poll is compared against: a `pending` one starts the poll, a
+  // refusal draws its line, and none of them can be an `on-request` panel,
+  // because the route runs the triggering resolver.
+  const requestFetcher = useFetcher<EnrichmentPanel>();
+  const submitRequest = requestFetcher.submit;
+  const requestUrl = `/api/enrichment-request/${headwordId}?to=${to}`;
+  const loaded: EnrichmentPanel = requestFetcher.data ?? panel;
+
   const polled = fetcher.data;
-  const shown: EnrichmentPanel = polled === undefined ? panel : pickPanel({ loaded: panel, polled });
+  const shown: EnrichmentPanel = polled === undefined ? loaded : pickPanel({ loaded, polled });
 
   const pollUrl = `/api/enrichment/${headwordId}?to=${to}`;
   const isExhausted = attempts >= POLL_LIMIT;
@@ -413,6 +486,30 @@ export function EnrichmentSection({ panel, headwordId, to }: EnrichmentSectionPr
     }, POLL_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [isPolling, pollUrl, load]);
+
+  // THE REQUEST PLAN, AND THE ONE AUTOMATIC ASK. The rule is the translation
+  // pane's (`planDeferredAsk`): a device HIT never asks by itself, a MISS asks
+  // once. `autoAskedRef` is what makes it once. It is written before the request
+  // goes out, so a second run of the effect for the same word (React Strict Mode
+  // runs it twice in development) posts nothing. `askedKey` is the same fact as
+  // state, because the plan is read during render and a ref must not be. If the
+  // one ask did not take, the answer is still `on-request` and the plan falls
+  // back to the button instead of asking again in a loop.
+  const autoAskedRef = useRef<string | null>(null);
+  const [askedKey, setAskedKey] = useState<string | null>(null);
+  const isAsking = requestFetcher.state !== 'idle';
+  const requestPlan = planEnrichmentRequest({ panel: shown, headwordId, to, onRequest, askedKey, isAsking });
+  const requestKey = shown.from === null ? null : enrichmentRequestKey({ headwordId, from: shown.from, to });
+  const askNow = (): void => {
+    void submitRequest(null, { method: 'post', action: requestUrl });
+  };
+  useEffect(() => {
+    if (requestPlan !== 'ask-now' || requestKey === null) return;
+    if (autoAskedRef.current === requestKey) return;
+    autoAskedRef.current = requestKey;
+    setAskedKey(requestKey);
+    void submitRequest(null, { method: 'post', action: requestUrl });
+  }, [requestPlan, requestKey, requestUrl, submitRequest]);
 
   if (shown.state === 'ready') {
     return <ReadyPanel senses={shown.senses} model={shown.model} from={shown.from} to={to} />;
@@ -440,6 +537,10 @@ export function EnrichmentSection({ panel, headwordId, to }: EnrichmentSectionPr
 
   if (shown.state === 'pending') {
     return <PendingPanel isExhausted={isExhausted} />;
+  }
+
+  if (shown.reason === 'on-request') {
+    return <RequestPanel plan={requestPlan} isAsking={isAsking} onAsk={askNow} />;
   }
 
   return <IdlePanel reason={shown.reason} />;

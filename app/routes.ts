@@ -78,6 +78,13 @@ export default [
   // segment above and every vote would reach the poll loader instead.
   route('/api/enrichment-vote', 'routes/api.enrichment-vote.ts'),
 
+  // The "Write the explanation" button's POST (M209). It sits BESIDE
+  // `/api/enrichment/`, for the reason the vote route does: as
+  // `/api/enrichment/request/:headwordId` the `:headwordId` segment above would
+  // swallow it. It spends, so it carries `authMiddleware` in the file, and it
+  // runs the same two guards (rate limit, budget) a page load does.
+  route('/api/enrichment-request/:headwordId', 'routes/api.enrichment-request.$headwordId.ts'),
+
   // The translation pane's two halves (M193/02). The GET is public and read
   // only, exactly like `/api/enrichment/:headwordId`: it reports where a pair
   // stands and never enqueues, because the pane polls it every three seconds.
