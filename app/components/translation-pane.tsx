@@ -10,7 +10,8 @@ import { REJECTION_REASONS, type RejectionReason } from '#app/lib/translation/re
 import type { RejectOutcome, RejectRerun } from '#app/routes/api.translation.$headwordId.reject';
 import {
   initialTranslationPaneState,
-  isTranslationPanePolling,
+  isTranslationPaneAwaitingAsk,
+  shouldTranslationPanePoll,
   translationPaneAllText,
   translationPaneAlternatives,
   translationPanePrimary,
@@ -226,6 +227,28 @@ export interface TranslationPaneController {
   /** Ask the server to try again. Only ever called from the `failed` view. */
   retry: () => void;
   /**
+   * Ask the server to start the AI translation. Does exactly what `retry` does.
+   *
+   * IT IS THE ONLY WAY A DEFERRED PANE (M208/03) STARTS WORK. A search in a
+   * direction the device holds a dictionary for gets a `none` panel and no job;
+   * this posts to the same retry route a failed pane uses, so the budget, the
+   * daily cap and the rate limit still decide whether a run begins. The answer
+   * reaches the machine through the ordinary `adopted` transition, after which
+   * `deferred` no longer matters.
+   */
+  ask: () => void;
+  /**
+   * Whether the pane is deferred and still waiting for an ask.
+   *
+   * IT IS A QUESTION ABOUT THE HELD PANEL, NOT A SIXTH VIEW. `view` still says
+   * `no-entry` for a `none` panel, and the body below renders nothing for it: the
+   * screen draws the AI area itself, because only the screen knows what the
+   * device dictionary found.
+   */
+  isAwaitingAsk: boolean;
+  /** Whether an ask or a retry is in flight, so a button can say so and refuse a second press. */
+  isAsking: boolean;
+  /**
    * The answer-level rejection: whether it may be offered, what it has to say,
    * and how a reason is sent.
    *
@@ -280,6 +303,16 @@ export interface UseTranslationPaneParams {
    * drift within a milestone. The union changes the two URLs and nothing else.
    */
   target: TranslationPaneTarget;
+  /**
+   * Whether the loader deferred the AI translation behind a device dictionary
+   * (M208/03).
+   *
+   * WHILE IT IS TRUE AND THE PANEL IS `none`, the pane does not poll and waits
+   * for `ask()`. Once the panel is `translating`, `ready`, `failed` or `budget`
+   * it has no effect at all. It adds no pane state: the pane still has exactly
+   * five. Defaults to false, which is every caller that is not the search screen.
+   */
+  deferred?: boolean;
 }
 
 /** The panel a branch with nothing to translate renders. */
@@ -295,7 +328,11 @@ const NO_ENTRY_PANEL: TranslationPanel = { state: 'no-entry' };
  * loader sent. Reading the answer twice, once for the button and once for the
  * list, is how the two come to disagree.
  */
-export function useTranslationPane({ panel, target }: UseTranslationPaneParams): TranslationPaneController {
+export function useTranslationPane({
+  panel,
+  target,
+  deferred = false,
+}: UseTranslationPaneParams): TranslationPaneController {
   const loaded = panel ?? NO_ENTRY_PANEL;
   const [state, setState] = useState<TranslationPaneState>(() => initialTranslationPaneState(loaded));
 
@@ -344,7 +381,7 @@ export function useTranslationPane({ panel, target }: UseTranslationPaneParams):
   }
 
   const endpoints = translationPaneEndpoints(target);
-  const isPolling = isTranslationPanePolling(state) && endpoints !== null;
+  const isPolling = shouldTranslationPanePoll(state, deferred) && endpoints !== null;
   const pollUrl = endpoints?.poll ?? null;
   const retryUrl = endpoints?.retry ?? null;
 
@@ -400,7 +437,10 @@ export function useTranslationPane({ panel, target }: UseTranslationPaneParams):
     setChosenId(translationId);
   };
 
-  const retry = (): void => {
+  // ONE POST FOR TWO BUTTONS. The failed pane's retry and the deferred pane's ask
+  // are the same request to the same gated route, so there is one function and
+  // the budget, the daily cap and the rate limit apply to both identically.
+  const postRetry = (): void => {
     if (retryUrl === null) return;
     void fetcher.submit(null, { method: 'post', action: retryUrl });
   };
@@ -454,7 +494,10 @@ export function useTranslationPane({ panel, target }: UseTranslationPaneParams):
     choose,
     text: translationPaneText(state, chosenId),
     allText: translationPaneAllText(state),
-    retry,
+    retry: postRetry,
+    ask: postRetry,
+    isAwaitingAsk: isTranslationPaneAwaitingAsk(state, deferred),
+    isAsking: fetcher.state !== 'idle',
     rejection: {
       isOffered: isRejectOffered,
       noticeKey: rejected?.noticeKey ?? null,
@@ -754,6 +797,12 @@ export function TranslationPane({ controller, to }: TranslationPaneProps) {
 function TranslationPaneBody({ controller, to }: TranslationPaneProps) {
   const { t } = useTranslation();
   const { view, primary, alternatives, target } = controller;
+
+  // A DEFERRED PANE HAS NOTHING TO SAY YET. Its panel is `none`, which `view` maps
+  // to `no-entry`, and printing "no entry" over a word the dictionary on this
+  // device may well know would be a false statement. The screen draws this area
+  // itself (a button, or a neutral block), so the pane draws nothing.
+  if (controller.isAwaitingAsk) return null;
 
   // The vote control, built inside the `headword` branch of the target and
   // handed to whichever row is being drawn. It is one expression rather than two

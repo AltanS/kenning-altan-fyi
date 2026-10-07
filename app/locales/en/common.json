@@ -57,7 +57,15 @@
     "copyFailed": "That did not reach your clipboard. Select the word and copy it by hand.",
     "entriesHeading": "Dictionary entries, exact word and similar spellings",
     "similarSpellings": "Similar spellings ({{count}})",
-    "phraseEntriesNote": "The dictionary entries for each word. The translation above is the whole sentence."
+    "phraseEntriesNote": "The dictionary entries for each word. The translation above is the whole sentence.",
+    "deviceDictionary": {
+      "label": "Device dictionary",
+      "source": "{{source}}, on this device, {{licence}}",
+      "otherTranslations": "Other translations",
+      "askAi": "Ask the AI as well",
+      "askAiOnly": "Ask the AI",
+      "askAiPending": "Asking..."
+    }
   },
   "voice": {
     "start": "Listen",
@@ -216,7 +224,44 @@
     "installStepsIos": "Open the Share menu in the browser, then choose \"Add to Home Screen\".",
     "installStepsAndroid": "Open the browser menu, then choose \"Install app\" or \"Add to Home screen\".",
     "installStepsDesktop": "Open the browser menu, then choose \"Install\". Some browsers show an install icon in the address bar.",
-    "installedNote": "The app is installed on this device. Open it from your home screen."
+    "installedNote": "The app is installed on this device. Open it from your home screen.",
+    "deviceDictionary": {
+      "title": "Device dictionary",
+      "body": "Add a WikDict dictionary file to this device. A search for one word then shows the dictionary's answer first. The file stays on this device and is never sent to the server.",
+      "listHeading": "On this device",
+      "listLoading": "Checking this device...",
+      "listEmpty": "Dictionaries you add will be listed here.",
+      "listUnavailable": "This browser does not let the app keep a dictionary on this device. Private windows often block it.",
+      "pairLabel": "{{from}} to {{to}}",
+      "entryWords": "{{words}} words",
+      "importedOn": "Added {{date}}",
+      "removeTrigger": "Remove",
+      "removeLabel": "Remove the {{pair}} dictionary",
+      "removeTitle": "Remove this dictionary?",
+      "removeBody": "The {{pair}} dictionary will be deleted from this device. You can add it again from the file.",
+      "removeConfirm": "Remove",
+      "removePending": "Removing...",
+      "removeCancel": "Cancel",
+      "removedToast": "Dictionary removed.",
+      "removeFailed": "The dictionary could not be removed. Try again.",
+      "fileLabel": "Choose a WikDict file",
+      "fileHint": "The direction comes from the file name, for example de-en.sqlite3.",
+      "statusReading": "Reading the file...",
+      "statusIndexing": "Building the word list. This can take a few seconds.",
+      "statusSaving": "Saving to this device: {{written}} of {{total}} words.",
+      "statusDone": "Done. The {{pair}} dictionary has {{words}} words.",
+      "savedToast": "Dictionary added.",
+      "failedFileName": "The file name must look like de-en.sqlite3: two different codes from en, de, tr and es, a hyphen and .sqlite3. The name tells the app which way the dictionary translates.",
+      "failedUnreadable": "The app cannot read this file as a WikDict dictionary. Download it again from WikDict and try once more.",
+      "failedEmpty": "The file holds no words the app can use.",
+      "failedStorage": "This device would not keep the dictionary. Nothing was saved.",
+      "downloadsHeading": "Get a dictionary file",
+      "downloadsBody": "Kenning does not host these files. Download one from WikDict yourself, then choose it above.",
+      "downloadSize": "about {{megabytes}} MB",
+      "downloadNewTab": "opens in a new tab",
+      "attributionLead": "Dictionary data from",
+      "attributionTail": "built on Wiktionary, shared under {{licence}}."
+    }
   },
   "auth": {
     "signingIn": "Signing you in.",

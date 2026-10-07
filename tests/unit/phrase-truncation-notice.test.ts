@@ -54,12 +54,24 @@ const NOTICE_PLACEHOLDER = '{{lookedUp}}';
 /** How many words past the cap the sample paste carries. */
 const OVERFLOW = 3;
 
-/** The `search` section of one locale's `common.json`, decoded rather than inspected. */
-const SearchSectionSchema = z.object({ search: z.record(z.string(), z.string()) });
+/**
+ * The `search` section of one locale's `common.json`, decoded rather than inspected.
+ *
+ * A value is a string or ONE level of nested strings: `search.deviceDictionary.*`
+ * (M208/03) is a group, and this test reads only the flat keys it names.
+ */
+const SearchSectionSchema = z.object({
+  search: z.record(z.string(), z.union([z.string(), z.record(z.string(), z.string())])),
+});
 
 function searchStrings(locale: string): Record<string, string> {
   const raw = readFileSync(join(REPO_ROOT, 'app/locales', locale, 'common.json'), 'utf8');
-  return SearchSectionSchema.parse(JSON.parse(raw)).search;
+  const section = SearchSectionSchema.parse(JSON.parse(raw)).search;
+  const leaves = Object.entries(section).flatMap(([key, value]) => {
+    const leaf = z.string().safeParse(value);
+    return leaf.success ? [[key, leaf.data] as const] : [];
+  });
+  return Object.fromEntries(leaves);
 }
 
 describe('the cap is reachable from a text area, and the shortfall is countable', () => {

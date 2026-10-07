@@ -17,7 +17,12 @@ import { loadLandingExample } from '#app/lib/dictionary/landing-example';
 import { reconcilePairWithDirection, resolveLanguagePair } from '#app/lib/dictionary/language-pair';
 import { normalizeForLanguage, normalizeQuery } from '#app/lib/dictionary/normalize';
 import { resolveTriggeredPanel } from '#app/lib/enrichment/trigger.server';
-import { resolveTriggeredTranslationPanel, type TranslationPanel } from '#app/lib/translation/panel.server';
+import { isDeviceDictionaryDirection, resolveWordTranslationPanel } from '#app/lib/translation/device-dictionary-gate';
+import {
+  resolveTranslationPanel,
+  resolveTriggeredTranslationPanel,
+  type TranslationPanel,
+} from '#app/lib/translation/panel.server';
 import { resolveTriggeredPhrasePanel } from '#app/lib/translation/phrase-panel.server';
 import type { TranslationPaneTarget } from '#app/lib/translation/pane-state';
 import type { TitleHandle } from '#app/lib/route-title';
@@ -223,6 +228,9 @@ export async function loader({ request }: Route.LoaderArgs) {
       // matched no headword.
       translationPanel: null,
       translationHeadwordId: null,
+      // No word was searched, so there is no dictionary to put first. Every
+      // return carries the flag so the component reads one shape.
+      deviceDictionary: false,
       recentSearches,
       // ONE INSTANT FOR EVERY ROW IN THE BLOCK, taken here rather than during
       // render, so the five ages are all measured against the same moment.
@@ -331,6 +339,10 @@ export async function loader({ request }: Route.LoaderArgs) {
       // neither has anything to act on here. The pane does not use it any more,
       // it polls by the text.
       translationHeadwordId: null,
+      // A PHRASE NEVER USES THE DEVICE DICTIONARY, and this branch never reads
+      // the cookie that says one exists. The sentence is translated whole by the
+      // model, as before, and the pane is not deferred.
+      deviceDictionary: false,
       // AN ANSWERED SCREEN SHOWS NO LOG. `RecordSearch` below has just written
       // the search the reader is looking at, so the block's newest row would be
       // the screen they are already on.
@@ -399,6 +411,19 @@ export async function loader({ request }: Route.LoaderArgs) {
   // same reason: the spend guards inside each of them decide whether a job
   // starts at all, and a decision taken after the response has gone is no
   // decision.
+  // WHETHER A DEVICE DICTIONARY COMES FIRST FOR THIS DIRECTION (M208/03).
+  //   The cookie is read HERE, in the single-word branch only: the phrase branch
+  //   above returns before this line and carries `deviceDictionary: false`. The
+  //   flag is true whether or not the corpus found a headword, because a word
+  //   the corpus has never seen is exactly where a device hit matters most.
+  //
+  //   IT DEFERS THE TRANSLATION PANEL AND NOTHING ELSE. `resolveTranslationPanel`
+  //   is the read-only half, so a pair nobody has translated comes back `none`
+  //   and queues nothing; the screen then looks the word up on the device and
+  //   either offers a button or asks by itself. The enrichment panel above is a
+  //   different job and is deliberately not deferred yet.
+  const deviceDictionary = isDeviceDictionaryDirection({ cookieHeader, from: direction.from, to: direction.to });
+
   const [panel, translationPanel] = await Promise.all([
     chosenHit === undefined ? null : (
       resolveTriggeredPanel({
@@ -422,15 +447,26 @@ export async function loader({ request }: Route.LoaderArgs) {
     // no matching headword creates nothing.
     chosenHit === undefined ?
       ({ state: 'no-entry' } satisfies TranslationPanel)
-    : resolveTriggeredTranslationPanel(db, {
-        request,
-        headwordId: chosenHit.headwordId,
-        from: direction.from,
-        to: direction.to,
-        // The same reader the enrichment panel above is given, from the same
-        // already-validated session, so the two panels on one screen cannot
-        // disagree about who is looking at them.
-        accountId: user?.id ?? null,
+    : resolveWordTranslationPanel({
+        isDeferred: deviceDictionary,
+        read: () =>
+          resolveTranslationPanel(db, {
+            headwordId: chosenHit.headwordId,
+            from: direction.from,
+            to: direction.to,
+            accountId: user?.id ?? null,
+          }),
+        trigger: () =>
+          resolveTriggeredTranslationPanel(db, {
+            request,
+            headwordId: chosenHit.headwordId,
+            from: direction.from,
+            to: direction.to,
+            // The same reader the enrichment panel above is given, from the same
+            // already-validated session, so the two panels on one screen cannot
+            // disagree about who is looking at them.
+            accountId: user?.id ?? null,
+          }),
       }),
   ]);
 
@@ -447,6 +483,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     panel,
     translationPanel,
     translationHeadwordId: chosenHit?.headwordId ?? null,
+    deviceDictionary,
     // Same as the phrase branch above: this screen carries an answer, so it
     // does not also carry a list of the searches that led to it.
     recentSearches: [],
@@ -521,6 +558,7 @@ export default function TranslateRoute({ loaderData }: Route.ComponentProps) {
     panel,
     translationPanel,
     translationHeadwordId,
+    deviceDictionary,
     recentSearches,
     nowMs,
   } = loaderData;
@@ -531,6 +569,11 @@ export default function TranslateRoute({ loaderData }: Route.ComponentProps) {
   const translation = useTranslationPane({
     panel: translationPanel,
     target: paneTarget({ phrase: phrase !== null, q, headwordId: translationHeadwordId, direction }),
+    // A DEVICE DICTIONARY FOR THIS DIRECTION MEANS THE AI WAITS FOR THE SCREEN.
+    //   The loader returned `none` instead of queueing, and a deferred pane does
+    //   not poll that: it waits for `ask()`. False on the landing and the phrase
+    //   branch, so nothing changes there.
+    deferred: deviceDictionary,
   });
 
   // ONE COLUMN, ONE WIDTH, AT EVERY VIEWPORT. `max-w-2xl` and nothing wider:
@@ -575,6 +618,10 @@ export default function TranslateRoute({ loaderData }: Route.ComponentProps) {
         panel={panel}
         translation={translation}
         translationHeadwordId={translationHeadwordId}
+        // WHICH SIDE OF THE SCREEN LOOKS THE WORD UP ON THIS DEVICE. The hit
+        // itself stays inside `SearchPanes`: it is not passed to `RecordSearch`
+        // or the favourite star below, and no loader, action or fetch ever sees it.
+        deviceDictionary={deviceDictionary}
         // THE WORKED EXAMPLE, WHERE THE ANSWER CARD GOES. With nothing typed
         // there is no answer to show, so that place in the column shows one. It
         // is passed for a signed-in reader too: it is a demonstration rather

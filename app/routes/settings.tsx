@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { Route } from './+types/settings';
 import { InstallApp } from '#app/components/install-app';
 import { LanguageToggle } from '#app/components/language-toggle';
+import { DeviceDictionaryCard } from '#app/components/personal/device-dictionary-card';
 import { Button } from '#app/components/ui/button';
 import { Input } from '#app/components/ui/input';
 import { Label } from '#app/components/ui/label';
@@ -149,6 +150,7 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
         <>
           <PublicNameCard publicName={profile.publicName} />
           <DefaultVisibilityCard hideNewExplanationsByDefault={profile.hideNewExplanationsByDefault} />
+          <DeviceDictionaryCard />
         </>
       )}
       {/* Renders nothing on a device that cannot install the app, and on one

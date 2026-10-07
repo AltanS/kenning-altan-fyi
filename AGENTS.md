@@ -372,6 +372,45 @@ the pair, not just the cards, because an `ok` run row left behind would make
 **Quiz progress is session-only**, and favourites never cross the wire to the
 server; both are ADR-0012 decisions, not omissions.
 
+### A device dictionary (M208)
+
+A reader can load a WikDict pair file (`de-en.sqlite3`) into their own device in
+`/settings`. A search in that direction shows the dictionary hit first, and the
+AI translation waits for a button when there is a hit. See
+[ADR-0013](.adr/0013-the-device-dictionary-is-imported-by-the-reader-and-never-reaches-the-server.md).
+
+The code: `app/lib/local-dictionary/` (`sqlite-table-reader.ts`, `wikdict.ts`,
+`device-dictionary-store.ts`, `card-state.ts`, `use-device-dictionary-hit.ts`),
+`app/lib/dictionary/device-dictionary-cookie.ts`, the settings card
+`app/components/personal/device-dictionary-card.tsx`, the device card and the
+deferred AI area in `app/components/search-panes.tsx`, the `deferred` input of
+`useTranslationPane`, and the cookie gate in the `translate.tsx` loader. Tests:
+`tests/unit/local-dictionary-*.test.ts`, `tests/unit/device-dictionary-*.test.ts`
+and `tests/integration/local-dictionary-real-file.test.ts` (set `WIKDICT_PROBE`).
+
+Four rules.
+
+**The data never reaches the server, and a test fails the build if it could.**
+Nothing under `app/lib/local-dictionary/` is imported by a `.server` module, a
+model, a workflow, an API route or the CLI. The only server-visible trace is the
+`device-dict` cookie, which lists directions like `de-en,en-de` and holds no word.
+The dictionary is never put in TinyBase, because TinyBase syncs to the server.
+
+**No hit text goes anywhere.** `RecordSearch` and `FavoriteToggle` read the
+translation controller, and a device hit is not in the controller. Do not pass it
+to them, to a prompt, or to `search_history`.
+
+**With no cookie, the loader is unchanged.** With the cookie, a single-word
+search uses the read-only `resolveTranslationPanel`, and the pane is `deferred`:
+it does not poll, a hit shows an "Ask the AI as well" button, and a miss asks by
+itself once. Asking goes through the existing retry route, so the budget, the
+daily cap and the rate limit still apply. The pane still has five states.
+
+**`SERVED_LICENCES` is not touched.** The device dictionary is not a way around
+that list. It is a different path: the reader's own file, on the reader's own
+device. The enrichment panel (`resolveTriggeredPanel`) still queues its own job
+and is not deferred yet.
+
 ## Prerequisites
 
 The four `@sprqvntrs/*` dependencies are published to npmjs and need no
@@ -669,6 +708,7 @@ Significant decisions — anything that constrains future work, locks in a trade
 | [0010](.adr/0010-drop-the-inherited-tenancy.md) | Drop the inherited tenancy, org and CMS surfaces | Accepted |
 | [0011](.adr/0011-plain-accounts-replace-the-encrypted-layer.md) | Plain accounts replace the encrypted layer | Accepted |
 | [0012](.adr/0012-quiz-scaffold-is-not-dictionary-data.md) | The quiz scaffold is a shared pool, not dictionary data, and dedupes on a database row, not a pg-boss policy | Accepted |
+| [0013](.adr/0013-the-device-dictionary-is-imported-by-the-reader-and-never-reaches-the-server.md) | The device dictionary is imported by the reader and never reaches the server | Accepted |
 
 ## Coding Style Summary
 

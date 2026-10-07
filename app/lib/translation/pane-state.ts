@@ -334,6 +334,113 @@ export function isTranslationPanePolling<Panel extends PanePanel = TranslationPa
   return translationPaneView<Panel>(state) === 'translating';
 }
 
+/**
+ * Whether the pane is DEFERRED and waiting for the reader (or the screen) to ask.
+ *
+ * IT IS NOT A SIXTH PANE STATE, and the pane still has exactly five. A deferred
+ * pane is one whose loader answered `none` because a device dictionary comes
+ * first: nothing is queued, nothing is running, and the AI translation starts
+ * only when `ask()` is called. `deferred` changes nothing once the panel is
+ * `translating`, `ready`, `failed` or `budget`, which is why this reads the panel
+ * rather than a flag the controller keeps.
+ *
+ * @param state Where the pane stands.
+ * @param deferred Whether the loader deferred the translation (M208/03).
+ * @returns True while a deferred pane holds a `none` panel.
+ */
+export function isTranslationPaneAwaitingAsk<Panel extends PanePanel = TranslationPanel>(
+  state: TranslationPaneState<NoInfer<Panel>>,
+  deferred: boolean,
+): boolean {
+  return deferred && state.panel.state === 'none';
+}
+
+/**
+ * Whether the poll loop should run.
+ *
+ * A DEFERRED `none` PANE NEVER POLLS, by an explicit rule rather than by the
+ * accident that `none` renders as `no-entry` today. Polling it would ask the
+ * read-only route about a run nobody has asked for, every three seconds, for as
+ * long as the reader reads the dictionary hit. Every other panel behaves as it
+ * always has: only `translating` polls.
+ *
+ * @param state Where the pane stands.
+ * @param deferred Whether the loader deferred the translation (M208/03).
+ */
+export function shouldTranslationPanePoll<Panel extends PanePanel = TranslationPanel>(
+  state: TranslationPaneState<NoInfer<Panel>>,
+  deferred: boolean,
+): boolean {
+  if (isTranslationPaneAwaitingAsk<Panel>(state, deferred)) return false;
+  return isTranslationPanePolling<Panel>(state);
+}
+
+/** What a device dictionary lookup is doing, as the screen reports it to the plan below. */
+export type DeviceLookupStatus = 'idle' | 'loading' | 'hit' | 'miss';
+
+/**
+ * What the AI area of a deferred pane shows, and whether to ask now.
+ *
+ * - `inactive`: the pane is not waiting for an ask, so it renders as it always did.
+ * - `wait`: a neutral empty block. The lookup is running, or the automatic ask is
+ *   in flight. It must not say "translating", because nothing is.
+ * - `offer`: the "Ask the AI" button.
+ * - `ask-now`: the screen calls `ask()` once, from an effect, and renders `wait`.
+ */
+export type DeferredAskPlan = 'inactive' | 'wait' | 'offer' | 'ask-now';
+
+/**
+ * The key an automatic ask is remembered by: one word, in one direction.
+ *
+ * @param key The headword and the two languages.
+ */
+export function deferredAskKey(key: { headwordId: string; from: LanguageCode; to: LanguageCode }): string {
+  return `${key.headwordId}:${key.from}:${key.to}`;
+}
+
+/** What {@link planDeferredAsk} reads. */
+export interface DeferredAskInputs {
+  /** {@link isTranslationPaneAwaitingAsk} for the controller. */
+  isAwaitingAsk: boolean;
+  /** Where the device lookup stands. */
+  lookup: DeviceLookupStatus;
+  /** {@link deferredAskKey} for this search, or `null` when there is no headword to ask about. */
+  key: string | null;
+  /** The key the screen has already asked for automatically, or `null` for none. */
+  askedKey: string | null;
+  /** Whether an ask is in flight right now. */
+  isAsking: boolean;
+}
+
+/**
+ * Decide what the AI area of a deferred pane does.
+ *
+ * THE RULE, IN ONE PLACE. A device HIT never asks by itself: it offers a button,
+ * and the reader's press is the only thing that spends. A MISS keeps the old
+ * behaviour, the AI runs without a click, but exactly once per
+ * `(headword, from, to)`: `askedKey` is how the screen remembers. If that one
+ * ask did not take (the request failed and the panel is still `none`), the
+ * area falls back to the button rather than asking again in a loop or showing a
+ * block that never resolves. An `idle` lookup means no device lookup is running
+ * at all, which is the old behaviour too, so it is treated as a miss.
+ *
+ * @param inputs The pane, the lookup and what has already been asked.
+ * @returns What to render and whether to ask now.
+ */
+export function planDeferredAsk({
+  isAwaitingAsk,
+  lookup,
+  key,
+  askedKey,
+  isAsking,
+}: DeferredAskInputs): DeferredAskPlan {
+  if (!isAwaitingAsk || key === null) return 'inactive';
+  if (lookup === 'loading') return 'wait';
+  if (lookup === 'hit') return 'offer';
+  if (askedKey !== key) return 'ask-now';
+  return isAsking ? 'wait' : 'offer';
+}
+
 /** The rows to render, or an empty list for every state that has none. */
 export function translationPaneRows(state: TranslationPaneState): TranslationRow[] {
   return state.panel.state === 'ready' ? state.panel.translations : [];

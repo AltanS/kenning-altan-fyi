@@ -60,3 +60,4 @@ gets an edit.
 | [0010](0010-drop-the-inherited-tenancy.md) | Drop the inherited tenancy, org and CMS surfaces | Accepted |
 | [0011](0011-plain-accounts-replace-the-encrypted-layer.md) | Plain accounts replace the encrypted layer | Accepted |
 | [0012](0012-quiz-scaffold-is-not-dictionary-data.md) | The quiz scaffold is a shared pool, not dictionary data, and dedupes on a database row, not a pg-boss policy | Accepted |
+| [0013](0013-the-device-dictionary-is-imported-by-the-reader-and-never-reaches-the-server.md) | The device dictionary is imported by the reader and never reaches the server | Accepted |

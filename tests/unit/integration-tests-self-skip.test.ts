@@ -22,6 +22,11 @@
  *   token. The invariant is unchanged: every case must still self-skip on a
  *   missing environment precondition. What widened is the set of preconditions,
  *   not the requirement to declare one.
+ *
+ *   `WIKDICT_PROBE` is the third. `local-dictionary-real-file.test.ts` reads a
+ *   20 MB WikDict file that the repository does not carry, so its precondition is
+ *   a path to that file, not a server or a database. The same reasoning applies:
+ *   a case must still name the thing it needs, inline, where a reader can see it.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -35,7 +40,7 @@ const INTEGRATION_DIR = resolve(import.meta.dirname, '../integration');
 const TEST_CASE_PATTERN = /(^|[^.\w])(it|test)\s*\(/g;
 
 /** A `skip:` option whose value mentions an environment precondition. */
-const SKIP_GUARD_PATTERN = /skip:\s*[^,\n]*(TEST_API_KEY|DB_HOST)/g;
+const SKIP_GUARD_PATTERN = /skip:\s*[^,\n]*(TEST_API_KEY|DB_HOST|WIKDICT_PROBE)/g;
 
 function listIntegrationTestFiles(): string[] {
   return readdirSync(INTEGRATION_DIR, { recursive: true, encoding: 'utf8' })
@@ -68,7 +73,7 @@ describe('tests/integration self-skip guard', () => {
         `${relativePath}: ${caseCount} test case(s) but ${guardCount} skip guard(s). ` +
         'The pre-push gate does not run tests/integration/, so an unguarded case is never ' +
         'executed by anything. Every case must self-skip on the precondition it actually has: ' +
-        "TEST_API_KEY (a live server on :3456) or DB_HOST (a live database). Add " +
+        "TEST_API_KEY (a live server on :3456), DB_HOST (a live database) or WIKDICT_PROBE (a real WikDict file). Add " +
         "{ skip: !TEST_API_KEY ? '...' : false } or { skip: !DB_HOST ? '...' : false } to the " +
         'unguarded case, or move the file out of tests/integration/ if it needs neither.';
 

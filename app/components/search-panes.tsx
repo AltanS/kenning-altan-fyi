@@ -3,12 +3,13 @@ import { Check, Copy, CopyPlus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Form, useNavigation } from 'react-router';
 import { toast } from 'sonner';
+import { DeviceDictionaryAnswerBody, DeviceDictionaryHitCard } from '#app/components/device-dictionary-hit';
 import { EnrichmentSection } from '#app/components/enrichment-section';
 import { LanguageBar } from '#app/components/language-bar';
 import { ModeSwitch } from '#app/components/mode-switch';
 import { FavoriteToggle } from '#app/components/personal/favorite-toggle';
 import { DictionaryEntries, DidYouMean, PhraseResults } from '#app/components/search-results';
-import { TranslationPane, type TranslationPaneController } from '#app/components/translation-pane';
+import type { TranslationPaneController } from '#app/components/translation-pane';
 import { Button } from '#app/components/ui/button';
 import { Textarea } from '#app/components/ui/textarea';
 import { VoiceInput } from '#app/components/voice-input';
@@ -16,6 +17,8 @@ import type { Direction } from '#app/lib/dictionary/detect-language';
 import type { LanguagePair } from '#app/lib/dictionary/language-pair';
 import type { PhraseSearchResult, SearchHit } from '#app/lib/dictionary/search.server';
 import type { EnrichmentPanel } from '#app/lib/enrichment/state.server';
+import { useDeviceDictionaryHit } from '#app/lib/local-dictionary/use-device-dictionary-hit';
+import { deferredAskKey, planDeferredAsk } from '#app/lib/translation/pane-state';
 
 /** One rendered state of the translator surface, exactly as the loader answers it. */
 export interface SearchPanesProps {
@@ -51,6 +54,16 @@ export interface SearchPanesProps {
    * come from two reads of the same array.
    */
   translationHeadwordId: string | null;
+  /**
+   * Whether the reader's device holds a dictionary for this direction (M208/03).
+   *
+   * It is the loader's reading of the `device-dict` cookie, and it is what turns
+   * the lookup on. The hit itself never leaves this component: it is drawn as a
+   * card above the AI pane and handed to nothing else, so it cannot reach the
+   * history recorder, the favourite star or any request. False on the landing and
+   * the phrase branch, and a phrase never looks anything up here either way.
+   */
+  deviceDictionary: boolean;
   /**
    * What the result region holds while nothing has been searched for.
    *
@@ -385,6 +398,7 @@ export function SearchPanes({
   panel,
   translation,
   translationHeadwordId,
+  deviceDictionary,
   emptyPane,
 }: SearchPanesProps) {
   const { t } = useTranslation();
@@ -424,6 +438,53 @@ export function SearchPanes({
   // answering, and a favourite keyed by one word and labelled with another is
   // worse than no star at all.
   const savableHit = hits.find((hit) => hit.headwordId === translationHeadwordId);
+
+  // THE DEVICE DICTIONARY, LOOKED UP ON THIS DEVICE AND KEPT IN THIS COMPONENT
+  // (M208/03). It runs for every single-word search in an imported direction,
+  // also when the server already holds an answer, because the dictionary the
+  // reader brought is meant to come first. The result is read below for the card
+  // and for the plan, and passed to nothing else: not `RecordSearch`, not the star.
+  const deviceLookup = useDeviceDictionaryHit({
+    enabled: deviceDictionary && phrase === null && q !== '',
+    from: direction.from,
+    to: direction.to,
+    q,
+  });
+  const hasDeviceHit = deviceLookup.status === 'hit';
+
+  // THE AI AREA OF A DEFERRED PANE. With a device hit the reader asks, with a
+  // miss the screen asks once for them. `autoAskedRef` is what makes it once: it
+  // is written before the request goes out, so a second run of the effect for the
+  // same word (React Strict Mode runs it twice in development, and the controller
+  // object changes on every render) posts nothing. `askedKey` is the same fact
+  // as state, because the plan is read during render and a ref must not be.
+  const askKey =
+    translationHeadwordId === null ? null : (
+      deferredAskKey({ headwordId: translationHeadwordId, from: direction.from, to: direction.to })
+    );
+  const autoAskedRef = useRef<string | null>(null);
+  const [askedKey, setAskedKey] = useState<string | null>(null);
+  const askPlan = planDeferredAsk({
+    isAwaitingAsk: translation.isAwaitingAsk,
+    lookup: deviceLookup.status,
+    key: askKey,
+    askedKey,
+    isAsking: translation.isAsking,
+  });
+  useEffect(() => {
+    if (askPlan !== 'ask-now' || askKey === null) return;
+    if (autoAskedRef.current === askKey) return;
+    autoAskedRef.current = askKey;
+    setAskedKey(askKey);
+    translation.ask();
+  }, [askPlan, askKey, translation]);
+
+  // A REAL `no-entry` PANEL, NOT A DEFERRED `none`: both read as `no-entry` in the
+  // view. With a device hit the card above answers, and saying "no entry" beside
+  // it would contradict it, so the AI card and the corpus's own "nothing matched"
+  // line step aside. A miss leaves both exactly as they were.
+  const isNoEntry = translation.view === 'no-entry' && !translation.isAwaitingAsk;
+  const isAnswerCardShown = phrase !== null || !(isNoEntry && hasDeviceHit);
 
   return (
     <div className="flex flex-col gap-4">
@@ -527,34 +588,48 @@ export function SearchPanes({
         {q === '' && emptyPane}
         {q !== '' && (
           <>
+            {/* THE DEVICE CARD, ABOVE THE AI PANE. A card for a hit and nothing
+                for a miss, a loading lookup or a phrase. */}
+            {phrase === null && deviceLookup.status === 'hit' && (
+              <DeviceDictionaryHitCard hit={deviceLookup} from={direction.from} to={direction.to} />
+            )}
             {/* Keyed on the answer, so a new answer arrives with a fresh copy
                 button rather than one still reading "Copied". */}
-            <ResultField
-              key={resultText}
-              isStale={isSearching}
-              text={resultText}
-              allText={translation.allText}
-              hasAlternatives={translation.alternatives.length > 0}
-              body={<TranslationPane controller={translation} to={direction.to} />}
-              // Nothing to keep until there is a word AND an answer: a star
-              // over an empty pane would save the empty string as the
-              // translation, and a snapshot is forever.
-              favorite={
-                savableHit !== undefined && resultText !== '' ?
-                  <FavoriteToggle
-                    headwordId={savableHit.headwordId}
-                    // No sense is recorded, because none was chosen. This card
-                    // shows one answer for the whole word, so a sense written
-                    // here would be a claim the reader never made.
-                    senseId={null}
-                    lemma={savableHit.lemma}
-                    translationSnapshot={resultText}
-                    from={direction.from}
+            {isAnswerCardShown && (
+              <ResultField
+                key={resultText}
+                isStale={isSearching}
+                text={resultText}
+                allText={translation.allText}
+                hasAlternatives={translation.alternatives.length > 0}
+                body={
+                  <DeviceDictionaryAnswerBody
+                    controller={translation}
                     to={direction.to}
+                    plan={askPlan}
+                    lookup={deviceLookup}
                   />
-                : null
-              }
-            />
+                }
+                // Nothing to keep until there is a word AND an answer: a star
+                // over an empty pane would save the empty string as the
+                // translation, and a snapshot is forever.
+                favorite={
+                  savableHit !== undefined && resultText !== '' ?
+                    <FavoriteToggle
+                      headwordId={savableHit.headwordId}
+                      // No sense is recorded, because none was chosen. This card
+                      // shows one answer for the whole word, so a sense written
+                      // here would be a claim the reader never made.
+                      senseId={null}
+                      lemma={savableHit.lemma}
+                      translationSnapshot={resultText}
+                      from={direction.from}
+                      to={direction.to}
+                    />
+                  : null
+                }
+              />
+            )}
             {/* WHAT THE SEARCH ACTUALLY READ, WHEN IT WAS NOT ALL OF IT.
                 `searchPhrase` looks up at most `PHRASE_TOKEN_LIMIT` words, and
                 a translator-shaped textarea invites a whole pasted paragraph,
@@ -581,7 +656,7 @@ export function SearchPanes({
             {phrase === null && hits.length > 0 && (
               <DictionaryEntries hits={hits} to={direction.to} primaryHeadwordId={translationHeadwordId} />
             )}
-            {phrase === null && hits.length === 0 && (
+            {phrase === null && hits.length === 0 && !hasDeviceHit && (
               <p className="text-sm text-muted-foreground">{t('search.noResults', { query: q })}</p>
             )}
             {/* THE ANSWER, IN THE RESULT REGION, FOR THE WORD AT THE TOP.

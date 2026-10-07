@@ -57,7 +57,15 @@
     "copyFailed": "Nicht in der Zwischenablage gelandet. Markiere das Wort und kopiere es manuell.",
     "entriesHeading": "Wörterbucheinträge, exakter Treffer und ähnliche Schreibweisen",
     "similarSpellings": "Ähnliche Schreibweisen ({{count}})",
-    "phraseEntriesNote": "Die Wörterbucheinträge für jedes Wort. Oben steht die Übersetzung des ganzen Satzes."
+    "phraseEntriesNote": "Die Wörterbucheinträge für jedes Wort. Oben steht die Übersetzung des ganzen Satzes.",
+    "deviceDictionary": {
+      "label": "Gerätewörterbuch",
+      "source": "{{source}}, auf diesem Gerät, {{licence}}",
+      "otherTranslations": "Andere Übersetzungen",
+      "askAi": "Auch die KI fragen",
+      "askAiOnly": "Die KI fragen",
+      "askAiPending": "KI wird gefragt..."
+    }
   },
   "voice": {
     "start": "Zuhören",
@@ -216,7 +224,44 @@
     "installStepsIos": "Öffne das Teilen-Menü im Browser und wähle „Zum Home-Bildschirm“.",
     "installStepsAndroid": "Öffne das Browsermenü und wähle „App installieren“ oder „Zum Startbildschirm hinzufügen“.",
     "installStepsDesktop": "Öffne das Browsermenü und wähle „Installieren“. Manche Browser zeigen ein Installationssymbol in der Adressleiste.",
-    "installedNote": "Die App ist auf diesem Gerät installiert. Öffne sie über deinen Startbildschirm."
+    "installedNote": "Die App ist auf diesem Gerät installiert. Öffne sie über deinen Startbildschirm.",
+    "deviceDictionary": {
+      "title": "Gerätewörterbuch",
+      "body": "Füge eine WikDict-Wörterbuchdatei zu diesem Gerät hinzu. Eine Suche nach einem Wort zeigt dann die Antwort des Wörterbuchs zuerst. Die Datei bleibt auf diesem Gerät und wird niemals an den Server gesendet.",
+      "listHeading": "Auf diesem Gerät",
+      "listLoading": "Dieses Gerät wird überprüft...",
+      "listEmpty": "Wörterbücher, die du hinzufügst, werden hier aufgelistet.",
+      "listUnavailable": "Dieser Browser erlaubt es der App nicht, ein Wörterbuch auf diesem Gerät zu speichern. Private Fenster blockieren dies oft.",
+      "pairLabel": "{{from}} nach {{to}}",
+      "entryWords": "{{words}} Wörter",
+      "importedOn": "Hinzugefügt am {{date}}",
+      "removeTrigger": "Entfernen",
+      "removeLabel": "Das Wörterbuch {{pair}} entfernen",
+      "removeTitle": "Dieses Wörterbuch entfernen?",
+      "removeBody": "Das Wörterbuch {{pair}} wird von diesem Gerät gelöscht. Du kannst es aus der Datei erneut hinzufügen.",
+      "removeConfirm": "Entfernen",
+      "removePending": "Wird entfernt...",
+      "removeCancel": "Abbrechen",
+      "removedToast": "Wörterbuch entfernt.",
+      "removeFailed": "Das Wörterbuch konnte nicht entfernt werden. Versuche es erneut.",
+      "fileLabel": "Wähle eine WikDict-Datei",
+      "fileHint": "Die Richtung ergibt sich aus dem Dateinamen, zum Beispiel de-en.sqlite3.",
+      "statusReading": "Datei wird gelesen...",
+      "statusIndexing": "Wortliste wird erstellt. Das kann ein paar Sekunden dauern.",
+      "statusSaving": "Wird auf diesem Gerät gespeichert: {{written}} von {{total}} Wörtern.",
+      "statusDone": "Fertig. Das Wörterbuch {{pair}} enthält {{words}} Wörter.",
+      "savedToast": "Wörterbuch hinzugefügt.",
+      "failedFileName": "Der Dateiname muss wie de-en.sqlite3 aussehen: zwei verschiedene Codes aus en, de, tr und es, ein Bindestrich und .sqlite3. Der Name teilt der App mit, in welche Richtung das Wörterbuch übersetzt.",
+      "failedUnreadable": "Die App kann diese Datei nicht als WikDict-Wörterbuch lesen. Lade sie erneut von WikDict herunter und versuche es noch einmal.",
+      "failedEmpty": "Die Datei enthält keine Wörter, die die App verwenden kann.",
+      "failedStorage": "Dieses Gerät konnte das Wörterbuch nicht speichern. Es wurde nichts gespeichert.",
+      "downloadsHeading": "Eine Wörterbuchdatei herunterladen",
+      "downloadsBody": "Kenning hostet diese Dateien nicht. Lade selbst eine von WikDict herunter und wähle sie dann oben aus.",
+      "downloadSize": "ungefähr {{megabytes}} MB",
+      "downloadNewTab": "öffnet in einem neuen Tab",
+      "attributionLead": "Wörterbuchdaten von",
+      "attributionTail": "basierend auf Wiktionary, geteilt unter {{licence}}."
+    }
   },
   "auth": {
     "signingIn": "Du wirst angemeldet.",
