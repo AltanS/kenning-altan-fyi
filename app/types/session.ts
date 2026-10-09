@@ -22,6 +22,15 @@ export interface SessionUser {
    * password change signs the other devices out with no session table to sweep.
    */
   issuedAt: string;
+  /**
+   * When the cookie was last re-issued to extend its lifetime, ISO-8601.
+   *
+   * ABSENT ON A COOKIE MINTED BEFORE RENEWAL EXISTED, and such a cookie must
+   * still unseal: it simply renews once. It is NOT the session's age. Renewal
+   * moves this field and leaves `issuedAt` alone, because `issuedAt` is what
+   * the password epoch is measured against.
+   */
+  renewedAt?: string;
 }
 
 export interface SessionData {

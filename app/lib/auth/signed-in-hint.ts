@@ -17,9 +17,11 @@
  * flag stay on the server.
  *
  * WHO WRITES IT: `_app.tsx`, when the root data names a user. WHO CLEARS IT:
- * `sign-out.tsx`'s `clientAction`, the sync client when the server answers a
- * 401, and `_app.tsx` when the root data says nobody is signed in while the
- * browser is online.
+ * `sign-out.tsx`'s `clientAction`, and the sync client when the server answers
+ * a 401. Nothing else clears it. In particular `_app.tsx` does not clear it when
+ * the root data says nobody is signed in, so a session the server has ended
+ * without a sign-out or a sync 401 leaves a stale hint until one of those two
+ * runs. That is tolerable for a display-only value, as the next paragraph says.
  *
  * SSR-SAFE AND NEVER THROWING. `localStorage` does not exist during a server
  * render, and in a browser it can throw on access (blocked storage, a private

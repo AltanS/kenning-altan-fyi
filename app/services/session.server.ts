@@ -9,22 +9,36 @@
  * property a header-only credential would give, and `TRUST_PROXY` is set so the
  * framework sees the browser's origin through Traefik rather than the proxy's.
  *
- * WHAT IS STORED. The user id and the issue instant, and nothing else. No
- * password, no token, no email: the middleware re-reads the row on every
- * request, so a stale cookie cannot outlive the user it names.
+ * WHAT IS STORED. The user id, the issue instant and the last renewal instant,
+ * and nothing else. No password, no token, no email: the middleware re-reads
+ * the row on every request, so a stale cookie cannot outlive the user it names.
+ *
+ * HOW LONG IT LIVES. 400 days, `SESSION_MAX_AGE_SECONDS`, and the lifetime
+ * SLIDES: `sessionRenewalMiddleware` (`app/middleware/session-renewal.ts`, the
+ * root route's middleware, so it covers every request) re-issues the cookie
+ * through {@link renewUserSession} when the last renewal is more than a day old,
+ * so a reader who keeps using the app is never signed out by the clock. Without
+ * a `maxAge` the cookie would be a browser-session cookie, and every browser
+ * restart would sign the reader out. Renewal moves `renewedAt` and never
+ * `issuedAt`, which the password epoch measures against.
  */
 import { createCookieSessionStorage } from 'react-router';
 
 import { CONFIG } from '#app/config';
+import { SESSION_MAX_AGE_SECONDS } from '#app/lib/auth/session-renewal';
 import type { SessionData, SessionUser } from '#app/types/session';
+
+/** The cookie's name, exported so a caller can tell whether a response already sets it. */
+export const SESSION_COOKIE_NAME = '_session';
 
 /** Typed with `SessionData`, so `session.get('user')` returns a `SessionUser` rather than a value every caller asserts. */
 export const sessionStorage = createCookieSessionStorage<SessionData>({
   cookie: {
-    name: '_session',
+    name: SESSION_COOKIE_NAME,
     sameSite: 'lax',
     path: '/',
     httpOnly: true,
+    maxAge: SESSION_MAX_AGE_SECONDS,
     secrets: [CONFIG.session.secret],
     secure: CONFIG.app.isProduction,
   },
@@ -50,7 +64,30 @@ export async function commitUserSession(input: {
   issuedAt?: Date;
 }): Promise<string> {
   const session = await sessionStorage.getSession(input.request.headers.get('cookie'));
-  session.set('user', { id: input.userId, issuedAt: (input.issuedAt ?? new Date()).toISOString() });
+  // `renewedAt` starts equal to `issuedAt`: a cookie just minted is fresh, and
+  // without the field the first request after sign-in would renew it again.
+  const issuedAt = (input.issuedAt ?? new Date()).toISOString();
+  session.set('user', { id: input.userId, issuedAt, renewedAt: issuedAt });
+  return sessionStorage.commitSession(session);
+}
+
+/**
+ * The `Set-Cookie` value that extends a session's lifetime.
+ *
+ * `issuedAt` IS COPIED THROUGH UNCHANGED. It is the session's age as the
+ * password epoch sees it, so moving it forward would let a cookie minted before
+ * a password reset outlive the reset. Only `renewedAt` moves.
+ *
+ * @param input.request the incoming request, read for its existing cookie.
+ * @param input.now the renewal instant.
+ * @returns a `Set-Cookie` header value, or `null` when the cookie carries no user.
+ */
+export async function renewUserSession(input: { request: Request; now: Date }): Promise<string | null> {
+  const session = await sessionStorage.getSession(input.request.headers.get('cookie'));
+  const user = session.get('user');
+  if (user === undefined) return null;
+
+  session.set('user', { ...user, renewedAt: input.now.toISOString() });
   return sessionStorage.commitSession(session);
 }
 

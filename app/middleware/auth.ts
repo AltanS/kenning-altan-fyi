@@ -14,6 +14,13 @@
  * that made the change is handed a fresh cookie by
  * `app/services/auth.server.ts`, so it survives.
  *
+ * THE SESSION SLIDES, BUT NOT HERE. The cookie is renewed by
+ * `sessionRenewalMiddleware` (`./session-renewal.ts`), which `app/root.tsx`
+ * exports so that it covers every request, gated or not. This gate only
+ * decides who may pass. A renewal in this file would miss `/`, `/?q=` and
+ * `/api/v1/sync/blob`, which sit outside it, and would renew a gated request
+ * twice.
+ *
  * A REFUSAL HAS TWO SHAPES, DECIDED BY THE PATH. A page route gets a redirect
  * to `/sign-in?next=`, which is what a browser navigation can act on; a route
  * under `/api/` gets a `401` in JSON, because a `fetch` cannot make sense of a

@@ -15,6 +15,7 @@ import {
 import type { Route } from './+types/root';
 import { getToast } from '#app/utils/toast.server';
 import { readUserForDisplay } from '#app/middleware/auth';
+import { sessionRenewalMiddleware } from '#app/middleware/session-renewal';
 import stylesheet from './app.css?url';
 import { combineHeaders } from '#app/utils/misc';
 import { Toaster } from '#app/components/ui/toaster';
@@ -48,6 +49,12 @@ export const links: Route.LinksFunction = () => [
   { rel: 'manifest', href: '/manifest.webmanifest' },
   { rel: 'apple-touch-icon', href: '/icons/apple-touch-icon.png' },
 ];
+
+// THE SESSION COOKIE SLIDES FROM HERE, not from `authMiddleware`. The root is an
+// ancestor of every route, so this one middleware renews a page, a `.data`
+// fetch and an `/api/` resource route, gated or not. It reads no database. See
+// `app/middleware/session-renewal.ts`.
+export const middleware = [sessionRenewalMiddleware];
 
 export async function loader({ request }: Route.LoaderArgs) {
   const { pathname, search } = new URL(request.url);

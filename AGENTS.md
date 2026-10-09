@@ -650,6 +650,22 @@ Rules you cannot design around:
   older than that column. That is how a reset signs the other devices out with
   no session table. The tab that made the change is handed a fresh cookie by
   `auth.server.ts` and must set it.
+- **The session cookie lives 400 days and slides.** `_session` carries a
+  `maxAge` of 400 days (`SESSION_MAX_AGE_SECONDS` in
+  `app/lib/auth/session-renewal.ts`, Chrome's cap), because a cookie with none
+  is dropped when the browser restarts. `sessionRenewalMiddleware`
+  (`app/middleware/session-renewal.ts`) is exported from `app/root.tsx`, so ANY
+  request that matches a route renews: a page, a `.data` fetch, `/`, `/?q=`,
+  every `/api/*` resource route and the sync blob. After the route answers, it
+  re-issues the cookie when `renewedAt` is missing or over 24 hours old, and it
+  skips a response that already sets `_session` (sign-in, sign-out, password
+  change, a refusal). It reads the sealed cookie only, never the database, and
+  `authMiddleware` does not renew. Renewal moves `renewedAt` and never
+  `issuedAt`, which is the password epoch above, so a renewed cookie cannot pass
+  a check the old one failed. Accepted race: there is no server session table,
+  so a renewal built from the old request cookie that arrives after a sign-out in
+  another tab can restore that cookie. The window is at most once a day per
+  device.
 - **The rate limiter reads `x-client-ip`, which `server.ts` writes** from
   `req.ip` after Express resolves `trust proxy`, deleting any incoming value
   first. Reading `x-forwarded-for` in a middleware would count a header the
