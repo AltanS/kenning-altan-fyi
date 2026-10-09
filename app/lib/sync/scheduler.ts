@@ -50,8 +50,10 @@ import {
   setOutboxRunner,
   type OutboxRunner,
 } from '#app/lib/local-store';
+import { readSignedInHint } from '#app/lib/auth/signed-in-hint';
 import { isSyncRequestError } from '#app/lib/sync/sync-error';
 import { runSyncCycleForCurrentSession } from './orchestrator';
+import { pauseSyncOnAuthFailure } from './session-pause';
 import { getSyncSession, setSyncSessionListener } from './sync-session';
 
 /** How long a burst of local edits is allowed to settle before a push. */
@@ -65,6 +67,11 @@ export const PUSH_DEBOUNCE_MS = 1_500;
  * auth stop and a `413` a permanent rejection rather than an endless retry. A
  * thrown network error never had one, so it reports `status: null` and is
  * treated as transient.
+ *
+ * A `401` OR A `412` ALSO PAUSES SYNC (`pauseSyncOnAuthFailure`) before the
+ * status is reported. The status alone stops THIS flush, but the session would
+ * stay installed, and the next focus, `online` or local write would send the
+ * same refused request again. The pause clears the session and records why.
  *
  * A `null` result means the session went away between the enqueue and the
  * flush. That is reported as a RETRY rather than a success: the intent has not
@@ -83,6 +90,7 @@ const syncIntentRunner: OutboxRunner = async () => {
     const result = await runSyncCycleForCurrentSession();
     return { ok: result !== null, status: null };
   } catch (cause) {
+    pauseSyncOnAuthFailure(cause);
     return { ok: false, status: statusForFlush(cause) };
   }
 };
@@ -100,15 +108,35 @@ function statusForFlush(cause: unknown): number | null {
  * A dropped connection is the ordinary case for a trigger — `focus` fires on a
  * tab that came back before the network did — so a transport failure is not
  * reported: the next trigger retries, and reporting every one of them would
- * bury the failures that mean something. Anything else is unexpected.
+ * bury the failures that mean something.
+ *
+ * An auth refusal (401, or 412 for another account) is not reported either: it
+ * is an expected state, not a fault. It pauses sync instead
+ * (`pauseSyncOnAuthFailure`), so the refused request is sent once and not again
+ * on every trigger. Anything else is unexpected.
  */
 async function runCycleAbsorbingTransport(): Promise<void> {
   try {
     await runSyncCycleForCurrentSession();
   } catch (cause) {
     if (isSyncRequestError(cause) && cause.kind === 'transport') return;
+    if (pauseSyncOnAuthFailure(cause)) return;
     reportError(cause, { operation: 'sync-scheduler', step: 'runCycle' });
   }
+}
+
+/**
+ * Whether sync is held back for this device.
+ *
+ * THIS IS DEFENCE IN DEPTH, NOT THE MECHANISM. A pause also clears the sync
+ * session, and every trigger below already returns when there is none. The
+ * check is repeated here because the session is installed by a React effect and
+ * the pause is written by a trigger, so for one render the two can disagree, and
+ * a stale session must not be enough to send a request the device has already
+ * been told to hold back.
+ */
+function isSyncPaused(): boolean {
+  return readSignedInHint()?.pause !== undefined;
 }
 
 /**
@@ -135,9 +163,12 @@ export function startSyncScheduler(): () => void {
 
   /** Queued writes first, in order, then the pull this trigger exists for. */
   const catchUp = async (): Promise<void> => {
-    if (isStopped || getSyncSession() === null) return;
+    if (isStopped || getSyncSession() === null || isSyncPaused()) return;
     await flushOutboxOnce();
-    if (isStopped || getSyncSession() === null) return;
+    // Re-checked after the flush: a queued intent that met a 401 or a 412
+    // paused sync and cleared the session, and the cycle below must not repeat
+    // the refused request.
+    if (isStopped || getSyncSession() === null || isSyncPaused()) return;
     await runCycleAbsorbingTransport();
   };
 
@@ -151,7 +182,7 @@ export function startSyncScheduler(): () => void {
   };
 
   const queueAndFlush = async (): Promise<void> => {
-    if (isStopped || getSyncSession() === null) return;
+    if (isStopped || getSyncSession() === null || isSyncPaused()) return;
     await enqueueSyncIntent({ clientId: crypto.randomUUID() });
     await flushOutboxOnce();
   };
@@ -162,7 +193,7 @@ export function startSyncScheduler(): () => void {
    * and each cycle rewrites the whole blob.
    */
   const onLocalWrite = (): void => {
-    if (isStopped || getSyncSession() === null) return;
+    if (isStopped || getSyncSession() === null || isSyncPaused()) return;
     if (pendingPush !== null) clearTimeout(pendingPush);
     pendingPush = setTimeout(() => {
       pendingPush = null;

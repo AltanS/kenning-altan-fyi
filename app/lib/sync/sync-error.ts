@@ -4,7 +4,11 @@
  * then here. Do not let the two drift.
  *
  * It moved here from `app/lib/e2ee/client/` in M191 with the rest of the sync
- * client. Nothing about it changed: a status code still decides the kind.
+ * client. A status code still decides the kind.
+ *
+ * ONE DIVERGENCE FROM THE SOURCE: `412` maps to `account-mismatch`. The source
+ * has no such status. Here the server answers 412 when the request names an
+ * expected account that is not the signed-in one (`api.v1.sync.blob.ts`).
  */
 /**
  * The single error type every sync HTTP call throws.
@@ -31,6 +35,8 @@ export type SyncErrorKind =
   | 'not-found'
   /** `409` — a conflict the caller could not resolve. (A blob 409 is a CAS outcome and never reaches here.) */
   | 'conflict'
+  /** `412`, the cookie names a different account from the one this page expected (`X-Kenning-Expected-User`). Nothing was read or written. */
+  | 'account-mismatch'
   /** `413` — the document exceeds the size cap. The capacity cliff, reached. */
   | 'too-large'
   /** `429` — throttled. `retryAfterSeconds` carries the server's own advice. */
@@ -73,6 +79,7 @@ export function errorKindForStatus(status: number): SyncErrorKind {
   if (status === 403) return 'forbidden';
   if (status === 404) return 'not-found';
   if (status === 409) return 'conflict';
+  if (status === 412) return 'account-mismatch';
   if (status === 413) return 'too-large';
   if (status === 429) return 'throttled';
   return 'server';

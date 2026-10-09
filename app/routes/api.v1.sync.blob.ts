@@ -13,6 +13,16 @@
  * says so. Nothing here inspects it all the same: it is stored and returned
  * whole, because the device's own store is the only thing that understands it.
  *
+ * `X-Kenning-Expected-User` NAMES THE ACCOUNT THE SENDER'S DATA BELONGS TO. A
+ * device store belongs to one account, and the cookie names whoever is signed in
+ * now. When the header is present and is not the session's user, the answer is
+ * `412 { error: 'account-mismatch' }` BEFORE anything is read or written, so one
+ * account's lists can never be merged into another account's document. A header
+ * that is not a positive integer is `400`. No header means no check, so a tab
+ * running an older build keeps working. The cookie still authorises everything:
+ * the header can only make this route refuse more, never less.
+ * (`app/lib/sync/expected-user.ts`.)
+ *
  * `baseVersion` IS A COMPARE-AND-SWAP TOKEN. A push is accepted only when it
  * equals the stored version, `0` asserting "this user has no document yet". A
  * mismatch is `409` carrying `currentVersion` AND NOTHING ELSE: the client
@@ -24,6 +34,7 @@ import { z } from 'zod';
 
 import type { Route } from './+types/api.v1.sync.blob';
 import { jsonValueSchema, type JsonValue } from '#app/lib/json';
+import { readExpectedUser } from '#app/lib/sync/expected-user';
 import { MAX_BLOB_BYTES, putBlobIfVersionMatches, readBlob } from '#app/lib/sync/server/blob-store.server';
 import { resolveUser } from '#app/middleware/auth';
 import { createComponentLogger } from '#app/lib/logger';
@@ -32,6 +43,18 @@ import { createComponentLogger } from '#app/lib/logger';
 const NOT_SIGNED_IN = { error: 'unauthorized: sign in to use this account' };
 
 const log = createComponentLogger('SyncBlob');
+
+/**
+ * Refuse a request whose expected account is malformed or is not the signed-in
+ * one. `null` means go ahead, including when the sender named nobody.
+ */
+function refuseWrongAccount({ request, userId }: { request: Request; userId: number }): Response | null {
+  const expected = readExpectedUser(request.headers);
+  if (expected.kind === 'absent') return null;
+  if (expected.kind === 'invalid') return Response.json({ error: 'invalid expected-user header' }, { status: 400 });
+  if (expected.userId !== userId) return Response.json({ error: 'account-mismatch' }, { status: 412 });
+  return null;
+}
 
 /** The push body. `baseVersion` is the CAS token; `payload` is the document, unread. */
 const pushBodySchema = z.object({
@@ -42,6 +65,9 @@ const pushBodySchema = z.object({
 export async function loader({ request }: Route.LoaderArgs): Promise<Response> {
   const user = await resolveUser(request);
   if (user === null) return Response.json(NOT_SIGNED_IN, { status: 401 });
+
+  const wrongAccount = refuseWrongAccount({ request, userId: user.id });
+  if (wrongAccount !== null) return wrongAccount;
 
   const blob = await readBlob(user.id);
   // A `404` here is not an error condition, it is how a fresh account looks. A
@@ -62,6 +88,9 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
   if (request.method !== 'POST') {
     return Response.json({ error: 'method not allowed' }, { status: 405, headers: { Allow: 'GET, POST' } });
   }
+
+  const wrongAccount = refuseWrongAccount({ request, userId: user.id });
+  if (wrongAccount !== null) return wrongAccount;
 
   // The raw text is read first because its length IS the size limit. Parsing a
   // multi-megabyte document only to reject it afterwards is work an attacker

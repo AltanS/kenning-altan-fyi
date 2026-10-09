@@ -363,7 +363,8 @@
       "strong": "Stark"
     },
     "menuLabel": "Kontomenü",
-    "signedOutLabel": "Nicht angemeldet"
+    "signedOutLabel": "Nicht angemeldet",
+    "deviceDataKept": "Deine Listen und Favoriten bleiben auf diesem Gerät. Melde dich an, um sie wieder zu synchronisieren."
   },
   "offline": {
     "metaTitle": "Offline",
@@ -490,7 +491,16 @@
   "sync": {
     "pending": "Wird an den Server gesendet.",
     "offline": "Offline. Änderungen werden gesendet, sobald du wieder verbunden bist.",
-    "genericError": "Etwas ist schiefgelaufen. Versuche es noch einmal."
+    "genericError": "Etwas ist schiefgelaufen. Versuche es noch einmal.",
+    "pausedExpired": "Die Synchronisierung ist pausiert. Alles bleibt auf diesem Gerät.",
+    "pausedExpiredAction": "Melde dich erneut an, um zu synchronisieren",
+    "pausedOtherAccount": "Dieses Gerät enthält Daten eines anderen Kontos. Es wird nicht synchronisiert.",
+    "eraseOtherAccountAction": "Löschen",
+    "eraseOtherAccountTitle": "Daten des anderen Kontos löschen?",
+    "eraseOtherAccountBody": "Dadurch werden die Listen, Favoriten und der Verlauf auf diesem Gerät entfernt. Änderungen, die das andere Konto nie synchronisiert hat, gehen verloren.",
+    "eraseOtherAccountConfirm": "Löschen und synchronisieren",
+    "eraseOtherAccountCancel": "Abbrechen",
+    "eraseOtherAccountBlocked": "Konnte nicht gelöscht werden. Schließe andere Kenning-Tabs und versuche es erneut."
   },
   "addToList": {
     "trigger": "In Liste speichern",

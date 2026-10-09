@@ -21,6 +21,25 @@
 - Route data (`.data`) and `/api/*` are never cached. Only `/offline` is.
 - `server.ts` serves `sw.js` and `precache.json` with `Cache-Control: no-cache`.
 
+## When the session ends
+
+An ended session pauses sync. It does not remove features or data.
+
+- The signed-in hint (`kenning-signed-in-hint` in localStorage) is
+  `{ userId, pause? }`. Only an explicit sign-out clears it.
+- A 401 on a sync request records `pause: expired`, and a 412 records
+  `pause: other-account`. Either one drops the sync session, and the app sends
+  that request once, not again on every focus, `online` event or local edit.
+- The offline shell stays complete: the sidebar, the tabs, lists, favourites and
+  history all keep working from the device.
+- While the pause is `expired` and the browser is online, a ribbon says
+  "Sync is paused" and links to `/sign-in?next=`. Offline it says nothing.
+- A root answer that names nobody is never read as an expired session, because
+  the cached `/offline` page is signed out on purpose. The pause comes from the
+  server refusing a request.
+- The root `clientLoader` marks its fallback answers `isOfflineFallback: true`.
+  They carry the hint's own id, so they never confirm the hint.
+
 ## Caches
 
 | Name | Holds |

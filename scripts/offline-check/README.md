@@ -8,7 +8,7 @@ only painted.
 ## Run it
 
 ```bash
-scripts/offline-check/run.sh                 # prepare, build, run all seven scenarios
+scripts/offline-check/run.sh                 # prepare, build, run all ten scenarios
 scripts/offline-check/run.sh --only S1,S6    # a subset
 SKIP_BUILD=1 scripts/offline-check/run.sh    # reuse the existing build/
 ```
@@ -51,7 +51,7 @@ the browser with `CHROME_PATH`.
 Two layers at once, so a green result cannot come from a leak:
 
 - CDP `Network.emulateNetworkConditions(offline)` on every page AND every
-  service worker target. This also makes `navigator.onLine` false.
+  service worker target. In a tab that is already open this also makes `navigator.onLine` false; a cold-started tab gets a script for that (below).
 - The proxy resets every connection (`offline`), or accepts a request and never
   answers (`hang`, for scenario S6).
 
@@ -60,8 +60,37 @@ the worker does not intercept) must fail, or the harness aborts.
 
 A "cold open" closes the whole browser process and starts it again on the same
 profile. The service worker registration, caches and IndexedDB survive on disk.
-Session cookies do not, so the harness puts them back, as an installed app's
-sign-in would persist.
+
+## How cookies are handled on a cold open
+
+The session cookie `_session` is set with `Max-Age` (400 days), so Chromium
+writes it to the profile and it survives a restart on its own. A cold open
+(`restart()` in `cdp.mjs`) takes two options:
+
+- `restoreCookies` (default `true`): read every cookie from the browser before
+  the close and put them back after the start, as an installed app's sign-in
+  would be kept by the OS shell. This is what S1 to S9 use. The snapshot is
+  taken with `Storage.getCookies` on the browser itself, because the tab is
+  already closed at that moment.
+- `restoreCookies: false`: the harness touches nothing. Only what Chromium
+  persisted itself is there. S10 uses it, so it tests the real `Set-Cookie`
+  behaviour and not the harness.
+- `dropCookies: ['_session']`: the named cookies are removed after the start,
+  both from the restored set and from what the profile persisted. S8 uses it
+  for a cold open with no session at all.
+
+`browser.deleteCookie(name)` removes a cookie from the live browser (S9).
+
+A tab opened while the harness is offline gets a script that keeps
+`navigator.onLine` false from its first line (`OFFLINE_SHIM` in `cdp.mjs`).
+Chromium's own emulation fails the fetches but leaves `onLine` true in a tab
+that was opened after the emulation was set, which is every cold start, and the
+app branches on `onLine` (the paused-sync ribbon is online-only). Going back
+online removes the script and fires the `online` event.
+
+The proxy records every request with its path and the status the app answered
+(`proxy.requests(sinceIndex, pathPrefix)`), so a scenario can count the calls to
+`/api/v1/sync/blob` and see which were refused.
 
 ## Scenarios
 
@@ -74,6 +103,9 @@ sign-in would persist.
 | S5 | Booted app goes offline, client-navigates to `/history` and `/settings`, each never opened ("cold") and opened online before ("visited") | A calm "needs a connection" message, no crash |
 | S6 | HANG: the proxy never answers, cold open of `/` | Interactive within 6 s |
 | S7 | Offline then online again with no reload, search a word | The normal server result shows, no stuck offline notice |
+| S8 | Signed in, a list "Plane list" made online, then offline cold open with the `_session` cookie dropped | `/` is interactive, the nav links are drawn, `/lists` shows "Plane list", `/favourites` and `/quiz` open with no error boundary, the signed-in hint is still there with no pause |
+| S9 | Signed in, "Plane list" made, `_session` deleted in the live browser, then `focus` | Exactly one 401 on the sync blob, the paused ribbon links to `/sign-in?next=`, the hint says `expired`, three more `focus` events and a local edit send no sync request. Offline cold open (cookie still gone): shell and lists are there, no ribbon. Online: `/` lands on `/welcome` with the device-data-kept notice. After signing in again as the same account: the first request is a pull that returns 200 and nothing is refused (the follow-up cycles the app runs after applying the pull must stay bounded and settle), ribbon gone, pause cleared, both lists survive |
+| S10 | Signed in, cold start with `restoreCookies: false` | `_session` has an expiry about 400 days out, survives the restart in the profile, and `/lists` opens online with no redirect to `/sign-in` |
 
 "Interactive" means: the search box exists and React has attached to it
 (`__reactProps$`), real typed text lands in it, and a real click opens the
@@ -94,7 +126,7 @@ console and what the proxy refused or held.
 ## Files
 
 - `run.sh` setup, build and launch. `run.mjs` scenarios and reporting.
-- `cdp.mjs` the dependency-free CDP client. `proxy.mjs` the fault proxy.
+- `cdp.mjs` the dependency-free CDP client. `proxy.mjs` the fault proxy and request log.
 - `app.mjs` starts and stops the production server. `bind-localhost.mjs` makes
   `server.ts` listen on 127.0.0.1 only (it calls `listen(port)` with no host).
 - `seed-user.mjs` the test account.

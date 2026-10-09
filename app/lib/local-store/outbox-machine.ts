@@ -23,7 +23,7 @@ export const MAX_BACKOFF_MS = 5 * 60_000;
  * Classifies one sync attempt. A 401 is an auth stop, not a retry: re-running
  * it cannot succeed until the user signs in again.
  *
- * A DIVERGENCE FROM THE SOURCE, and the only one in this file. Upstream the
+ * A DIVERGENCE FROM THE SOURCE, and the first of two in this file. Upstream the
  * outcome came from a FOLLOWED REDIRECT — the add action redirected to the
  * diary on success and the auth middleware redirected to `/login` when the
  * session was gone, so the final URL was what told the two apart. There is no
@@ -35,10 +35,15 @@ export const MAX_BACKOFF_MS = 5 * 60_000;
  * rejections of this payload — a malformed push, or a blob past the size cap —
  * and retrying them forever would burn the device's battery to no end.
  * Everything else, including a thrown fetch (`status: null`), is transient.
+ *
+ * A SECOND DIVERGENCE: `412` is an auth stop as well. The server answers it when
+ * the cookie names a different account from the one this device's data belongs
+ * to (`X-Kenning-Expected-User`), so re-running cannot succeed either, and the
+ * record stays pending for the account whose data it describes.
  */
 export function classifyFlushOutcome(result: SyncAttemptResult): FlushOutcome {
   if (result.ok) return 'success';
-  if (result.status === 401 || result.status === 403) return 'authStop';
+  if (result.status === 401 || result.status === 403 || result.status === 412) return 'authStop';
   if (result.status === 400 || result.status === 413) return 'fatal';
   return 'retry';
 }

@@ -34,6 +34,26 @@
  * still running is undone by that poll a second later. `wipe.ts` carries the
  * full account.
  *
+ * ── When the data on the device is not the signing-out account's ──────────
+ *
+ * The signed-in hint names the account whose data the device holds. When it
+ * carries an `other-account` pause, somebody signed in on a device that holds
+ * ANOTHER account's lists, and the stored data is not theirs to send or to
+ * delete. That branch skips the final sync (it would push the other account's
+ * lists into this one's document) and skips the wipe (it would destroy lists
+ * the other account never synced), records `expired` so the pause survives the
+ * sign-out, and runs the server action. The original account signing back in
+ * finds its data and resumes sync. The ribbon's "Erase it" is the only thing
+ * that removes that data.
+ *
+ * THE CHECK HAPPENS BEFORE AND AFTER THE FINAL SYNC. The hint may carry no pause
+ * yet while the cookie belongs to another account. Then the final sync is the
+ * first request to find out: the server answers 412 `account-mismatch` and the
+ * sync client records the `other-account` pause. So the hint is read again once
+ * the sync has returned, and the same branch runs. Without the second read the
+ * wipe would destroy lists that belong to the other account and were never
+ * synced. Both checks end in one function so the two paths cannot drift.
+ *
  * A FAILED SYNC DOES NOT BLOCK THE SIGN-OUT. Somebody on a train tapping sign
  * out must be signed out. The edits stay in the device's outbox until the
  * wipe removes it, which is the honest trade: the alternative is refusing to
@@ -42,11 +62,11 @@
 import { redirect } from 'react-router';
 
 import type { Route } from './+types/sign-out';
-import { clearSignedInHint } from '#app/lib/auth/signed-in-hint';
+import { clearSignedInHint, readSignedInHint, setSyncPause } from '#app/lib/auth/signed-in-hint';
 import { wipeDeviceStore } from '#app/lib/local-store';
 import { clearSyncSession } from '#app/lib/sync/sync-session';
 import { syncNow } from '#app/components/account/sync-client';
-import { isSyncRequestError } from '#app/lib/sync/sync-error';
+import { isSyncRequestError, type SyncErrorKind } from '#app/lib/sync/sync-error';
 import { reportError } from '#app/lib/report-error';
 import { destroyUserSession } from '#app/services/session.server';
 
@@ -60,12 +80,42 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
 }
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs): Promise<Response> {
+  if (holdsAnotherAccountsData()) return signOutKeepingTheData(serverAction);
+
   await carryLastEditsUp();
+  // The final sync is what finds out that the cookie is another account's.
+  if (holdsAnotherAccountsData()) return signOutKeepingTheData(serverAction);
+
   clearSyncSession();
   clearSignedInHint();
   await wipeDeviceStore();
   return serverAction();
 }
+
+/** True when the hint says the stored data belongs to an account other than the signed-in one. */
+function holdsAnotherAccountsData(): boolean {
+  return readSignedInHint()?.pause?.reason === 'other-account';
+}
+
+/**
+ * The sign-out for a device that holds somebody else's data.
+ *
+ * No final sync, no wipe, no hint clear: the stored data belongs to somebody
+ * else. `expired` replaces the reason because the signed-in account is gone now,
+ * and the device still holds the other one's data.
+ */
+function signOutKeepingTheData(serverAction: Route.ClientActionArgs['serverAction']): Promise<Response> {
+  clearSyncSession();
+  setSyncPause('expired');
+  return serverAction();
+}
+
+/**
+ * The failures that are the ordinary case for a device being put away: no
+ * network, a session that already ended, and another account's cookie (the
+ * sync client has paused sync for that one).
+ */
+const ABSORBED_KINDS: ReadonlySet<SyncErrorKind> = new Set(['transport', 'unauthorized', 'account-mismatch']);
 
 /**
  * One last cycle, with every failure absorbed.
@@ -81,7 +131,7 @@ async function carryLastEditsUp(): Promise<void> {
     // A dropped connection or an already-dead session is the ordinary case for
     // a device being put away, and reporting it would bury the failures that
     // mean something. Anything else is unexpected and is worth a line.
-    if (isSyncRequestError(cause) && (cause.kind === 'transport' || cause.kind === 'unauthorized')) return;
+    if (isSyncRequestError(cause) && ABSORBED_KINDS.has(cause.kind)) return;
     reportError(cause, { operation: 'sign-out', step: 'finalSync' });
   }
 }

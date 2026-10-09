@@ -163,11 +163,16 @@ class Ctx {
     await this.browser.setOffline(false);
   }
 
-  /** Closes the tab and restarts the whole browser process on the same profile. */
-  async coldStart() {
+  /**
+   * Closes the tab and restarts the whole browser process on the same profile.
+   * Options are `restart()`'s: `restoreCookies` and `dropCookies` (see cdp.mjs).
+   * Returns what the restart did with the cookies.
+   */
+  async coldStart(options = {}) {
     await this.page.close().catch(() => {});
-    await this.browser.restart();
+    const done = await this.browser.restart(options);
     this.page = await this.browser.newPage();
+    return done;
   }
 
   /** Everything that helps explain a failure. */
@@ -371,6 +376,87 @@ async function offlineClientNav(ctx, href) {
   return { ...screen, path, routeModuleFailed };
 }
 
+
+const HINT_KEY = 'kenning-signed-in-hint';
+const SESSION_COOKIE = '_session';
+
+/** The stored signed-in hint, parsed. `null` when none, the string 'unparseable' when it is not JSON. */
+const READ_HINT = `(() => {
+  const raw = localStorage.getItem(${JSON.stringify(HINT_KEY)});
+  if (raw === null) return null;
+  try { return JSON.parse(raw); } catch { return 'unparseable'; }
+})()`;
+
+/** True when every one of these links is drawn with a real box (sidebar at this width, or the tabs). */
+const navLinksDrawn = (hrefs) => `(() => ${JSON.stringify(hrefs)}.every((h) =>
+  [...document.querySelectorAll('a[href="' + h + '"]')].some((a) => {
+    const r = a.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  })))()`;
+
+/** The "sync is paused" ribbon, or null. It is an <output> element (sync-paused-ribbon.tsx). */
+const PAUSED_RIBBON = `(() => {
+  const o = [...document.querySelectorAll('output')].find((e) => /Sync is paused/.test(e.innerText));
+  if (!o) return null;
+  const a = o.querySelector('a');
+  return { text: o.innerText.replace(/\\s+/g, ' ').trim(), href: a ? a.getAttribute('href') : null };
+})()`;
+
+/** The sentence the account doors show a device that still holds data (device-data-kept-notice.tsx). */
+const DEVICE_DATA_KEPT = `/Your lists and favourites stay on this device/.test(document.body.innerText)`;
+
+/** One line for a hint, for the report. */
+const showHint = (hint) => (hint === null ? 'none' : JSON.stringify(hint));
+
+/**
+ * Online: opens /lists, creates a list through the form, and waits until the
+ * device store has had time to persist it (its persister polls every second)
+ * and the debounced push has gone out.
+ */
+async function createListThroughUi(ctx, name) {
+  const page = ctx.page;
+  if ((await page.url()) !== `${ORIGIN}/lists`) {
+    const opened = await page.goto(`${ORIGIN}/lists`);
+    if (!opened.ok) throw new Error(`/lists did not load online: ${JSON.stringify(opened)}`);
+  }
+  if (!(await page.waitFor(hydrated('#new-list-name'), { timeoutMs: 8000 })).ok) throw new Error('the new-list field is missing or not hydrated');
+  const typed = await page.type('#new-list-name', name);
+  await page.click('#new-list-name ~ button, form button[type=submit]');
+  const made = typed && (await page.waitFor(`document.body.innerText.includes(${JSON.stringify(name)})`, { timeoutMs: 5000 })).ok;
+  if (!made) throw new Error(`the list "${name}" did not appear after the form was submitted`);
+  await sleep(3000);
+}
+
+/** Clicks a nav link on a booted app and describes where it landed. Works online and offline. */
+async function clientNavTo(ctx, href) {
+  ctx.page.resetEvidence();
+  const clicked = await ctx.page.click(`a[href="${href}"]`);
+  if (!clicked) return { ok: false, why: `no visible link to ${href}` };
+  await ctx.page.waitFor(`location.pathname === ${JSON.stringify(href)}`, { timeoutMs: 6000 });
+  await sleep(1500);
+  const screen = await describeScreen(ctx.page);
+  return { ...screen, path: new URL(await ctx.page.url()).pathname };
+}
+
+/** Collects named checks, so a scenario can report every failed one in a single line. */
+function checks() {
+  const passed = [];
+  const failed = [];
+  return {
+    check(label, ok, info = '') {
+      (ok ? passed : failed).push(info ? `${label} (${info})` : label);
+      return ok;
+    },
+    passed,
+    failed,
+    verdict(summary) {
+      return failed.length === 0
+        ? { ok: true, detail: summary }
+        : { ok: false, detail: `FAILED: ${failed.join('; ')}${summary ? ` | passed: ${passed.length}, ${summary}` : ''}` };
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Scenarios
 // ---------------------------------------------------------------------------
@@ -547,6 +633,156 @@ const scenarios = [
         if (!good) await ctx.evidence(withFailedNav ? 'after-failed-nav' : 'after-blip');
       }
       return { ok: steps.every((s) => s.includes('server result shown')), detail: steps.join(' | '), skipEvidence: true };
+    },
+  },
+  {
+    id: 'S8',
+    name: 'returning reader, offline cold open with NO session cookie: shell, nav, lists and hint intact',
+    async run(ctx) {
+      await returningReader(ctx);
+      await createListThroughUi(ctx, 'Plane list');
+      const before = (await ctx.page.eval(READ_HINT)).value;
+      if (before === null || typeof before !== 'object') return { ok: false, detail: `SETUP: no signed-in hint after signing in (${showHint(before)})` };
+      await ctx.goOffline();
+      const done = await ctx.coldStart({ dropCookies: [SESSION_COOKIE] });
+      const c = checks();
+      const cookieGone = !(await ctx.browser.allCookies()).some((k) => k.name === SESSION_COOKIE);
+      if (!cookieGone) throw new Error(`HARNESS: ${SESSION_COOKIE} is still in the profile after a drop (${JSON.stringify(done)})`);
+
+      const opened = await openAndWait(ctx, `${ORIGIN}/`, HYDRATED_SEARCH_BOX);
+      if (!c.check('/ is hydrated', opened.ok, opened.ok ? `${opened.ms} ms` : opened.why)) return c.verdict('');
+      const live = await proveInteractive(ctx);
+      c.check('/ is interactive (typing and a click land)', live.ok, live.why);
+      c.check('the page reports offline (navigator.onLine)', (await ctx.page.eval('navigator.onLine')).value === false);
+      c.check('nav links drawn (/lists /favourites /quiz)', (await ctx.page.eval(navLinksDrawn(['/lists', '/favourites', '/quiz']))).value === true);
+
+      const lists = await clientNavTo(ctx, '/lists');
+      c.check('/lists opens', lists.ok !== false && !lists.crashed && lists.path === '/lists', describeNav('/lists', lists));
+      const hasList = (await ctx.page.waitFor(`document.body.innerText.includes('Plane list')`, { timeoutMs: 4000 })).ok;
+      c.check('/lists shows "Plane list"', hasList, hasList ? '' : (await ctx.page.bodyText(120)));
+      for (const href of ['/favourites', '/quiz']) {
+        const result = await clientNavTo(ctx, href);
+        c.check(`${href} opens with no error boundary`, result.ok !== false && !result.crashed && result.path === href, describeNav(href, result));
+      }
+      const after = (await ctx.page.eval(READ_HINT)).value;
+      c.check('hint still present and not paused', after !== null && typeof after === 'object' && after.pause === undefined && after.userId === before.userId, showHint(after));
+      return c.verdict(`/ ${opened.ms} ms, no ${SESSION_COOKIE} (${JSON.stringify(done.dropped)}), hint ${showHint(after)}`);
+    },
+  },
+  {
+    id: 'S9',
+    name: 'session dies while online: one 401, sync pauses, nothing is lost, signing in again resumes',
+    async run(ctx) {
+      const setupMark = ctx.proxy.logLength;
+      const setupT0 = Date.now();
+      await returningReader(ctx);
+      await createListThroughUi(ctx, 'Plane list');
+      ctx.note(`sync calls while signing in and making the first list (control): ${ctx.proxy.requests(setupMark, '/api/v1/sync').map((r) => `${r.method} ${r.status}@${((r.at - setupT0) / 1000).toFixed(1)}s`).join(',')}`);
+      const c = checks();
+      const hintBefore = (await ctx.page.eval(READ_HINT)).value;
+      if (hintBefore === null || typeof hintBefore !== 'object' || hintBefore.pause) return { ok: false, detail: `SETUP: hint before the expiry is ${showHint(hintBefore)}` };
+      const syncCalls = (since) => ctx.proxy.requests(since, '/api/v1/sync');
+      const t0 = Date.now();
+      const statuses = (calls) => calls.map((r) => `${r.method} ${r.status}@${((r.at - t0) / 1000).toFixed(1)}s`).join(',') || 'none';
+
+      // 1. The cookie dies in the live browser, then the tab regains focus.
+      const mark1 = ctx.proxy.logLength;
+      const deleted = await ctx.browser.deleteCookie(SESSION_COOKIE);
+      if (deleted === 0) throw new Error(`HARNESS: there was no ${SESSION_COOKIE} to delete`);
+      await ctx.page.eval(`window.dispatchEvent(new Event('focus'))`);
+      await sleep(2500);
+      const first = syncCalls(mark1);
+      const refused = first.filter((r) => r.path === '/api/v1/sync/blob' && r.status === 401);
+      c.check('exactly ONE 401 on /api/v1/sync/blob', refused.length === 1 && first.length === 1, `sync calls: ${statuses(first)}`);
+      const ribbon = (await ctx.page.waitFor(PAUSED_RIBBON, { timeoutMs: 4000 })).value ?? null;
+      c.check('ribbon visible with a sign-in link carrying next', ribbon !== null && /^\/sign-in\?next=/.test(ribbon.href ?? ''), ribbon ? `${ribbon.text} -> ${ribbon.href}` : 'no ribbon');
+      const paused = (await ctx.page.eval(READ_HINT)).value;
+      c.check("hint pause.reason is 'expired'", paused?.pause?.reason === 'expired' && paused.userId === hintBefore.userId, showHint(paused));
+
+      // 2. Three more focus events and a local edit send nothing.
+      const mark2 = ctx.proxy.logLength;
+      for (let i = 0; i < 3; i++) {
+        await ctx.page.eval(`window.dispatchEvent(new Event('focus'))`);
+        await sleep(500);
+      }
+      await createListThroughUi(ctx, 'Paused edit'); // waits 3 s, past the 1.5 s push debounce
+      const extra = syncCalls(mark2);
+      c.check('3 focus events and a local edit send NO sync request', extra.length === 0, `sync calls: ${statuses(extra)}`);
+
+      // 3. Offline cold open, cookie still gone: the shell and the list are there, and no ribbon.
+      await ctx.goOffline();
+      const done = await ctx.coldStart();
+      c.check(`no ${SESSION_COOKIE} after the cold start`, !(await ctx.browser.allCookies()).some((k) => k.name === SESSION_COOKIE));
+      const opened = await openAndWait(ctx, `${ORIGIN}/`, HYDRATED_SEARCH_BOX);
+      c.check('offline / is hydrated', opened.ok, opened.ok ? `${opened.ms} ms` : opened.why);
+      if (opened.ok) {
+        c.check('offline nav links drawn', (await ctx.page.eval(navLinksDrawn(['/lists', '/favourites', '/quiz']))).value === true);
+        const lists = await clientNavTo(ctx, '/lists');
+        const seen = (await ctx.page.waitFor(`document.body.innerText.includes('Plane list') && document.body.innerText.includes('Paused edit')`, { timeoutMs: 4000 })).ok;
+        c.check('offline /lists shows both lists', lists.path === '/lists' && seen, describeNav('/lists', lists));
+        await sleep(1500);
+        const offlineRibbon = (await ctx.page.eval(PAUSED_RIBBON)).value;
+        c.check('NO ribbon while offline', offlineRibbon === null, `${offlineRibbon?.text ?? ''} navigator.onLine=${(await ctx.page.eval('navigator.onLine')).value}`);
+        const offlineHint = (await ctx.page.eval(READ_HINT)).value;
+        c.check('hint still paused (expired) offline', offlineHint?.pause?.reason === 'expired', showHint(offlineHint));
+      }
+
+      // 4. Back online with no cookie: / hops to /welcome, which says the data is kept.
+      await ctx.goOnline();
+      const welcome = await openAndWait(ctx, `${ORIGIN}/`, `location.pathname === '/welcome' && ${DEVICE_DATA_KEPT}`, { timeoutMs: 10000 });
+      c.check('online / lands on /welcome with the device-data-kept notice', welcome.ok, welcome.ok ? '' : welcome.why);
+
+      // 5. Sign in again as the same seeded account.
+      const mark3 = ctx.proxy.logLength;
+      await signInThroughUi(ctx);
+      await sleep(9000);
+      const resumed = syncCalls(mark3);
+      // The FIRST request after the sign-in is the pull that resumes sync. The
+      // calls after it are the app's own follow-ups: applying the pull and
+      // pushing the edit made during the pause write to the store, and each
+      // write arms the 1.5 s push debounce, which runs one more cycle. They are
+      // bounded (the chain must end well inside the window), and none may fail.
+      const refusedAfter = resumed.filter((r) => r.status !== 200);
+      c.check('first request after sign-in is a pull that returns 200, none is refused', resumed[0]?.method === 'GET' && resumed[0].status === 200 && refusedAfter.length === 0, `sync calls: ${statuses(resumed)}`);
+      c.check('at most one push (the edit made during the pause)', resumed.filter((r) => r.method === 'POST').length <= 1);
+      c.check('sync settles (bounded follow-ups, quiet for the last 3 s)', resumed.length <= 5 && (resumed.length === 0 || Date.now() - resumed.at(-1).at > 3000), `${resumed.length} calls`);
+      c.check('ribbon gone', (await ctx.page.eval(PAUSED_RIBBON)).value === null);
+      const cleared = (await ctx.page.eval(READ_HINT)).value;
+      c.check('hint pause cleared, same account', cleared !== null && typeof cleared === 'object' && cleared.pause === undefined && cleared.userId === hintBefore.userId, showHint(cleared));
+      const lists = await clientNavTo(ctx, '/lists');
+      const survives = (await ctx.page.waitFor(`document.body.innerText.includes('Plane list') && document.body.innerText.includes('Paused edit')`, { timeoutMs: 4000 })).ok;
+      c.check('"Plane list" and "Paused edit" survive', lists.path === '/lists' && survives);
+      return c.verdict(`401 once, ${done.restored.length} cookies restored in the cold start, resume ${statuses(resumed)}`);
+    },
+  },
+  {
+    id: 'S10',
+    name: 'cookie fix: a cold start that restores NO cookies still has the session (Max-Age is persisted)',
+    async run(ctx) {
+      await signInThroughUi(ctx);
+      await sleep(1000);
+      const c = checks();
+      const before = (await ctx.browser.allCookies()).find((k) => k.name === SESSION_COOKIE);
+      if (!before) throw new Error(`HARNESS: signed in but there is no ${SESSION_COOKIE} cookie`);
+      const days = typeof before.expires === 'number' ? (before.expires - Date.now() / 1000) / 86400 : null;
+      c.check('Set-Cookie carries an expiry, not a session cookie', before.session === false && days !== null && days > 0, `session=${before.session} expires=${before.expires}`);
+      c.check('expiry is about 400 days out', days !== null && days > 399 && days < 401, days === null ? 'n/a' : `${days.toFixed(1)} days`);
+      if (c.failed.length > 0) return c.verdict('');
+
+      // Nothing is put back: only what Chromium wrote to its own profile can survive.
+      const done = await ctx.coldStart({ restoreCookies: false });
+      const after = (await ctx.browser.allCookies()).find((k) => k.name === SESSION_COOKIE);
+      if (!after) {
+        // The app did its part (an expiry 400 days out). If Chromium still lost
+        // it, the cause is the profile or the launch flags, not the cookie.
+        return { ok: false, detail: `HARNESS/PROFILE: ${SESSION_COOKIE} had expires=${before.expires} (${days.toFixed(1)} days) but the browser did not keep it across a restart with restoreCookies=false (${JSON.stringify(done)}). Not forced to pass.` };
+      }
+      c.check(`${SESSION_COOKIE} survived the restart in the profile`, true, `expires ${after.expires}`);
+      const opened = await openAndWait(ctx, `${ORIGIN}/lists`, hydrated('#new-list-name'), { timeoutMs: 12000 });
+      const path = new URL(await ctx.page.url()).pathname;
+      const bounced = ctx.page.frameNavigations.some((u) => u.includes('/sign-in'));
+      c.check('/lists loads online without a redirect to /sign-in', opened.ok && path === '/lists' && !bounced, opened.ok ? `at ${path}${bounced ? ', passed through /sign-in' : ''}` : opened.why);
+      return c.verdict(`cookie expires in ${days.toFixed(1)} days, survived a restart with nothing restored, /lists opened signed in`);
     },
   },
 ];

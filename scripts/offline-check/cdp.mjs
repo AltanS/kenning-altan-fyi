@@ -17,6 +17,27 @@ import { join } from 'node:path';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Runs before any script of every new document in a tab that was opened while
+ * the harness is offline.
+ *
+ * WHY. `Network.emulateNetworkConditions({ offline: true })` makes fetches fail
+ * and flips `navigator.onLine` in a tab that is already open, but a tab opened
+ * AFTER the emulation was set, which is every cold start, still reports
+ * `navigator.onLine === true` once it navigates to the app (the renderer is a
+ * new process and does not inherit the override). A reader in airplane mode has
+ * `onLine === false` from the first script, and the app branches on it (the
+ * paused-sync ribbon is online-only), so the harness makes it so.
+ */
+const OFFLINE_SHIM = `(() => {
+  const desc = Object.getOwnPropertyDescriptor(Navigator.prototype, 'onLine');
+  window.__ocForceOffline = true;
+  Object.defineProperty(Navigator.prototype, 'onLine', {
+    configurable: true,
+    get() { return window.__ocForceOffline ? false : desc.get.call(this); },
+  });
+})()`;
+
 export { sleep };
 
 /** One WebSocket connection to the browser, speaking flat-session CDP. */
@@ -203,7 +224,10 @@ export class Browser {
   /** Emulates airplane mode at the browser level: every page and every worker target. */
   async setOffline(offline) {
     this.offline = offline;
-    for (const page of this.pages) await this.applyOffline(page.sessionId, offline);
+    for (const page of this.pages) {
+      await this.applyOffline(page.sessionId, offline);
+      await page.setOfflineShim(offline);
+    }
     for (const [sessionId, worker] of this.workers) if (!worker.detached) await this.applyOffline(sessionId, offline);
   }
 
@@ -213,7 +237,10 @@ export class Browser {
     const page = new Page(this, targetId, sessionId);
     await page.init();
     this.pages.add(page);
-    if (this.offline) await this.applyOffline(sessionId, true);
+    if (this.offline) {
+      await this.applyOffline(sessionId, true);
+      await page.setOfflineShim(true);
+    }
     return page;
   }
 
@@ -251,17 +278,18 @@ export class Browser {
     }
   }
 
+  /**
+   * Every cookie in the profile. Asked of the browser itself, not of a tab, so
+   * it also works while no tab is open (the moment a cold start closes them).
+   */
   async allCookies() {
-    const page = [...this.pages][0];
-    if (!page) return [];
-    const { cookies } = await page.send('Network.getAllCookies');
+    const { cookies } = await this.conn.send('Storage.getCookies');
     return cookies;
   }
 
   async setCookies(cookies) {
-    const page = [...this.pages][0];
-    if (!page || cookies.length === 0) return;
-    await page.send('Network.setCookies', {
+    if (cookies.length === 0) return;
+    await this.conn.send('Storage.setCookies', {
       cookies: cookies.map((c) => ({
         name: c.name,
         value: c.value,
@@ -275,14 +303,35 @@ export class Browser {
     });
   }
 
+  /** Deletes every cookie with this name, whatever its domain and path. Returns how many. */
+  async deleteCookie(name) {
+    const page = [...this.pages][0];
+    if (!page) throw new Error('deleteCookie needs an open tab');
+    const matches = (await this.allCookies()).filter((c) => c.name === name);
+    for (const c of matches) await page.send('Network.deleteCookies', { name: c.name, domain: c.domain, path: c.path });
+    return matches.length;
+  }
+
   /**
    * A cold start: the whole browser process is closed and started again on the
-   * same profile. Service worker registrations, caches, IndexedDB and the HTTP
-   * cache survive on disk. Session cookies do not, so they are put back, as an
-   * installed app's sign-in would be kept by the OS shell.
+   * same profile. Service worker registrations, caches, IndexedDB, the HTTP
+   * cache and PERSISTENT cookies (those with an expiry, which is what the
+   * session cookie's `Max-Age` makes it) survive on disk. Session cookies do
+   * not.
+   *
+   *   restoreCookies  true (default): the cookies are read before the close and
+   *                   put back after the start, as an installed app's sign-in
+   *                   would be kept by the OS shell. false: the harness touches
+   *                   nothing, so only what the browser itself persisted is
+   *                   there. That is the real behaviour, and scenario S10 uses it.
+   *   dropCookies     names removed after the start, from the restored set AND
+   *                   from what the profile persisted, so a cold open can have
+   *                   no `_session` at all.
+   *
+   * Returns what it did, for the scenario's own assertions.
    */
-  async restart() {
-    const cookies = await this.allCookies();
+  async restart({ dropCookies = [], restoreCookies = true } = {}) {
+    const cookies = restoreCookies ? (await this.allCookies()).filter((c) => !dropCookies.includes(c.name)) : [];
     const wasOffline = this.offline;
     await this.stop({ keepProfile: true });
     this.offline = false;
@@ -291,8 +340,11 @@ export class Browser {
     await this.start();
     const page = await this.newPage();
     await this.setCookies(cookies);
+    const dropped = {};
+    for (const name of dropCookies) dropped[name] = await this.deleteCookie(name);
     await page.close();
     if (wasOffline) await this.setOffline(true);
+    return { restored: cookies.map((c) => c.name), dropped };
   }
 
   async stop({ keepProfile = false } = {}) {
@@ -404,6 +456,24 @@ export class Page {
         this.loadFired = true;
         break;
       default:
+    }
+  }
+
+  /**
+   * Keeps `navigator.onLine` false in every document this tab loads from now on
+   * (see OFFLINE_SHIM), or stops doing so. Going back online also flips the
+   * document that is open now and fires the `online` event the browser never
+   * fired, because as far as the browser knew it was online all along.
+   */
+  async setOfflineShim(offline) {
+    if (offline && this.shimId === undefined) {
+      const { identifier } = await this.send('Page.addScriptToEvaluateOnNewDocument', { source: OFFLINE_SHIM });
+      this.shimId = identifier;
+    }
+    if (!offline && this.shimId !== undefined) {
+      await this.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: this.shimId }).catch(() => {});
+      this.shimId = undefined;
+      await this.eval(`(() => { if (window.__ocForceOffline) { window.__ocForceOffline = false; window.dispatchEvent(new Event('online')); } })()`);
     }
   }
 

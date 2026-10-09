@@ -17,7 +17,10 @@ export function createProxy({ listenPort, targetPort }) {
   const log = [];
 
   const server = http.createServer((req, res) => {
-    log.push({ at: Date.now(), mode, method: req.method, url: req.url });
+    // `status` is filled in when the app answers, so a scenario can count the
+    // requests to one endpoint and see which of them were refused (a 401).
+    const entry = { at: Date.now(), mode, method: req.method, url: req.url, path: new URL(req.url, 'http://x').pathname, status: null };
+    log.push(entry);
     if (mode === 'offline') {
       req.socket.destroy();
       return;
@@ -26,6 +29,7 @@ export function createProxy({ listenPort, targetPort }) {
     const upstream = http.request(
       { host: '127.0.0.1', port: targetPort, method: req.method, path: req.url, headers: req.headers },
       (upstreamRes) => {
+        entry.status = upstreamRes.statusCode ?? 502;
         res.writeHead(upstreamRes.statusCode ?? 502, upstreamRes.headers);
         upstreamRes.pipe(res);
       },
@@ -56,6 +60,14 @@ export function createProxy({ listenPort, targetPort }) {
     /** Requests that reached the proxy while it was not online, since `sinceIndex`. */
     blocked(sinceIndex = 0) {
       return log.slice(sinceIndex).filter((entry) => entry.mode !== 'online');
+    },
+    /**
+     * Every request that reached the proxy since `sinceIndex`, with its path and
+     * the status the app answered (`null` when it was refused, held or not yet
+     * answered). `pathPrefix` narrows it to one endpoint.
+     */
+    requests(sinceIndex = 0, pathPrefix = '') {
+      return log.slice(sinceIndex).filter((entry) => entry.path.startsWith(pathPrefix));
     },
     get logLength() {
       return log.length;

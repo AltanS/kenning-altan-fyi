@@ -44,7 +44,47 @@ device dictionary (ADR-0013) could not be used offline. A browser harness
    server.
 6. **A display-only signed-in hint** (`{ userId }` in localStorage) lets the
    navigation render offline. It gates nothing and is cleared on sign-out and
-   on a 401.
+   on a 401. *(Amended on 2026-10-09: it is cleared on sign-out only, and it now
+   also carries a sync pause. See the amendment below.)*
+
+## Amendment (2026-10-09): decision 6, an expired session pauses sync
+
+**What was wrong.** A 401 was meant to clear the hint, but the scheduler called
+the sync cycle directly and never reached the code that did it. The session
+stayed installed, so every focus, `online` and local edit sent the same refused
+request again and logged it. Clearing the hint on a 401 would also have been
+the wrong fix: it takes the sidebar and the tabs away from a reader whose lists
+are still on the device. And the local store had no owner, so a different
+account signing in merged the first account's data into its own document.
+
+**The hint now holds `{ userId, pause? }`.** `userId` is the account whose data
+this device's store holds. `pause` is `{ reason: 'expired' | 'other-account', at }`.
+Old `{ userId }` values still parse. It is still display-only, and it may only
+WITHHOLD sync.
+
+**Decision 6 becomes:**
+
+- The hint is cleared by **sign-out only**. A 401, a 412 and a redirect never
+  clear it and never wipe the device.
+- A 401 (`expired`) or a 412 (`other-account`) on a sync request pauses sync
+  through `pauseSyncOnAuthFailure`: the session is dropped, the pause is
+  recorded, and the refused request is not sent again on any trigger.
+- Sync requests carry `X-Kenning-Expected-User`. The blob route answers
+  `412 account-mismatch` before any read or write when the cookie names someone
+  else. No header means no check.
+- `decideSyncSession` is the one function that weighs the live root answer, the
+  connectivity flag and the hint. A root answer that names nobody is not read as
+  an expired session, because the cached `/offline` page is signed out on
+  purpose. The root `clientLoader` marks its fallback answers
+  `isOfflineFallback: true`, and a fallback answer never confirms the hint.
+- Signing in as the same account removes the pause. Signing in as a different
+  one pauses sync as `other-account`, and the ribbon offers to erase the other
+  account's data on this device, behind a confirmation.
+- Sign-out while the pause is `other-account` skips the final sync and the wipe.
+
+**Consequence.** An ended session keeps the offline shell and all the data. The
+cost is a hint that can briefly name an account that is no longer signed in,
+which is harmless because nothing is authorised from it.
 
 ## Alternatives Considered
 

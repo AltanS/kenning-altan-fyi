@@ -2,6 +2,7 @@ import type { Route } from './+types/welcome';
 import { redirect, type MetaFunction } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
+import { DeviceDataKeptNotice } from '#app/components/account/device-data-kept-notice';
 import { Link } from '#app/components/link';
 import PublicWrapper from '#app/components/public-wrapper';
 import { buttonVariants } from '#app/components/ui/button';
@@ -85,6 +86,7 @@ export default function WelcomeRoute() {
             product name was on screen twice and the page's only top-level
             heading said nothing about what the page is for. */}
         <h1 className="font-display text-2xl font-semibold tracking-tight">{t('body')}</h1>
+        <DeviceDataKeptNotice />
         {/* THE BUTTONS ARE 44px TALL AND FULL WIDTH BELOW `sm`. This screen is
             met on a phone more often than any other in the product, and both
             of these are thumb targets rather than links inside a paragraph.

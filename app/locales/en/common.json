@@ -363,7 +363,8 @@
       "strong": "Strong"
     },
     "menuLabel": "Account menu",
-    "signedOutLabel": "Not signed in"
+    "signedOutLabel": "Not signed in",
+    "deviceDataKept": "Your lists and favourites stay on this device. Sign in to sync them again."
   },
   "offline": {
     "metaTitle": "Offline",
@@ -490,7 +491,16 @@
   "sync": {
     "pending": "Sending to the server.",
     "offline": "Offline. Changes are sent once you reconnect.",
-    "genericError": "Something went wrong. Try again."
+    "genericError": "Something went wrong. Try again.",
+    "pausedExpired": "Sync is paused. Everything stays on this device.",
+    "pausedExpiredAction": "Sign in again to sync",
+    "pausedOtherAccount": "This device holds another account's data. It is not synced.",
+    "eraseOtherAccountAction": "Erase it",
+    "eraseOtherAccountTitle": "Erase the other account's data?",
+    "eraseOtherAccountBody": "This removes the lists, favourites and history on this device. Changes the other account never synced are lost.",
+    "eraseOtherAccountConfirm": "Erase and sync",
+    "eraseOtherAccountCancel": "Cancel",
+    "eraseOtherAccountBlocked": "Could not erase. Close other Kenning tabs and try again."
   },
   "addToList": {
     "trigger": "Save to list",

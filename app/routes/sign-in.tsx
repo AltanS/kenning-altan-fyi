@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { Route } from './+types/sign-in';
 import { AuthCard, AuthField, AuthNotice } from '#app/components/account/auth-card';
+import { DeviceDataKeptNotice } from '#app/components/account/device-data-kept-notice';
 import { Button } from '#app/components/ui/button';
 import { Link } from '#app/components/link';
 import { documentTitle, metaLanguage } from '#app/i18n/meta-title';
@@ -133,6 +134,7 @@ export default function SignInRoute({ loaderData, actionData }: Route.ComponentP
         </>
       }
     >
+      <DeviceDataKeptNotice />
       <Form method="post" className="flex flex-col gap-5">
         <input type="hidden" name="next" value={loaderData.next} />
         <AuthField name="email" label={t('account.emailLabel')} type="email" autoComplete="email" />

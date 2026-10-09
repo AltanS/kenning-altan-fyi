@@ -434,6 +434,8 @@ page HTML other than `/offline`, never an answer. **A navigation never hangs.**
 **`navigator.onLine` is not evidence of a network**, so the offline page probes.
 **An offline lookup leaves nothing behind**: no history row, no favourite, no
 request, no AI call, and no automatic revalidation when the connection returns.
+The signed-in hint also carries the sync pause described under Accounts above;
+an expired session pauses sync and does not take the offline shell away.
 
 ## Prerequisites
 
@@ -623,6 +625,40 @@ minted a way in. The contract, in full:
 - The gate blocks the SCREEN, never the device's own store. Lists and history
   are still written locally and were never uploaded, and a redirect must not be
   the thing that deletes them.
+- **A dead session pauses sync, and removes nothing.** The signed-in hint
+  (`app/lib/auth/signed-in-hint.ts`) is `{ userId, pause? }`. `userId` is the
+  account whose data this device's store holds, and `pause` says sync is held
+  back and why: `expired` (the server answered a sync request with a 401) or
+  `other-account` (a different account signed in on a device holding someone
+  else's lists). The hint is display-only and may only WITHHOLD sync, never
+  grant it. Four rules:
+  - **Only a sign-out clears the hint, and only sign-out wipes the device.** An
+    expired session, a 401, a 412 and a redirect pause sync and leave the data,
+    the offline shell and the hint alone. `tests/unit/signed-in-hint-writers.test.ts`
+    lists who may write and who may clear it, and fails the build on a new one.
+  - **A refused sync request is sent once.** The scheduler calls the cycle
+    directly, so every cycle runner goes through `pauseSyncOnAuthFailure`
+    (`app/lib/sync/session-pause.ts`): it drops the sync session and records the
+    pause, and `catchUp`, `queueAndFlush` and `onLocalWrite` also return early
+    while the hint carries one. A focus, an `online` event or a local edit then
+    sends nothing, and an auth refusal is not passed to `reportError`.
+  - **Account A's data never silently syncs into account B.** Every sync request
+    carries `X-Kenning-Expected-User` (the sync session's user), and
+    `/api/v1/sync/blob` answers `412 account-mismatch` before any read or write
+    when the cookie names someone else. No header means no check, so an older tab
+    keeps working. `decideSyncSession` (`app/lib/sync/sync-decision.ts`) also holds
+    sync back as soon as a live root answer names a different account than the
+    hint, before anything is written. A root answer that names nobody is NEVER
+    read as an expired session: the cached `/offline` page is signed out on
+    purpose. The pause comes from the server refusing a request.
+  - **The way out is visible and never automatic.** `SyncPausedRibbon` (in the app
+    shell, after `UpdateRibbon`) says "Sync is paused" with a sign-in link while
+    the session is expired and the browser is online, and, for a different
+    account, offers "Erase it" behind a confirmation. Signing in as the SAME
+    account removes the pause (`confirmSignedInHint` in the `_app.tsx` confirm
+    effect, which skips the offline fallback root answer, `isOfflineFallback`).
+    Signing out while the device holds another account's data skips the final
+    sync and the wipe, so the original account finds its lists when it returns.
 - `app/lib/route-classification.ts` records how every file under `app/routes/`
   decides who may reach it. A new route file that nobody classified fails a
   unit test.

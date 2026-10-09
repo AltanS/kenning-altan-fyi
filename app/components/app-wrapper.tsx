@@ -20,6 +20,7 @@ import {
   type NavigationItem,
 } from './app-sidebar';
 import { BottomNav } from './bottom-nav';
+import { SyncPausedRibbon } from './sync-paused-ribbon';
 import { UpdateRibbon } from './update-ribbon';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
@@ -227,6 +228,10 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
           then it is one line with one button. See
           `#app/components/update-ribbon`. */}
       <UpdateRibbon />
+      {/* THE SAME HOME, THE SAME IDIOM. It renders nothing unless the signed-in
+          hint carries a pause, and then it is one line with one control. See
+          `#app/components/sync-paused-ribbon`. */}
+      <SyncPausedRibbon />
       {/* The chrome sits on `bg-card`, not `bg-background`, so the header is a
           treated surface rather than the same fill as the page under it.
           `border-brand-ink/20` tints the closing hairline the way the active tab

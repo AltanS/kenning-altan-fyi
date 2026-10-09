@@ -125,3 +125,5 @@
 - [Host binaries run the gates; sqlite3 is on the host](project_host_node_modules_bin_runs_the_gates.md) — oxlint/tsc/tsx without toolbox
 - [Offline shell and sw.js traps](project_kenning_offline_shell_sw_traps.md) — stamp placeholder, kill worker must not unregister, text-scan test pins sw.js
 - [Session cookie slides via the root middleware](project_session_cookie_slides_via_auth_middleware.md) — covers `/`, `.data` and `/api/*`; reads no DB
+- [A dead session pauses sync](project_a_dead_session_pauses_sync.md) — hint is `{userId, pause?}`, 401/412 go through pauseSyncOnAuthFailure, only sign-out clears
+- [root.tsx is testable with a loader hook](project_root_tsx_is_testable_with_a_loader_hook.md) — mock.module cannot mock .css, register tests/support/stub-assets-hooks.mjs

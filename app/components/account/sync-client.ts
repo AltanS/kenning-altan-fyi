@@ -11,15 +11,16 @@
  *
  * NO CREDENTIAL CROSSES THIS MODULE. Every call is `credentials: 'same-origin'`
  * with no `Authorization` header, so the httpOnly cookie authorises it and no
- * token is reachable from script. A `401` means the session is over: the
- * session flag is cleared and the caller shows the sign-in nudge.
+ * token is reachable from script. A `401` means the session is over and a
+ * `412` means another account is signed in: either one PAUSES sync
+ * (`pauseSyncOnAuthFailure`), which clears the session and records why in the
+ * signed-in hint. It never clears the hint and never touches the device's data;
+ * only a deliberate sign-out does either.
  */
-import { clearSignedInHint } from '#app/lib/auth/signed-in-hint';
 import type { JsonValue } from '#app/lib/json';
 import { runSyncCycleForCurrentSession, type SyncCycleResult } from '#app/lib/sync/orchestrator';
 import { createBrowserSyncHttpClient, type PulledBlob } from '#app/lib/sync/http-client';
-import { clearSyncSession } from '#app/lib/sync/sync-session';
-import { isSyncRequestError } from '#app/lib/sync/sync-error';
+import { pauseSyncOnAuthFailure } from '#app/lib/sync/session-pause';
 
 /**
  * The server's current document for the signed-in user.
@@ -53,22 +54,19 @@ export async function syncNow(): Promise<SyncCycleResult | null> {
 }
 
 /**
- * Runs a call and turns a `401` into a signed-out page.
+ * Runs a call and turns a refused session into a paused one.
  *
- * THE FLAG IS CLEARED BEFORE THE ERROR IS RETHROWN, so the scheduler stops
- * retrying a session the server has already ended. Every caller still sees the
- * error and decides what to show.
+ * SYNC IS PAUSED BEFORE THE ERROR IS RETHROWN, so the scheduler stops retrying a
+ * session the server has already ended. The signed-in hint is NOT cleared: the
+ * device still holds this account's data, the offline shell should keep drawing
+ * its tabs, and signing in again as the same account resumes sync. Every caller
+ * still sees the error and decides what to show.
  */
 async function withSignedOutCheck<T>(call: () => Promise<T>): Promise<T> {
   try {
     return await call();
   } catch (cause) {
-    if (isSyncRequestError(cause) && cause.kind === 'unauthorized') {
-      clearSyncSession();
-      // The display-only hint goes with the session the server just ended, so
-      // the offline shell stops drawing tabs for a reader who is signed out.
-      clearSignedInHint();
-    }
+    pauseSyncOnAuthFailure(cause);
     throw cause;
   }
 }

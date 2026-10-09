@@ -26,7 +26,9 @@
 import { z } from 'zod';
 
 import { jsonValueSchema, type JsonValue } from '#app/lib/json';
+import { EXPECTED_USER_HEADER } from '#app/lib/sync/expected-user';
 import { errorKindForStatus, SyncRequestError } from '#app/lib/sync/sync-error';
+import { getSyncSession } from '#app/lib/sync/sync-session';
 
 /** The one path both verbs use. */
 const BLOB_PATH = '/api/v1/sync/blob';
@@ -64,12 +66,24 @@ const pushConflictResponseSchema = z.object({ currentVersion: z.number().int().n
 /** The prose from an error body. Diagnostic only: clients branch on the status, never on the text. */
 const errorBodySchema = z.object({ error: z.string() });
 
-export function createBrowserSyncHttpClient(options: { fetchImpl?: typeof fetch } = {}): SyncHttpClient {
+/** What {@link createBrowserSyncHttpClient} can be told. */
+export interface BrowserSyncHttpClientOptions {
+  fetchImpl?: typeof fetch;
+  /**
+   * The account this device's data belongs to, sent as `X-Kenning-Expected-User`
+   * so the server can refuse a request whose cookie names somebody else. Left
+   * out, it is the current sync session's user. A `null` sends no header.
+   */
+  expectedUserId?: () => number | null;
+}
+
+export function createBrowserSyncHttpClient(options: BrowserSyncHttpClientOptions = {}): SyncHttpClient {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+  const expectedUserId = options.expectedUserId ?? (() => getSyncSession()?.userId ?? null);
 
   return {
     async pullBlob(): Promise<PulledBlob | null> {
-      const response = await send({ fetchImpl, method: 'GET' });
+      const response = await send({ fetchImpl, method: 'GET', expectedUserId: expectedUserId() });
       // A 404 is how an account that has never pushed looks. Answering `null`
       // rather than throwing is what lets the orchestrator start a first cycle
       // from local state alone.
@@ -84,6 +98,7 @@ export function createBrowserSyncHttpClient(options: { fetchImpl?: typeof fetch 
       const response = await send({
         fetchImpl,
         method: 'POST',
+        expectedUserId: expectedUserId(),
         body: { baseVersion: input.baseVersion, payload: input.payload },
       });
 
@@ -106,20 +121,23 @@ export function createBrowserSyncHttpClient(options: { fetchImpl?: typeof fetch 
 async function send({
   fetchImpl,
   method,
+  expectedUserId,
   body,
 }: {
   fetchImpl: typeof fetch;
   method: 'GET' | 'POST';
+  expectedUserId: number | null;
   body?: { baseVersion: number; payload: JsonValue };
 }): Promise<Response> {
+  const headers = new Headers({ accept: 'application/json' });
+  if (body !== undefined) headers.set('content-type', 'application/json');
+  if (expectedUserId !== null) headers.set(EXPECTED_USER_HEADER, String(expectedUserId));
+
   try {
     return await fetchImpl(BLOB_PATH, {
       method,
       credentials: 'same-origin',
-      headers:
-        body === undefined ?
-          { accept: 'application/json' }
-        : { accept: 'application/json', 'content-type': 'application/json' },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (cause) {
@@ -150,7 +168,8 @@ async function parseBody<T>({ response, schema }: { response: Response; schema: 
  * `errorKindForStatus` owns the mapping, so a `413` arrives as `too-large` and
  * the caller can say what actually happened, the capacity cliff reached,
  * rather than reporting an opaque server error. A `401` arrives as
- * `unauthorized`, which the scheduler reads as "signed out".
+ * `unauthorized`, which the scheduler reads as "signed out", and a `412` as
+ * `account-mismatch`, which it reads as "another account is signed in".
  */
 async function toRequestError(response: Response): Promise<SyncRequestError> {
   const payload: unknown = await response.json().catch(() => null);

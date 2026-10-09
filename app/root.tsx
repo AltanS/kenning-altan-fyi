@@ -98,6 +98,9 @@ export async function loader({ request }: Route.LoaderArgs) {
     isSuperadmin: displayUser?.isSuperadmin ?? false,
     language,
     isAnalyticsEnabled,
+    // The server answered, so this document is live. The client loader below is
+    // the only thing that answers `true`; see `isOfflineFallback` there.
+    isOfflineFallback: false,
     headers: combineHeaders(toastHeaders),
   };
 }
@@ -155,6 +158,12 @@ const NO_SERIALIZED_HEADERS = {
  * thrown `Response`. Swallowing those would render a silently wrong page, which
  * is worse than the crash this replaces.
  *
+ * BOTH FALLBACK ANSWERS SAY SO, `isOfflineFallback: true`. Their `userId` is the
+ * display-only hint or a remembered answer, neither of which is the server
+ * naming anybody right now, and `_app.tsx` must not CONFIRM the hint against a
+ * value that came from the hint: that would let the hint vouch for itself. The
+ * ribbon reads the flag for the same reason. A live answer is always `false`.
+ *
  * `clientLoader.hydrate` is deliberately NOT set. The default reuses the
  * server-rendered root data on hydration, so a cold load costs no extra fetch.
  */
@@ -165,7 +174,9 @@ export async function clientLoader({ serverLoader }: Route.ClientLoaderArgs): Pr
     return data;
   } catch (cause) {
     if (!shouldFallbackOffline(cause) && !isServerUnreachable(cause)) throw cause;
-    if (lastServedRootData) return lastServedRootData;
+    // A flagged copy, never the stored object: the stored one is the live answer
+    // and must keep saying `false` for the next server answer to replace.
+    if (lastServedRootData) return { ...lastServedRootData, isOfflineFallback: true };
     // First run offline: the shell came from the service worker cache and this
     // loader has never seen a server answer. `toast` is unknowable without the
     // server, so it is null rather than invented. The language
@@ -191,6 +202,7 @@ export async function clientLoader({ serverLoader }: Route.ClientLoaderArgs): Pr
       language: readLanguageCookie() ?? readStoredLanguage() ?? DEFAULT_LANGUAGE,
       // Offline there is nothing to report and no tracker to report it to.
       isAnalyticsEnabled: false,
+      isOfflineFallback: true,
       headers: NO_SERIALIZED_HEADERS,
     };
   }

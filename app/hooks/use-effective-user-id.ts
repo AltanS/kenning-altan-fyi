@@ -13,11 +13,17 @@
  * to the display-only hint (`signed-in-hint.ts`). While it says it is online the
  * hint is ignored completely, so an online signed-out visitor sees exactly what
  * they always saw. Every caller goes through this one hook so the sidebar, the
- * drawer, the bottom tabs, the star and the sync effect cannot disagree.
+ * drawer, the bottom tabs and the star cannot disagree.
  *
  * IT DRAWS AND IT GATES NOTHING. Same rule as the hint: `accountMiddleware` and
  * the server loaders decide who may do anything. The value here picks which
  * links to show.
+ *
+ * IT DOES NOT DECIDE SYNC. The sync session used to be installed from this value.
+ * It is installed from `decideSyncSession` (`app/lib/sync/sync-decision.ts`) now,
+ * which also reads the hint's pause. A PAUSED HINT STILL DRAWS THE SHELL here:
+ * the data on the device is still there to read, and a paused sync is not a
+ * reason to take the sidebar away.
  *
  * SERVER AND FIRST CLIENT RENDER AGREE. The hint lives in `localStorage` and the
  * connectivity flag in `navigator`, neither of which exists while the server
@@ -26,7 +32,7 @@
  */
 import { useSyncExternalStore } from 'react';
 import { useRouteLoaderData } from 'react-router';
-import { readSignedInHint } from '#app/lib/auth/signed-in-hint';
+import { readSignedInHint, subscribeSignedInHint } from '#app/lib/auth/signed-in-hint';
 
 /** What {@link offlineHintUserId} reads. */
 export interface OfflineHintInputs {
@@ -64,15 +70,22 @@ export function resolveEffectiveUserId({ rootUserId, offlineHintUserId: hintUser
   return rootUserId ?? hintUserId;
 }
 
-/** Calls back when the connectivity flag or the stored hint may have changed. */
+/**
+ * Calls back when the connectivity flag or the stored hint may have changed.
+ *
+ * The hint half goes through `subscribeSignedInHint`, which also reports a write
+ * made in THIS tab. The bare `storage` event it replaced fires in the other tabs
+ * only, so a pause or a replaced hint written here would never have redrawn the
+ * shell.
+ */
 function subscribe(onChange: () => void): () => void {
   window.addEventListener('online', onChange);
   window.addEventListener('offline', onChange);
-  window.addEventListener('storage', onChange);
+  const stopHint = subscribeSignedInHint(onChange);
   return () => {
     window.removeEventListener('online', onChange);
     window.removeEventListener('offline', onChange);
-    window.removeEventListener('storage', onChange);
+    stopHint();
   };
 }
 
