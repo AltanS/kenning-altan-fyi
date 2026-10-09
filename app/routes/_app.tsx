@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { Outlet, useRouteLoaderData } from 'react-router';
 import AppWrapper from '#app/components/app-wrapper';
+import { useEffectiveUserId } from '#app/hooks/use-effective-user-id';
+import { writeSignedInHint } from '#app/lib/auth/signed-in-hint';
 import { startSyncScheduler } from '#app/lib/sync/scheduler';
 import { clearSyncSession, getSyncSession, setSyncSession } from '#app/lib/sync/sync-session';
 
@@ -37,12 +39,29 @@ import { clearSyncSession, getSyncSession, setSyncSession } from '#app/lib/sync/
  * exactly what changes when somebody signs in or out, and `setSyncSession`
  * notifies the scheduler's own listener, so a fresh sign-in pulls immediately
  * instead of waiting for the reader to switch tabs and come back.
+ *
+ * THE ID IS THE EFFECTIVE ONE (`useEffectiveUserId`). Offline, the root data can
+ * be a stale signed-out embed served from the service worker's cache, and
+ * reading it literally would call `clearSyncSession` on a reader who is still
+ * signed in. While the browser is offline a missing id falls back to the
+ * display-only hint instead; online, the hint is ignored and a signed-out
+ * visitor behaves exactly as before.
+ *
+ * THE HINT IS WRITTEN HERE, from the root data only. It is never written from
+ * the effective id, because that would let the hint confirm itself. Sign-out and
+ * a `401` from the sync endpoint clear it. It is display-only: see
+ * `app/lib/auth/signed-in-hint.ts`.
  */
 export default function AppLayout() {
   const rootData = useRouteLoaderData<{ userId: number | null }>('root');
-  const userId = rootData?.userId ?? null;
+  const rootUserId = rootData?.userId ?? null;
+  const userId = useEffectiveUserId();
 
   useEffect(() => startSyncScheduler(), []);
+
+  useEffect(() => {
+    if (rootUserId !== null) writeSignedInHint(rootUserId);
+  }, [rootUserId]);
 
   useEffect(() => {
     if (userId === null) {

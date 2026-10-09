@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router';
+import { NeedsConnectionBoundary } from '#app/components/needs-connection-boundary';
 import { authMiddleware } from '#app/middleware/auth';
 
 /**
@@ -51,4 +52,19 @@ export const middleware = [authMiddleware];
 
 export default function GatedAppLayout() {
   return <Outlet />;
+}
+
+/**
+ * The calm screen for a gated route whose server cannot be reached.
+ *
+ * Every screen under this layout loads its data from the app server, and the
+ * ones with no client loader of their own (lists, history, favourites, settings,
+ * quiz) have nothing to show without it. Offline, their request fails, and the
+ * default boundary above this one replaces the whole app, shell included, with a
+ * crash page. `NeedsConnectionBoundary` keeps the shell and draws one plain card
+ * inside it, and hands every other error to the parent boundary. `/account`
+ * sits outside this layout and wears the same boundary for the same reason.
+ */
+export function ErrorBoundary() {
+  return <NeedsConnectionBoundary />;
 }

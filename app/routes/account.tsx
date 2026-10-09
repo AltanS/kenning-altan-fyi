@@ -29,6 +29,7 @@ import type { Route } from './+types/account';
 import { AuthCard, AuthField, AuthNotice } from '#app/components/account/auth-card';
 import { ExportDataButton } from '#app/components/account/export-data-button';
 import { ConfirmAction } from '#app/components/confirm-action';
+import { NeedsConnectionBoundary } from '#app/components/needs-connection-boundary';
 import { Button, buttonVariants } from '#app/components/ui/button';
 import { Input } from '#app/components/ui/input';
 import { Label } from '#app/components/ui/label';
@@ -272,4 +273,13 @@ function ExportCard() {
       </div>
     </section>
   );
+}
+
+/**
+ * Offline, this screen's loader cannot reach the server, and the default boundary
+ * would replace the whole app with a crash page. The shared boundary draws one
+ * calm card inside the shell instead, and rethrows every other error.
+ */
+export function ErrorBoundary() {
+  return <NeedsConnectionBoundary />;
 }

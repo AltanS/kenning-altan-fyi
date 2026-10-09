@@ -87,7 +87,7 @@
     "vite": "^8.2.1"
   },
   "scripts": {
-    "build": "cross-env NODE_ENV=production react-router build",
+    "build": "cross-env NODE_ENV=production react-router build && tsx ./scripts/build-precache.ts",
     "cli": "tsx ./cli/index.ts",
     "dev": "concurrently --kill-others --names \"web,worker\" -c \"cyan,magenta\" \"pnpm run dev:server\" \"pnpm run dev:worker\"",
     "dev:server": "tsx ./server.ts",

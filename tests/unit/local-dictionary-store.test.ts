@@ -352,6 +352,8 @@ describe('the device dictionary never leaves the device', () => {
     assert.deepEqual(engineFiles.toSorted(), [
       'card-state.ts',
       'device-dictionary-store.ts',
+      'device-storage.ts',
+      'offline-search.ts',
       'sqlite-table-reader.ts',
       'use-device-dictionary-hit.ts',
       'wikdict-downloads.ts',

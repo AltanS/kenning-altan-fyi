@@ -415,6 +415,26 @@ button on a device hit, or asks once by itself on a device miss. It posts to
 page load. The entry page `/entry/:headwordId` is not deferred and still enriches
 by itself.
 
+### Offline boot and offline search (ADR-0014)
+
+The installed app opens in airplane mode, and a single word is looked up in the
+device dictionary. See [ADR-0014](.adr/0014-the-installed-app-boots-offline-from-a-precached-build.md)
+and `docs/offline.md`.
+
+The code: `public/sw.js`, `scripts/build-precache.ts`, `react-router.config.ts`
+(`routeDiscovery: initial`), `app/routes/offline.tsx` with
+`app/lib/offline/return-path.ts`, the `clientLoader` in `app/routes/translate.tsx`
+with `app/lib/offline/` and `app/lib/local-dictionary/offline-search.ts`,
+`app/lib/auth/signed-in-hint.ts`, and the readiness row in
+`app/components/personal/offline-readiness.tsx`. Acceptance test:
+`scripts/offline-check/run.sh` (a real Chromium, offline and hung-network cases).
+
+Four rules. **The worker caches the build and one page.** Never route data, never
+page HTML other than `/offline`, never an answer. **A navigation never hangs.**
+**`navigator.onLine` is not evidence of a network**, so the offline page probes.
+**An offline lookup leaves nothing behind**: no history row, no favourite, no
+request, no AI call, and no automatic revalidation when the connection returns.
+
 ## Prerequisites
 
 The four `@sprqvntrs/*` dependencies are published to npmjs and need no
@@ -713,6 +733,7 @@ Significant decisions — anything that constrains future work, locks in a trade
 | [0011](.adr/0011-plain-accounts-replace-the-encrypted-layer.md) | Plain accounts replace the encrypted layer | Accepted |
 | [0012](.adr/0012-quiz-scaffold-is-not-dictionary-data.md) | The quiz scaffold is a shared pool, not dictionary data, and dedupes on a database row, not a pg-boss policy | Accepted |
 | [0013](.adr/0013-the-device-dictionary-is-imported-by-the-reader-and-never-reaches-the-server.md) | The device dictionary is imported by the reader and never reaches the server | Accepted |
+| [0014](.adr/0014-the-installed-app-boots-offline-from-a-precached-build.md) | The installed app boots offline from a precached build, and search falls back to the device dictionary | Accepted |
 
 ## Coding Style Summary
 

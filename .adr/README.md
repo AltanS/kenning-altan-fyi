@@ -61,3 +61,4 @@ gets an edit.
 | [0011](0011-plain-accounts-replace-the-encrypted-layer.md) | Plain accounts replace the encrypted layer | Accepted |
 | [0012](0012-quiz-scaffold-is-not-dictionary-data.md) | The quiz scaffold is a shared pool, not dictionary data, and dedupes on a database row, not a pg-boss policy | Accepted |
 | [0013](0013-the-device-dictionary-is-imported-by-the-reader-and-never-reaches-the-server.md) | The device dictionary is imported by the reader and never reaches the server | Accepted |
+| [0014](0014-the-installed-app-boots-offline-from-a-precached-build.md) | The installed app boots offline from a precached build, and search falls back to the device dictionary | Accepted |

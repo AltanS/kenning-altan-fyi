@@ -201,14 +201,19 @@ describe('a hit reaches nothing but the card', () => {
   /** Every name by which the device dictionary or its lookup can be reached. Prose about "the device" is not one. */
   const DEVICE_DICTIONARY_NAMES = /DeviceDictionary|deviceDictionary|deviceLookup|device-dict|local-dictionary/;
 
-  /** The only files that may name the device dictionary: its engine, its two screens and the hit card. */
+  /**
+   * The only files that may name the device dictionary: its engine, its two screens,
+   * the hit card, and the offline planner's door. The door returns routing facts and
+   * no entry; the next block pins that.
+   */
   const ALLOWED = new Set([
     'app/components/device-dictionary-hit.tsx',
     'app/components/personal/device-dictionary-card.tsx',
     'app/components/search-panes.tsx',
+    'app/lib/offline/plan-on-device.ts',
   ]);
 
-  it('is imported by no file outside the engine, the settings card, the hit card and the search screen', () => {
+  it('is imported by no file outside the engine, the settings card, the hit card, the search screen and the offline planner', () => {
     const files = sourceFiles('app').filter((file) => !file.startsWith('app/lib/local-dictionary/'));
     assert.ok(files.length > 100, 'the walk must find the app, or this case proves nothing');
     const importing = files.filter((file) =>

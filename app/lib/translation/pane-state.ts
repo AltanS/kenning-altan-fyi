@@ -386,8 +386,10 @@ export type DeviceLookupStatus = 'idle' | 'loading' | 'hit' | 'miss';
  *   in flight. It must not say "translating", because nothing is.
  * - `offer`: the "Ask the AI" button.
  * - `ask-now`: the screen calls `ask()` once, from an effect, and renders `wait`.
+ * - `offline`: the browser has no connection. The area draws one calm line and no
+ *   button, because the press would POST to a server that cannot be reached.
  */
-export type DeferredAskPlan = 'inactive' | 'wait' | 'offer' | 'ask-now';
+export type DeferredAskPlan = 'inactive' | 'wait' | 'offer' | 'ask-now' | 'offline';
 
 /**
  * The key an automatic ask is remembered by: one word, in one direction.
@@ -410,6 +412,12 @@ export interface DeferredAskInputs {
   askedKey: string | null;
   /** Whether an ask is in flight right now. */
   isAsking: boolean;
+  /**
+   * Whether the browser has no connection. Left out it is false, which is the
+   * behaviour before this input existed. A connection that drops AFTER the page
+   * loaded leaves a deferred pane with a button that cannot work.
+   */
+  isOffline?: boolean;
 }
 
 /**
@@ -433,8 +441,12 @@ export function planDeferredAsk({
   key,
   askedKey,
   isAsking,
+  isOffline = false,
 }: DeferredAskInputs): DeferredAskPlan {
   if (!isAwaitingAsk || key === null) return 'inactive';
+  // NO ASK, AUTOMATIC OR BY BUTTON, CAN LEAVE A DEVICE WITH NO CONNECTION. This is
+  // read before the lookup so the automatic ask of a miss cannot fire either.
+  if (isOffline) return 'offline';
   if (lookup === 'loading') return 'wait';
   if (lookup === 'hit') return 'offer';
   if (askedKey !== key) return 'ask-now';

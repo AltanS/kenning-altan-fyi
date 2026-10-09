@@ -17,12 +17,15 @@
  *   1. one sync attempt, so the last local edits reach the account,
  *   2. drop the sync session, so no trigger starts a cycle mid-wipe,
  *   3. stop the persisters and delete both databases (`wipeDeviceStore`),
- *   4. ask the service worker to drop its caches, because a cached `/account`
- *      document carries the previous reader's address,
- *   5. call the server action, which destroys the cookie and redirects.
+ *   4. call the server action, which destroys the cookie and redirects.
+ *
+ * The service worker is not asked to clear anything. It used to cache signed-in
+ * HTML such as `/account`, which carries the reader's address, and sign-out had
+ * to drop it. It now caches only the build's files and the signed-out
+ * `/offline` page, so there is no user HTML on the device to remove.
  *
  * The server step is LAST on purpose. Step 1 needs the cookie the server is
- * about to destroy, and steps 3 and 4 must not be cut short by the redirect the
+ * about to destroy, and step 3 must not be cut short by the redirect the
  * server answers with: `serverAction()` throws that redirect, so nothing after
  * it in this function would run.
  *
@@ -39,6 +42,7 @@
 import { redirect } from 'react-router';
 
 import type { Route } from './+types/sign-out';
+import { clearSignedInHint } from '#app/lib/auth/signed-in-hint';
 import { wipeDeviceStore } from '#app/lib/local-store';
 import { clearSyncSession } from '#app/lib/sync/sync-session';
 import { syncNow } from '#app/components/account/sync-client';
@@ -58,8 +62,8 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
 export async function clientAction({ serverAction }: Route.ClientActionArgs): Promise<Response> {
   await carryLastEditsUp();
   clearSyncSession();
+  clearSignedInHint();
   await wipeDeviceStore();
-  clearServiceWorkerCaches();
   return serverAction();
 }
 
@@ -80,15 +84,4 @@ async function carryLastEditsUp(): Promise<void> {
     if (isSyncRequestError(cause) && (cause.kind === 'transport' || cause.kind === 'unauthorized')) return;
     reportError(cause, { operation: 'sign-out', step: 'finalSync' });
   }
-}
-
-/**
- * Asks the service worker to empty its caches.
- *
- * `/account` is in the precached app shell, and its HTML carries the signed-in
- * address. Deleting the databases without this would leave that page readable
- * offline by the next person holding the phone.
- */
-function clearServiceWorkerCaches(): void {
-  globalThis.navigator?.serviceWorker?.controller?.postMessage({ type: 'CLEAR_CACHE' });
 }

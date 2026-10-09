@@ -29,7 +29,9 @@ import {
   resolveRequestLanguage,
   type LanguageCode,
 } from '#app/i18n/language-prefs';
+import { readSignedInHint } from '#app/lib/auth/signed-in-hint';
 import { shouldFallbackOffline } from '#app/lib/local-store';
+import { isServerUnreachable } from '#app/lib/offline/unreachable';
 import { registerServiceWorker } from '#app/lib/service-worker';
 import { isAnalyticsHost } from '#app/lib/analytics-host';
 import { Matomo, MatomoRouteTracker } from '#app/components/site/matomo';
@@ -139,10 +141,12 @@ const NO_SERIALIZED_HEADERS = {
  * ALREADY SUCCEEDED on the device.
  *
  * Only a NETWORK failure is absorbed. `shouldFallbackOffline` returns true for
- * an offline navigator or a `TypeError` and nothing else, so an application
- * error still reaches the boundary: the trailing-slash `redirect` the server
- * loader throws, a 500, any thrown `Response`. Swallowing those would render a
- * silently wrong page, which is worse than the crash this replaces.
+ * an offline navigator or a `TypeError`, and `isServerUnreachable` adds a
+ * thrown 502, 503 or 504 (a proxy in front of a server that is down), and
+ * nothing else. An application error still reaches the boundary: the
+ * trailing-slash `redirect` the server loader throws, a 401, a 500, any other
+ * thrown `Response`. Swallowing those would render a silently wrong page, which
+ * is worse than the crash this replaces.
  *
  * `clientLoader.hydrate` is deliberately NOT set. The default reuses the
  * server-rendered root data on hydration, so a cold load costs no extra fetch.
@@ -153,7 +157,7 @@ export async function clientLoader({ serverLoader }: Route.ClientLoaderArgs): Pr
     lastServedRootData = data;
     return data;
   } catch (cause) {
-    if (!shouldFallbackOffline(cause)) throw cause;
+    if (!shouldFallbackOffline(cause) && !isServerUnreachable(cause)) throw cause;
     if (lastServedRootData) return lastServedRootData;
     // First run offline: the shell came from the service worker cache and this
     // loader has never seen a server answer. `toast` is unknowable without the
@@ -166,9 +170,14 @@ export async function clientLoader({ serverLoader }: Route.ClientLoaderArgs): Pr
       // it. The header falls back to offering a way in, which is the harmless
       // direction to be wrong in: nothing gates on this value.
       userEmail: null,
-      // Same reasoning, and one more: with no id the sync engine is told there
-      // is no session, so it starts no cycle it could not authorise anyway.
-      userId: null,
+      // The id comes from the display-only hint this browser wrote the last time
+      // a server named its user (`signed-in-hint.ts`), so the shell keeps the
+      // sidebar and the tabs of a reader who is still signed in. It is a hint
+      // and not a credential: nothing is authorised with it, and a wrong one
+      // costs a few links that lead to a "needs a connection" card. With no
+      // hint it is `null`, which tells the sync engine there is no session, so
+      // it starts no cycle it could not authorise anyway.
+      userId: readSignedInHint()?.userId ?? null,
       // No server to ask, so no sidebar admin link either: the harmless
       // direction to be wrong in, same as `userEmail` above.
       isSuperadmin: false,

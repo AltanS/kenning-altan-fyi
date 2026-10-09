@@ -28,12 +28,12 @@ import type { LanguageCode } from '#app/lib/dictionary/detect-language';
 import { deviceDictionaryPairKey } from '#app/lib/dictionary/device-dictionary-cookie';
 import { reportError } from '#app/lib/report-error';
 import {
-  createIndexedDbStorage,
   lookupDeviceEntry,
   type DeviceDictionaryEntry,
   type DictionaryMeta,
   type DictionaryStorage,
 } from './device-dictionary-store';
+import { openDeviceStorage } from './device-storage';
 
 /** What the device dictionary knows about the searched word. */
 export type DeviceDictionaryLookup =
@@ -128,15 +128,6 @@ export async function settleDeviceLookup(
     reportError(cause, { stage: 'lookup-device-dictionary' });
     return { status: 'miss' };
   }
-}
-
-/** The browser's storage, opened on first use inside an effect and never during a render. */
-let deviceStorage: DictionaryStorage | undefined;
-
-/** The device dictionary's IndexedDB storage. Call from an effect or a handler only. */
-function openDeviceStorage(): DictionaryStorage {
-  deviceStorage ??= createIndexedDbStorage();
-  return deviceStorage;
 }
 
 /**

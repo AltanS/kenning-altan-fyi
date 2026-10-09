@@ -2,6 +2,7 @@ import { createRequestHandler } from '@react-router/express';
 import 'dotenv/config';
 import express from 'express';
 import compression from 'compression';
+import { resolve as resolvePath } from 'node:path';
 import { createServerLogger } from '@sprqvntrs/logger/server';
 import { createHttpLogger } from '@sprqvntrs/logger/http';
 import { initializeWorkflows, stopOrchestrator } from '#app/services/workflows.server';
@@ -120,7 +121,19 @@ app.use(apiJsonMiddleware);
 
 // Remix fingerprints its assets so we can cache forever.
 
-app.use(express.static('build/client', { maxAge: '1h' }));
+// The service worker file and its file list are the two files a browser must
+// never serve from its HTTP cache: a stale `sw.js` pins a device on an old
+// build, and a stale `precache.json` makes the worker download an old list.
+const REVALIDATED_FILES = new Set([resolvePath('build/client/sw.js'), resolvePath('build/client/precache.json')]);
+
+app.use(
+  express.static('build/client', {
+    maxAge: '1h',
+    setHeaders: (res, filePath) => {
+      if (REVALIDATED_FILES.has(resolvePath(filePath))) res.setHeader('Cache-Control', 'no-cache');
+    },
+  }),
+);
 
 // Wait for the DB pool's retry-backed init to finish before starting pg-boss —
 // pg-boss opens its own postgres connection in initializeWorkflows() and does

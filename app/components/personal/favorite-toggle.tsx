@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useRouteLoaderData } from 'react-router';
 import { toast } from 'sonner';
 import { Button } from '#app/components/ui/button';
+import { useEffectiveUserId } from '#app/hooks/use-effective-user-id';
 import { favoriteId, isFavorite, putFavorite, removeFavorite } from '#app/lib/local-store';
 import { reportError } from '#app/lib/report-error';
 
@@ -65,8 +65,7 @@ export function FavoriteToggle({ headwordId, senseId, lemma, translationSnapshot
   // `number`. It is read as a PRESENCE check and never as a credential: the
   // device store is opened for a reader who holds a session, and nothing here
   // authorises anything with the value.
-  const rootData = useRouteLoaderData<{ userId: number | null }>('root');
-  const isSignedIn = (rootData?.userId ?? null) !== null;
+  const isSignedIn = useEffectiveUserId() !== null;
   const [state, setState] = useState<FavoriteState>('pending');
   const [isWriting, setIsWriting] = useState(false);
 

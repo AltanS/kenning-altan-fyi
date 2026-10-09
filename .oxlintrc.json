@@ -26,6 +26,7 @@
     ".react-router/**",
     "build/**",
     "drizzle/migrations/**",
+    "scripts/offline-check/**",
     "tools/oxlint/anti-slop/**",
     "variants/self-hosted/**",
     "variants/supabase/**"

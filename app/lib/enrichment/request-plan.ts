@@ -48,6 +48,8 @@ export interface EnrichmentRequestInputs {
   askedKey: string | null;
   /** Whether a request is in flight right now. */
   isAsking: boolean;
+  /** Whether the browser has no connection. Left out it is false. */
+  isOffline?: boolean;
 }
 
 /**
@@ -79,6 +81,8 @@ export function isAwaitingEnrichmentRequest(panel: EnrichmentPanel): boolean {
  *   automatic request is in flight. It must not say anything is being written.
  * - `offer`: the "Write the explanation" button.
  * - `ask-now`: the card posts the request once, from an effect, and renders `wait`.
+ * - `offline`: the browser has no connection, so the card draws one calm line and
+ *   no button.
  *
  * AN `automatic` CARD NEVER ASKS. It offers the button. An `on-request` panel
  * should not reach one, since only a deferring loader makes it, but if one ever
@@ -95,6 +99,7 @@ export function planEnrichmentRequest({
   onRequest,
   askedKey,
   isAsking,
+  isOffline = false,
 }: EnrichmentRequestInputs): DeferredAskPlan {
   const from = panel.from;
   return planDeferredAsk({
@@ -103,5 +108,6 @@ export function planEnrichmentRequest({
     key: from === null ? null : enrichmentRequestKey({ headwordId, from, to }),
     askedKey,
     isAsking,
+    isOffline,
   });
 }

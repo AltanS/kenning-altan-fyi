@@ -1,6 +1,8 @@
+import { z } from 'zod';
+
 /**
- * The service worker, from the app's side: registering it, and adopting a
- * newer one on demand.
+ * The service worker, from the app's side: registering it, reporting whether
+ * the device is ready for offline use, and adopting a newer one on demand.
  *
  * ── WHY THE REGISTRATION MOVED HERE ─────────────────────────────────────────
  *
@@ -56,6 +58,72 @@ async function registerAndRemember(): Promise<void> {
     currentRegistration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
   } catch {
     // The app works without a worker, it just loses offline support.
+    return;
+  }
+  await askForPersistentStorage();
+}
+
+/** Set once the browser has been asked, so a refusal is not asked again on every launch. */
+const PERSIST_ASKED_KEY = 'kenning.persist-storage-asked';
+
+/**
+ * Asks the browser not to evict this origin's storage, on the first launch that
+ * is online. Precached files and the device store are only worth having if
+ * they are still there next week. Best effort: a refusal, a missing API and a
+ * blocked localStorage all cost nothing but the guarantee.
+ */
+async function askForPersistentStorage(): Promise<void> {
+  try {
+    if (navigator.onLine === false) return;
+    if (window.localStorage.getItem(PERSIST_ASKED_KEY) !== null) return;
+    window.localStorage.setItem(PERSIST_ASKED_KEY, '1');
+    if (!navigator.storage?.persist) return;
+    await navigator.storage.persist();
+  } catch {
+    // Not available here. Nothing depends on the answer.
+  }
+}
+
+/** The cache and key `public/sw.js` writes its install record to. Keep in step with that file. */
+const META_CACHE_NAME = 'sw-meta';
+const META_KEY = '/__sw-meta';
+
+/** What the worker's install records once every file is on the device. */
+const installRecordSchema = z.object({
+  stamp: z.string(),
+  installedAt: z.number(),
+  count: z.number(),
+});
+
+/**
+ * Whether this device can open the app with no network.
+ *
+ * `controlled` is whether a worker controls THIS page, which a first visit
+ * does not have until the next load. `precacheReady` is whether the worker's
+ * install finished and recorded itself, and `stamp` names the build it
+ * precached. Reads the Cache API directly, so it works offline.
+ *
+ * NEVER THROWS. In dev, in a browser with no worker and in a private window it
+ * answers all false and null, which a caller can show as "not ready".
+ */
+export async function readOfflineReadiness(): Promise<{
+  controlled: boolean;
+  precacheReady: boolean;
+  stamp: string | null;
+}> {
+  const notReady = { controlled: false, precacheReady: false, stamp: null };
+  if (!import.meta.env.PROD) return notReady;
+  try {
+    if (!('serviceWorker' in navigator)) return notReady;
+    const controlled = navigator.serviceWorker.controller !== null;
+    const meta = await caches.open(META_CACHE_NAME);
+    const response = await meta.match(META_KEY);
+    if (response === undefined) return { controlled, precacheReady: false, stamp: null };
+    const record = installRecordSchema.safeParse(await response.json());
+    if (!record.success) return { controlled, precacheReady: false, stamp: null };
+    return { controlled, precacheReady: true, stamp: record.data.stamp };
+  } catch {
+    return notReady;
   }
 }
 

@@ -122,3 +122,5 @@
 - [The alternative chip is a visible "Use this" pill](project_translate_alternative_chip_useThisShort.md) — lang moves off the button onto the lemma span alone
 - [quiz_scaffold_runs needs a reclaimable claim, not DO NOTHING](project_quiz_scaffold_reclaimable_run_row.md) — a single-row dedupe table strands on any refusal unless failed/budget reopen
 - [design-rules em-dash scan covers cli/**/*.ts comments too](project_design_rules_em_dash_scope.md) — not just app/**/*.tsx copy
+- [Host binaries run the gates; sqlite3 is on the host](project_host_node_modules_bin_runs_the_gates.md) — oxlint/tsc/tsx without toolbox
+- [Offline shell and sw.js traps](project_kenning_offline_shell_sw_traps.md) — stamp placeholder, kill worker must not unregister, text-scan test pins sw.js

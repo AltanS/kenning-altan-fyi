@@ -20,6 +20,7 @@ import { cn } from '#app/lib/utils';
 import { Link } from '#app/components/link';
 import { APP_NAME } from '#app/lib/app-name';
 import { KenningMark } from '#app/components/kenning-mark';
+import { useEffectiveUserId } from '#app/hooks/use-effective-user-id';
 import { useInstallPrompt } from '#app/hooks/use-install-prompt';
 import {
   Sidebar,
@@ -318,11 +319,13 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const activeHref = activeNavigationHref(location.pathname);
   // Read through the root loader, the same source `AccountSlot` reads: a
   // display convenience, never a gate. See `visibleFooterNavigationItems`.
-  const rootData = useRouteLoaderData<{ isSuperadmin: boolean; userId: number | null }>('root');
+  const rootData = useRouteLoaderData<{ isSuperadmin: boolean }>('root');
   const footerItems = visibleFooterNavigationItems(rootData?.isSuperadmin ?? false);
   // A PRESENCE CHECK, NEVER A CREDENTIAL. `userId` says which rows are worth
-  // offering; `accountMiddleware` is what refuses anybody.
-  const primaryItems = visiblePrimaryNavigationItems((rootData?.userId ?? null) !== null);
+  // offering; `accountMiddleware` is what refuses anybody. It is the EFFECTIVE
+  // id, so a reader who is still signed in keeps the rows while offline.
+  const userId = useEffectiveUserId();
+  const primaryItems = visiblePrimaryNavigationItems(userId !== null);
 
   return (
     <Sidebar collapsible="icon" {...props}>

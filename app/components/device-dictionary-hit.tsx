@@ -107,6 +107,7 @@ function NeutralBlock(): ReactNode {
  * - `wait`: a neutral empty block. No spinner text, because nothing is
  *   translating. It covers the device lookup running and the automatic ask in
  *   flight.
+ * - `offline`: one calm line and no button, because there is no connection.
  * - `offer`: the button. After a hit the sentence says "as well", because the
  *   reader already has an answer. After a miss whose automatic ask did not take
  *   it says only "Ask the AI", because there is nothing to be "as well" as.
@@ -119,6 +120,12 @@ export function DeviceDictionaryAnswerBody({ controller, to, plan, lookup }: Dev
   const { t } = useTranslation();
 
   if (plan === 'wait' || plan === 'ask-now') return <NeutralBlock />;
+  // NO CONNECTION, SO NO BUTTON. The press would POST to a server that cannot be
+  // reached, and the error a fetcher raises replaces the whole screen. One calm
+  // line says why the AI is not offered, and the device hit above stays.
+  if (plan === 'offline') {
+    return <p className="mt-2 text-sm text-muted-foreground">{t('offline.askNeedsConnection')}</p>;
+  }
   if (plan === 'offer') {
     return (
       <div className="mt-2">

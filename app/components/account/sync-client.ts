@@ -14,6 +14,7 @@
  * token is reachable from script. A `401` means the session is over: the
  * session flag is cleared and the caller shows the sign-in nudge.
  */
+import { clearSignedInHint } from '#app/lib/auth/signed-in-hint';
 import type { JsonValue } from '#app/lib/json';
 import { runSyncCycleForCurrentSession, type SyncCycleResult } from '#app/lib/sync/orchestrator';
 import { createBrowserSyncHttpClient, type PulledBlob } from '#app/lib/sync/http-client';
@@ -62,7 +63,12 @@ async function withSignedOutCheck<T>(call: () => Promise<T>): Promise<T> {
   try {
     return await call();
   } catch (cause) {
-    if (isSyncRequestError(cause) && cause.kind === 'unauthorized') clearSyncSession();
+    if (isSyncRequestError(cause) && cause.kind === 'unauthorized') {
+      clearSyncSession();
+      // The display-only hint goes with the session the server just ended, so
+      // the offline shell stops drawing tabs for a reader who is signed out.
+      clearSignedInHint();
+    }
     throw cause;
   }
 }

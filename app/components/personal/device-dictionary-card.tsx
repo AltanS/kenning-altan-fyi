@@ -15,6 +15,7 @@ import {
 } from '#app/components/ui/alert-dialog';
 import { Button } from '#app/components/ui/button';
 import { Input } from '#app/components/ui/input';
+import { OfflineReadiness } from '#app/components/personal/offline-readiness';
 import { Label } from '#app/components/ui/label';
 import {
   deviceDictionaryPairKey,
@@ -41,6 +42,7 @@ import {
 } from '#app/lib/local-dictionary/device-dictionary-store';
 import { buildWikdictIndex, parseWikdictFileName } from '#app/lib/local-dictionary/wikdict';
 import { WIKDICT_HOME_URL, listWikdictDownloads } from '#app/lib/local-dictionary/wikdict-downloads';
+import { requestPersistentStorage } from '#app/lib/offline/readiness';
 import { reportError } from '#app/lib/report-error';
 
 /** The translation key of the line each way an import can fail. */
@@ -65,6 +67,21 @@ const LIST_HEADING_ID = 'device-dictionary-list-heading';
 
 /** What the list of dictionaries on this device is showing. */
 type Listing = { status: 'loading' } | { status: 'ready'; dictionaries: DictionaryMeta[] } | { status: 'unavailable' };
+
+/**
+ * The pair keys the readiness row reports.
+ *
+ * `null` only while the device is still being read. A browser that will not
+ * keep a dictionary holds none, and the list above already says why, so that
+ * case reads as an empty device rather than as a check that never ends.
+ *
+ * @param listing What the list is showing.
+ */
+function listedPairs(listing: Listing): string[] | null {
+  if (listing.status === 'loading') return null;
+  if (listing.status === 'unavailable') return [];
+  return listing.dictionaries.map((meta) => meta.pair);
+}
 
 /** How the import handler reports its steps to the card's reducer. */
 type CardDispatch = (action: DeviceDictionaryCardAction) => void;
@@ -255,6 +272,12 @@ export function DeviceDictionaryCard() {
 
   async function runImport(file: File): Promise<void> {
     const meta = await importWikdictFile(file, dispatch);
+    // A WORD LIST THE BROWSER MAY DELETE IS NOT AN OFFLINE DICTIONARY. The first
+    // launch already asked once, and a refusal then was about an origin with
+    // nothing in it. An import is the moment the stored data becomes worth
+    // keeping, so ask again. It never throws, and the readiness row below reads
+    // the answer when the listing changes.
+    if (meta !== null) await requestPersistentStorage();
     setListing(await readListing());
     if (meta !== null) toast.success(t('settings.deviceDictionary.savedToast'));
   }
@@ -358,6 +381,8 @@ export function DeviceDictionaryCard() {
         </p>
         <ImportStatus state={state} />
       </div>
+
+      <OfflineReadiness dictionaryPairs={listedPairs(listing)} />
 
       <section className="mt-6">
         <h3 className="text-sm font-semibold">{t('settings.deviceDictionary.downloadsHeading')}</h3>

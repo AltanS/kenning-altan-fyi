@@ -8,6 +8,7 @@ import { APP_NAME } from '#app/lib/app-name';
 import { KenningMark } from '#app/components/kenning-mark';
 import { routeTitle } from '#app/lib/route-title';
 import { cn } from '#app/lib/utils';
+import { useEffectiveUserId } from '#app/hooks/use-effective-user-id';
 import { useInstallPrompt } from '#app/hooks/use-install-prompt';
 import {
   activeNavigationHref,
@@ -127,9 +128,12 @@ function NavDrawer() {
   const close = (): void => setIsOpen(false);
   const activeHref = activeNavigationHref(location.pathname);
   // Same source and same convenience-not-a-gate reasoning as `AppSidebar`.
-  const rootData = useRouteLoaderData<{ isSuperadmin: boolean; userId: number | null }>('root');
+  const rootData = useRouteLoaderData<{ isSuperadmin: boolean }>('root');
   const footerItems = visibleFooterNavigationItems(rootData?.isSuperadmin ?? false);
-  const primaryItems = visiblePrimaryNavigationItems((rootData?.userId ?? null) !== null);
+  // The effective id, so a reader who is still signed in keeps the drawer rows
+  // while offline. See `useEffectiveUserId`.
+  const userId = useEffectiveUserId();
+  const primaryItems = visiblePrimaryNavigationItems(userId !== null);
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -201,8 +205,7 @@ function InnerContent({ title, backTo, children }: { title?: string; backTo?: st
   // same condition the bar does. The bar renders nothing for a signed-out
   // reader, and 5rem of reserved space under a screen with no bar on it would
   // be a visible empty gap at the foot of the screen.
-  const rootData = useRouteLoaderData<{ userId: number | null }>('root');
-  const isSignedIn = (rootData?.userId ?? null) !== null;
+  const isSignedIn = useEffectiveUserId() !== null;
   // When a route passes no title, two fallbacks answer for it, in order. A
   // route can name itself through a `handle` (see `#app/lib/route-title`),
   // which is the only way a screen inside this layout can reach the header at

@@ -5,6 +5,7 @@ import { EnrichmentVotes } from '#app/components/enrichment-votes';
 import { Link } from '#app/components/link';
 import { Button } from '#app/components/ui/button';
 import { Skeleton } from '#app/components/ui/skeleton';
+import { useIsOffline } from '#app/hooks/use-is-offline';
 import type { LanguageCode } from '#app/lib/dictionary/detect-language';
 import {
   enrichmentRequestKey,
@@ -145,6 +146,7 @@ function IdlePanel({ reason }: { reason: Exclude<EnrichmentIdleReason, 'on-reque
 /**
  * The card for an explanation that waits for the reader.
  *
+ * - `offline`: one calm line and no button. There is no connection to ask over.
  * - `wait` and `ask-now`: a neutral empty block. The device lookup is running or
  *   the one automatic request is in flight, and nothing is being written, so no
  *   text and no skeleton. It holds the card's height so the column does not jump
@@ -156,6 +158,17 @@ function RequestPanel({ plan, isAsking, onAsk }: { plan: DeferredAskPlan; isAski
   const { t } = useTranslation();
 
   if (plan === 'wait' || plan === 'ask-now') return <div aria-hidden="true" className="h-28" />;
+
+  // NO CONNECTION, SO NO BUTTON. The press would POST to a server that cannot be
+  // reached, and the error a fetcher raises replaces the whole screen.
+  if (plan === 'offline') {
+    return (
+      <section className="rounded-lg border border-dashed bg-muted/40 p-4">
+        <h2 className="font-display text-base font-semibold">{t('enrichment.title')}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t('offline.explanationNeedsConnection')}</p>
+      </section>
+    );
+  }
 
   return (
     <section className="rounded-lg border border-dashed bg-muted/40 p-4">
@@ -498,7 +511,8 @@ export function EnrichmentSection({ panel, headwordId, to, onRequest = AUTOMATIC
   const autoAskedRef = useRef<string | null>(null);
   const [askedKey, setAskedKey] = useState<string | null>(null);
   const isAsking = requestFetcher.state !== 'idle';
-  const requestPlan = planEnrichmentRequest({ panel: shown, headwordId, to, onRequest, askedKey, isAsking });
+  const isOffline = useIsOffline();
+  const requestPlan = planEnrichmentRequest({ panel: shown, headwordId, to, onRequest, askedKey, isAsking, isOffline });
   const requestKey = shown.from === null ? null : enrichmentRequestKey({ headwordId, from: shown.from, to });
   const askNow = (): void => {
     void submitRequest(null, { method: 'post', action: requestUrl });

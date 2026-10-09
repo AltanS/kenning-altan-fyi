@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { DeviceDictionaryAnswerBody, DeviceDictionaryHitCard } from '#app/components/device-dictionary-hit';
 import { EnrichmentSection } from '#app/components/enrichment-section';
 import { LanguageBar } from '#app/components/language-bar';
+import { OfflineSearchResult } from '#app/components/offline-search-result';
 import { ModeSwitch } from '#app/components/mode-switch';
 import { FavoriteToggle } from '#app/components/personal/favorite-toggle';
 import { DictionaryEntries, DidYouMean, PhraseResults } from '#app/components/search-results';
@@ -18,6 +19,8 @@ import type { LanguagePair } from '#app/lib/dictionary/language-pair';
 import type { PhraseSearchResult, SearchHit } from '#app/lib/dictionary/search.server';
 import type { EnrichmentPanel } from '#app/lib/enrichment/state.server';
 import { useDeviceDictionaryHit } from '#app/lib/local-dictionary/use-device-dictionary-hit';
+import { offlineResultKind, type OfflineView } from '#app/lib/offline/offline-view';
+import { useIsOffline } from '#app/hooks/use-is-offline';
 import { deferredAskKey, planDeferredAsk } from '#app/lib/translation/pane-state';
 
 /** One rendered state of the translator surface, exactly as the loader answers it. */
@@ -75,6 +78,16 @@ export interface SearchPanesProps {
    * component only decides that it goes THERE rather than under everything.
    */
   emptyPane?: ReactNode;
+  /**
+   * Set when the search was answered from this device because the app server
+   * could not be reached (the route's client loader). It holds routing facts and
+   * no dictionary text: whether the typed text is a phrase, and which dictionaries
+   * are on the device. When it is set the region draws the device card and one
+   * calm sentence, and none of the server-backed parts: no AI card, no
+   * explanation card, no entries, no star, no "did you mean". Left out, the
+   * screen is exactly what it was.
+   */
+  offline?: OfflineView | null;
 }
 
 /**
@@ -400,6 +413,7 @@ export function SearchPanes({
   translationHeadwordId,
   deviceDictionary,
   emptyPane,
+  offline = null,
 }: SearchPanesProps) {
   const { t } = useTranslation();
   const navigation = useNavigation();
@@ -445,12 +459,17 @@ export function SearchPanes({
   // reader brought is meant to come first. The result is read below for the card
   // and for the plan, and passed to nothing else: not `RecordSearch`, not the star.
   const deviceLookup = useDeviceDictionaryHit({
-    enabled: deviceDictionary && phrase === null && q !== '',
+    enabled: deviceDictionary && phrase === null && q !== '' && offline?.isPhrase !== true,
     from: direction.from,
     to: direction.to,
     q,
   });
   const hasDeviceHit = deviceLookup.status === 'hit';
+  // THE CONNECTION RIGHT NOW, which is not the same fact as `offline`. `offline`
+  // says the loader could not reach the server for THIS search. This says the
+  // browser has lost its connection since, so a deferred pane's "Ask the AI"
+  // button has nothing to post over.
+  const isOffline = useIsOffline();
 
   // THE AI AREA OF A DEFERRED PANE. With a device hit the reader asks, with a
   // miss the screen asks once for them. `autoAskedRef` is what makes it once: it
@@ -470,6 +489,7 @@ export function SearchPanes({
     key: askKey,
     askedKey,
     isAsking: translation.isAsking,
+    isOffline,
   });
   useEffect(() => {
     if (askPlan !== 'ask-now' || askKey === null) return;
@@ -585,8 +605,26 @@ export function SearchPanes({
           announced by nothing, and moving the attribute inward would leave a
           real answer unannounced. */}
       <section aria-live="polite" className="flex flex-col gap-4">
-        {q === '' && emptyPane}
-        {q !== '' && (
+        {/* THE OFFLINE RESULT, AND IT REPLACES EVERYTHING BELOW. The search was
+            answered from this device, so there is no AI card, no explanation card,
+            no entries, no star and no correction to draw: every one of them is a
+            server answer. What is left is the device card for a hit, and one calm
+            sentence for everything else. */}
+        {offline !== null && (
+          <>
+            {deviceLookup.status === 'hit' && (
+              <DeviceDictionaryHitCard hit={deviceLookup} from={direction.from} to={direction.to} />
+            )}
+            <OfflineSearchResult
+              kind={offlineResultKind({ q, direction, offline, lookup: deviceLookup.status })}
+              q={q}
+              direction={direction}
+              offline={offline}
+            />
+          </>
+        )}
+        {offline === null && q === '' && emptyPane}
+        {offline === null && q !== '' && (
           <>
             {/* THE DEVICE CARD, ABOVE THE AI PANE. A card for a hit and nothing
                 for a miss, a loading lookup or a phrase. */}

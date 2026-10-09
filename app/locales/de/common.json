@@ -261,6 +261,22 @@
       "downloadNewTab": "öffnet in einem neuen Tab",
       "attributionLead": "Wörterbuchdaten von",
       "attributionTail": "basierend auf Wiktionary, geteilt unter {{licence}}."
+    },
+    "offlineReadiness": {
+      "heading": "Offline-Nutzung",
+      "body": "Das Nachschlagen eines einzelnen Worts funktioniert ohne Verbindung, wenn die ersten beiden Zeilen unten bereit sind.",
+      "checking": "Wird geprüft...",
+      "appLabel": "App-Dateien",
+      "appReady": "Auf diesem Gerät gespeichert (Build {{stamp}}).",
+      "appReload": "Gespeichert. Lade die App einmal neu, um sie offline zu nutzen.",
+      "appNotReady": "Noch nicht gespeichert. Lass die App geöffnet, während du online bist, bis sich das ändert.",
+      "dictionaryLabel": "Wörterbuch",
+      "dictionaryReady": "Auf diesem Gerät: {{pairs}}.",
+      "dictionaryNone": "Noch keines. Füge oben eine Datei hinzu.",
+      "storageLabel": "Speicher",
+      "storageKept": "Der Browser behält diese Daten.",
+      "storageMayGo": "Der Browser löscht diese Daten möglicherweise, wenn der Speicherplatz auf dem Gerät knapp wird.",
+      "iosHomeScreen": "Füge Kenning auf dem iPhone und iPad zu deinem Home-Bildschirm hinzu. Safari löscht die gespeicherten Daten einer Website, die du eine Woche lang nicht geöffnet hast."
     }
   },
   "auth": {
@@ -354,7 +370,23 @@
     "metaDescription": "Die App läuft offline direkt auf deinem Gerät.",
     "title": "Keine Internetverbindung",
     "body": "Dein Gerät hat die Verbindung verloren, daher lädt diese Seite aus dem lokalen Speicher. Bereiche, die du schon besucht hast, funktionieren weiterhin. Alles andere lädt, sobald du wieder online bist.",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "stillOffline": "Immer noch offline. Diese Ansicht konnte nicht geöffnet werden. Prüfe deine Verbindung und versuche es dann erneut.",
+    "askNeedsConnection": "Die KI benötigt eine Verbindung. Frage erneut, wenn du wieder online bist.",
+    "explanationNeedsConnection": "Die Erklärung benötigt eine Verbindung. Frage sie erneut an, wenn du wieder online bist.",
+    "needsConnection": {
+      "title": "Diese Ansicht benötigt eine Verbindung",
+      "body": "Öffne sie wieder, wenn du wieder online bist. Deine Wörter und Listen auf diesem Gerät sind sicher."
+    },
+    "search": {
+      "overviewTitle": "Du bist offline",
+      "overviewBody": "Du kannst ein einzelnes Wort in den Wörterbüchern auf diesem Gerät nachschlagen.",
+      "noDictionaries": "Du bist offline und es befindet sich kein Wörterbuch auf diesem Gerät. Füge eines in den Einstellungen hinzu, wenn du eine Verbindung hast.",
+      "noDictionaryForPair": "Du bist offline und kein Wörterbuch auf diesem Gerät übersetzt von {{from}} nach {{to}}. Versuche die andere Richtung oder suche erneut, wenn du online bist.",
+      "phrase": "Du bist offline. Ein Wörterbuch auf diesem Gerät beantwortet einzelne Wörter. Eine Phrase benötigt eine Verbindung.",
+      "miss": "Das Wörterbuch auf diesem Gerät enthält keinen Eintrag für \"{{query}}\".",
+      "answeredNote": "Du bist offline. Nur das Wörterbuch auf diesem Gerät antwortet."
+    }
   },
   "entry": {
     "unavailable": {

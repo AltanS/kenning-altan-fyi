@@ -155,7 +155,7 @@ export function storedLanguage(params: StoredLanguageParams): LanguageCode {
  * itself is one line and is stated in both places, and
  * `tests/unit/language-pair.test.ts` pins this copy of it.
  */
-function partnerLanguage(language: LanguageCode): LanguageCode {
+export function partnerLanguage(language: LanguageCode): LanguageCode {
   return language === 'en' ? 'de' : 'en';
 }
 

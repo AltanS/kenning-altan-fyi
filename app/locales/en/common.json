@@ -261,6 +261,22 @@
       "downloadNewTab": "opens in a new tab",
       "attributionLead": "Dictionary data from",
       "attributionTail": "built on Wiktionary, shared under {{licence}}."
+    },
+    "offlineReadiness": {
+      "heading": "Offline use",
+      "body": "Looking up one word works without a connection when the first two rows below are ready.",
+      "checking": "Checking...",
+      "appLabel": "App files",
+      "appReady": "Saved on this device (build {{stamp}}).",
+      "appReload": "Saved. Reload the app once to use them offline.",
+      "appNotReady": "Not saved yet. Keep the app open while you are online until this changes.",
+      "dictionaryLabel": "Dictionary",
+      "dictionaryReady": "On this device: {{pairs}}.",
+      "dictionaryNone": "None yet. Add a file above.",
+      "storageLabel": "Storage",
+      "storageKept": "The browser keeps this data.",
+      "storageMayGo": "The browser may delete this data when the device runs low on space.",
+      "iosHomeScreen": "On iPhone and iPad, add Kenning to your Home Screen. Safari deletes the saved data of a website you have not opened for a week."
     }
   },
   "auth": {
@@ -354,7 +370,23 @@
     "metaDescription": "The app is running offline from your device.",
     "title": "No internet connection",
     "body": "Your device lost its connection, so this page is loading from local storage. Screens you already visited still work. Other screens will load when your connection returns.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "stillOffline": "Still offline. That screen could not open. Check your connection, then try again.",
+    "askNeedsConnection": "The AI needs a connection. Ask again when you are back online.",
+    "explanationNeedsConnection": "The explanation needs a connection. Ask for it again when you are back online.",
+    "needsConnection": {
+      "title": "This screen needs a connection",
+      "body": "Open it again when you are back online. Your words and lists on this device are safe."
+    },
+    "search": {
+      "overviewTitle": "You are offline",
+      "overviewBody": "You can look up one word in the dictionaries on this device.",
+      "noDictionaries": "You are offline, and no dictionary is on this device. Add one in Settings when you have a connection.",
+      "noDictionaryForPair": "You are offline, and no dictionary on this device translates {{from}} to {{to}}. Try the other direction, or search again when you are online.",
+      "phrase": "You are offline. A dictionary on this device answers one word. A phrase needs a connection.",
+      "miss": "The dictionary on this device has no entry for \"{{query}}\".",
+      "answeredNote": "You are offline. Only the dictionary on this device answers."
+    }
   },
   "entry": {
     "unavailable": {

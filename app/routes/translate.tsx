@@ -33,6 +33,10 @@ import { listSearchHistory } from '#app/models/search-history.server';
 import { resolveUser } from '#app/middleware/auth';
 import type { AuthenticatedUser } from '#app/middleware/helpers';
 import { SIGN_IN_PATH, WELCOME_PATH } from '#app/lib/auth/paths';
+import { readSignedInHint } from '#app/lib/auth/signed-in-hint';
+import type { OfflineView } from '#app/lib/offline/offline-view';
+import { planOnDevice } from '#app/lib/offline/plan-on-device';
+import { isServerUnreachable } from '#app/lib/offline/unreachable';
 import { getRawDb } from '#drizzle/db';
 
 // `meta()` runs outside the React tree, so it has no `t`. It goes through the
@@ -237,6 +241,9 @@ export async function loader({ request }: Route.LoaderArgs) {
       // ONE INSTANT FOR EVERY ROW IN THE BLOCK, taken here rather than during
       // render, so the five ages are all measured against the same moment.
       nowMs: Date.now(),
+      // The server always answered, so this was not served from the device. Every
+      // return carries the key so the component reads one shape.
+      offline: null,
     };
   }
 
@@ -350,6 +357,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       // the screen they are already on.
       recentSearches: [],
       nowMs: Date.now(),
+      offline: null,
     };
   }
 
@@ -508,6 +516,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     // does not also carry a list of the searches that led to it.
     recentSearches: [],
     nowMs: Date.now(),
+    offline: null,
   };
 }
 
@@ -534,6 +543,92 @@ function paneTarget(params: {
   if (phrase) return { kind: 'phrase', text: q, from: direction.from, to: direction.to };
   if (headwordId !== null) return { kind: 'headword', headwordId, to: direction.to };
   return { kind: 'none' };
+}
+
+/** What the server loader answers, as the client loader receives it. */
+type ServerData = Awaited<ReturnType<Route.ClientLoaderArgs['serverLoader']>>;
+
+/**
+ * Answer a search from this device when the app server cannot be reached.
+ *
+ * THE DATA IS ROUTING FACTS AND NOTHING ELSE (ADR-0013). Loader data is the one
+ * thing here that travels between modules freely, so it carries the pair, the
+ * direction, whether the text is a phrase and which dictionaries are on the
+ * device by name and size. The dictionary entry is read later, inside
+ * `SearchPanes`, which is the only screen allowed to hold one. Everything the
+ * server would have added is the empty value: no hits, no panels, no headword,
+ * no history. That is also what keeps the AI card, the explanation card, the
+ * star and the history write from drawing themselves: each of them needs a
+ * headword or a panel this object does not have.
+ *
+ * THE SIGNED-IN FLAG COMES FROM THE DISPLAY-ONLY HINT. The server decides it
+ * from the session cookie, which is httpOnly and unreadable here. It only picks
+ * which small controls to draw and gates nothing.
+ *
+ * @param request The navigation's request, for the URL.
+ * @returns A loader result shaped like the server's, with `offline` set.
+ */
+async function offlineLoaderData(request: Request) {
+  const url = new URL(request.url);
+  const q = (url.searchParams.get('q') ?? '').trim();
+  const plan = await planOnDevice({
+    q,
+    urlFrom: url.searchParams.get('from'),
+    urlTo: url.searchParams.get('to'),
+    // This device's own cookies: the pair it last chose is mirrored there for the
+    // server to read, and it is the same copy the server would have been sent.
+    cookieHeader: globalThis.document?.cookie ?? null,
+  });
+  const hits: ServerData['hits'] = [];
+  const recentSearches: ServerData['recentSearches'] = [];
+  const offline: OfflineView = { isPhrase: plan.isPhrase, dictionaries: plan.dictionaries };
+  return {
+    q,
+    direction: plan.direction,
+    pair: plan.pair,
+    signedIn: readSignedInHint() !== null,
+    hits,
+    phrase: null,
+    didYouMean: null,
+    example: null,
+    phraseWordsOmitted: 0,
+    panel: null,
+    translationPanel: null,
+    translationHeadwordId: null,
+    // True when a dictionary for THIS direction is on the device, which is what
+    // the server's cookie check answers online. It switches the lookup on.
+    deviceDictionary: plan.dictionaries.some(
+      (dictionary) => dictionary.from === plan.direction.from && dictionary.to === plan.direction.to,
+    ),
+    recentSearches,
+    nowMs: Date.now(),
+    offline,
+  };
+}
+
+/**
+ * The search, with an answer from this device when the server cannot be reached.
+ *
+ * ONLY "UNREACHABLE" IS ABSORBED (`isServerUnreachable`): a browser that says it
+ * is offline, a failed fetch, and a 502, 503 or 504. A redirect to sign-in, a 401
+ * and a 500 reach the boundary as they always did, because swallowing them would
+ * show a calm offline screen over a real fault or keep a signed-out reader on a
+ * page that is no longer theirs.
+ *
+ * NO `hydrate`. The first load is server rendered and its loader data is the
+ * server's. This runs on client navigations, which is where an offline reader
+ * searches: a submit of the search form is a navigation, and the request for its
+ * `.data` is what fails.
+ *
+ * @param args The request and the server loader.
+ */
+export async function clientLoader({ request, serverLoader }: Route.ClientLoaderArgs) {
+  try {
+    return await serverLoader();
+  } catch (cause) {
+    if (!isServerUnreachable(cause)) throw cause;
+    return offlineLoaderData(request);
+  }
 }
 
 /**
@@ -581,6 +676,7 @@ export default function TranslateRoute({ loaderData }: Route.ComponentProps) {
     deviceDictionary,
     recentSearches,
     nowMs,
+    offline,
   } = loaderData;
 
   // THE PANE'S STATE MACHINE, CALLED UNCONDITIONALLY, because it is a hook. The
@@ -642,6 +738,7 @@ export default function TranslateRoute({ loaderData }: Route.ComponentProps) {
         // itself stays inside `SearchPanes`: it is not passed to `RecordSearch`
         // or the favourite star below, and no loader, action or fetch ever sees it.
         deviceDictionary={deviceDictionary}
+        offline={offline}
         // THE WORKED EXAMPLE, WHERE THE ANSWER CARD GOES. With nothing typed
         // there is no answer to show, so that place in the column shows one. It
         // is passed for a signed-in reader too: it is a demonstration rather
@@ -665,7 +762,7 @@ export default function TranslateRoute({ loaderData }: Route.ComponentProps) {
           land under an account, and reading the device's store must not happen
           for a stranger. It does nothing at all on a device with no old log,
           which is every device after the first load. */}
-      {signedIn && <MigrateLocalHistory />}
+      {signedIn && offline === null && <MigrateLocalHistory />}
 
       {/* The language pair WRITE, and it renders nothing. It is here rather
           than inside `SearchPanes` for the reason `RecordSearch` is: a
@@ -685,13 +782,15 @@ export default function TranslateRoute({ loaderData }: Route.ComponentProps) {
           `SearchPanes`. The answer arrives after the first render on a word the
           model is still translating, so this records the search first and its
           answer second, onto the same row: `recordSearch` is an upsert. */}
-      <RecordSearch
-        query={q}
-        from={direction.from}
-        to={direction.to}
-        headwordId={hits[0]?.headwordId ?? null}
-        translation={translation.text}
-      />
+      {offline === null && (
+        <RecordSearch
+          query={q}
+          from={direction.from}
+          to={direction.to}
+          headwordId={hits[0]?.headwordId ?? null}
+          translation={translation.text}
+        />
+      )}
 
       {/* ONE LINE, AND IT IS NOT A PITCH. The three sentences that described
           the product under the surface are gone: the hero above already says

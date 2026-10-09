@@ -30,9 +30,6 @@ const WORKER_PATH = join(REPO_ROOT, WORKER_FILE);
 /** Written as an escape on purpose, so this file does not trip the em dash rule. */
 const EM_DASH = '\u2014';
 
-/** The routes the worker precaches on install, so the app boots with no network. */
-const REQUIRED_SHELL_PATHS = ['/', '/lists', '/history', '/settings', '/account', '/offline'];
-
 /** Read once. A missing file is reported by the first test rather than crashing on import. */
 const source = existsSync(WORKER_PATH) ? readFileSync(WORKER_PATH, 'utf8') : '';
 
@@ -193,15 +190,32 @@ describe('service worker exclusions', () => {
     assert.deepEqual(broken, [], `${WORKER_FILE} no longer enforces its no-stale-answers rules:\n${report}`);
   });
 
-  it('precaches every app shell route', () => {
-    const shell = parseAppShell(source);
-    assert.ok(shell.length > 0, `could not parse the APP_SHELL array out of ${WORKER_FILE}`);
-    const missing = REQUIRED_SHELL_PATHS.filter((path) => !shell.includes(path));
-    assert.deepEqual(
-      missing,
-      [],
-      `${WORKER_FILE} APP_SHELL is missing ${missing.join(', ')}, those routes will not open offline. Found: ${shell.join(', ')}`,
+  it('precaches the build and the offline page, not page HTML', () => {
+    assert.ok(source.includes("'/precache.json'"), `${WORKER_FILE} no longer reads the build file list`);
+    assert.ok(source.includes("'/offline'"), `${WORKER_FILE} no longer names the offline page`);
+    assert.equal(
+      source.split("'__PRECACHE_STAMP__'").length - 1,
+      1,
+      `${WORKER_FILE} must hold the quoted stamp placeholder exactly once, or the build step cannot stamp it`,
     );
+    assert.ok(!source.includes('APP_SHELL'), `${WORKER_FILE} caches page HTML again: a cached page shows stale loader data as live`);
+  });
+
+  it('answers a navigation before the query-string rule', () => {
+    const fetchHandler = source.slice(source.indexOf("addEventListener('fetch'"));
+    const navigation = fetchHandler.indexOf("request.mode === 'navigate'");
+    const queryRule = fetchHandler.indexOf('isUncacheable(url)');
+    assert.ok(navigation > 0 && queryRule > 0, 'could not find the navigation rule or the uncacheable rule in the fetch handler');
+    assert.ok(
+      navigation < queryRule,
+      `${WORKER_FILE} checks the query-string rule first, so offline /?q=word never reaches the offline page`,
+    );
+  });
+
+  it('never writes a navigation or a route data response to a cache', () => {
+    const answers = source.slice(source.indexOf('async function answerNavigation'), source.indexOf('async function cacheFirst'));
+    assert.ok(answers.length > 100, 'could not locate the navigation and data answers');
+    assert.ok(!answers.includes('.put('), `${WORKER_FILE} writes a navigation or a .data response to a cache`);
   });
 
   it('names every account screen in the no-cache list', () => {
@@ -213,14 +227,6 @@ describe('service worker exclusions', () => {
       [],
       `${WORKER_FILE} AUTH_PATHS is missing ${missing.join(', ')}, those pages would be served from cache to the next reader. Found: ${listed.join(', ')}`,
     );
-  });
-
-  it('keeps the account screens out of the precached shell', () => {
-    // Precaching one would defeat the exclusion above from the other side: the
-    // install step writes it into the cache before any fetch is classified.
-    const shell = parseAppShell(source);
-    const overlap = shell.filter((path) => REQUIRED_AUTH_PATHS.includes(path));
-    assert.deepEqual(overlap, [], `${WORKER_FILE} precaches account screens: ${overlap.join(', ')}`);
   });
 
   it('refuses to cache the translation poll, the retry, the enrichment poll and the browse pages', () => {
@@ -236,6 +242,15 @@ describe('service worker exclusions', () => {
       `${WORKER_FILE} would cache ${cached.join(', ')}. A cached poll shows a finished run as still running, and a cached retry never reaches the server.`,
     );
     assert.equal(verdicts.at(-1), false, `${WORKER_FILE} now refuses to cache /lists, so the shell cannot open offline`);
+  });
+
+  it('shortens the data timeout while the network looks down, and leaves the other timeouts alone', () => {
+    assert.ok(source.includes('let networkLooksDown'), `${WORKER_FILE} no longer tracks whether the network looks down`);
+    assert.ok(source.includes('DATA_TIMEOUT_DOWN_MS = 3000'), `${WORKER_FILE} lost the three second data timeout`);
+    assert.ok(source.includes('DATA_TIMEOUT_MS = 15000'), `${WORKER_FILE} changed the normal data timeout`);
+    assert.ok(source.includes('NAVIGATION_TIMEOUT_MS = 4000'), `${WORKER_FILE} changed the navigation timeout`);
+    const data = source.slice(source.indexOf('async function answerData'), source.indexOf('async function cacheFirst'));
+    assert.ok(data.includes('dataTimeoutMs()'), `${WORKER_FILE} answerData no longer picks its timeout from the network state`);
   });
 
   it('uses no em dash', () => {

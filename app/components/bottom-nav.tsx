@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { useRouteLoaderData } from 'react-router';
 import { NavLink } from '#app/components/link';
+import { useEffectiveUserId } from '#app/hooks/use-effective-user-id';
 import { cn } from '#app/lib/utils';
 import { tabNavigationItems, type NavigationItem } from './app-sidebar';
 
@@ -70,8 +70,8 @@ export function BottomNav() {
   // gate, so the bar would be four rows that all end at `/sign-in`, pinned to
   // the bottom of the screen where they cannot be ignored. `AppWrapper` drops
   // the bottom padding that reserves room for it in the same state.
-  const rootData = useRouteLoaderData<{ userId: number | null }>('root');
-  if ((rootData?.userId ?? null) === null) return null;
+  const userId = useEffectiveUserId();
+  if (userId === null) return null;
 
   return (
     <nav

@@ -4,6 +4,7 @@ import { useFetcher } from 'react-router';
 import { TranslationVotes } from '#app/components/translation-votes';
 import { Button } from '#app/components/ui/button';
 import { Skeleton } from '#app/components/ui/skeleton';
+import { useIsOffline } from '#app/hooks/use-is-offline';
 import type { LanguageCode } from '#app/lib/dictionary/detect-language';
 import type { TranslationPanel, TranslationRefusal, TranslationRow } from '#app/lib/translation/panel.server';
 import { REJECTION_REASONS, type RejectionReason } from '#app/lib/translation/rejection';
@@ -442,6 +443,8 @@ export function useTranslationPane({
   // the budget, the daily cap and the rate limit apply to both identically.
   const postRetry = (): void => {
     if (retryUrl === null) return;
+    // The same refusal the buttons make, kept here as well so no caller can post over a dead connection.
+    if (globalThis.navigator?.onLine === false) return;
     void fetcher.submit(null, { method: 'post', action: retryUrl });
   };
 
@@ -796,6 +799,7 @@ export function TranslationPane({ controller, to }: TranslationPaneProps) {
  */
 function TranslationPaneBody({ controller, to }: TranslationPaneProps) {
   const { t } = useTranslation();
+  const isOffline = useIsOffline();
   const { view, primary, alternatives, target } = controller;
 
   // A DEFERRED PANE HAS NOTHING TO SAY YET. Its panel is `none`, which `view` maps
@@ -899,6 +903,9 @@ function TranslationPaneBody({ controller, to }: TranslationPaneProps) {
   }
 
   if (view === 'failed') {
+    // NO CONNECTION, SO NO RETRY BUTTON. The press would POST to a server that
+    // cannot be reached, and the error a fetcher raises replaces the whole screen.
+    if (isOffline) return <p className={`mt-2 ${QUIET_LINE}`}>{t('offline.askNeedsConnection')}</p>;
     return (
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <p className={QUIET_LINE}>{t('translation.failed')}</p>

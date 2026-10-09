@@ -13,7 +13,7 @@
  * EVERY FAILURE NAMES THE RULE. If one of these fails, fix the code that
  * crossed the line. Do not loosen the test to make the build green.
  *
- * EIGHT CHECKS.
+ * NINE CHECKS.
  *   1. No server-side file imports anything under `app/lib/local-dictionary/`.
  *   2. Nothing under `app/lib/local-dictionary/` imports a server module, the
  *      database, TinyBase or the local store (TinyBase syncs to the server).
@@ -25,6 +25,9 @@
  *   6. `package.json` gains no SQLite or IndexedDB-wrapper package.
  *   7. The directory opens no network connection and writes no cookie.
  *   8. `SERVED_LICENCES` is still exactly the three licences.
+ *   9. Offline search hands the route ROUTING FACTS only: the plan and the
+ *      loader data name no entry, no translation and no written form, and the
+ *      route itself never touches the lookup.
  *
  * IT READS SOURCE TEXT, NOT BEHAVIOUR. Imports are read after comments are
  * stripped, so a comment that names a path (this file's own header does) cannot
@@ -60,11 +63,18 @@ const ENGINE_DIRECTORY = 'app/lib/local-dictionary';
  * search screen that hosts the hook. `translation-pane.tsx` and
  * `device-dictionary-gate.ts` do not import the engine, and must not: the gate
  * reads the cookie, never the store.
+ *
+ * `app/lib/offline/plan-on-device.ts` joined on 2026-10-09 with offline search.
+ * It is the one door the search route's client loader uses to PICK A DIRECTION
+ * from the dictionaries on the device, and it returns routing facts only (see
+ * the next test file in this directory, which pins that). The route itself is
+ * deliberately not on this list.
  */
 const ENGINE_IMPORTERS = new Set([
   'app/components/personal/device-dictionary-card.tsx',
   'app/components/device-dictionary-hit.tsx',
   'app/components/search-panes.tsx',
+  'app/lib/offline/plan-on-device.ts',
 ]);
 
 /** The two components that carry what a reader searched for, and so must never be handed a hit. */
@@ -420,6 +430,55 @@ describe('the device dictionary never reaches the server', () => {
       );
     });
   }
+
+  // Check 9.
+  describe('offline search hands the route routing facts, never an entry', () => {
+    /** The names by which a dictionary entry or a hit is carried. */
+    const ENTRY_NAMES = /\bDeviceDictionaryEntry\b|\bDeviceDictionaryHit\b|\btranslations\b|\bwritten\b|\blookupDeviceEntry\b/;
+
+    /** The interface block named `name` in `source`, comments removed, or an empty string. */
+    function interfaceBlock(source: string, name: string): string {
+      const pattern = new RegExp(`export interface ${name} \\{[\\s\\S]*?\\n\\}`);
+      return pattern.exec(stripComments(source))?.[0] ?? '';
+    }
+
+    it('the loader data shape names no entry field', () => {
+      const view = interfaceBlock(read('app/lib/offline/offline-view.ts'), 'OfflineView');
+      const info = interfaceBlock(read('app/lib/offline/offline-view.ts'), 'OfflineDictionaryInfo');
+      assert.ok(view.length > 0 && info.length > 0, `the offline view interfaces moved, so this check would pass over nothing.\n${RULE}`);
+      assert.doesNotMatch(view + info, ENTRY_NAMES, `the offline loader data can carry an entry.\n${RULE}`);
+    });
+
+    it('the plan the planner returns names no entry field', () => {
+      const plan = interfaceBlock(read('app/lib/local-dictionary/offline-search.ts'), 'OfflineSearchPlan');
+      assert.ok(plan.length > 0, `OfflineSearchPlan moved, so this check would pass over nothing.\n${RULE}`);
+      assert.doesNotMatch(plan, ENTRY_NAMES, `the offline plan can carry an entry.\n${RULE}`);
+    });
+
+    it('the planner drops what it reads: no hit is stored, returned or logged', () => {
+      const code = stripComments(read('app/lib/local-dictionary/offline-search.ts'));
+      // The one lookup, whose result is compared with null and discarded.
+      assert.equal([...code.matchAll(/lookupDeviceEntry\(/g)].length, 1, `the planner reads the store from more than one place.\n${RULE}`);
+      assert.match(code, /if \(hit !== null\) return \{ from: candidate\.from, to: candidate\.to, detected: true \};/);
+    });
+
+    it('the door reports a failure without the query', () => {
+      const code = stripComments(read('app/lib/offline/plan-on-device.ts'));
+      assert.match(code, /reportError\(cause, \{ stage: 'plan-offline-search' \}\);/);
+    });
+
+    it('the route holds no lookup: it reaches the device only through the door', () => {
+      const route = stripComments(read('app/routes/translate.tsx'));
+      assert.doesNotMatch(route, ENTRY_NAMES, `the search route names a dictionary entry.\n${RULE}`);
+      assert.match(route, /from '#app\/lib\/offline\/plan-on-device'/);
+    });
+
+    it('the offline result component receives a kind and facts, so it cannot draw an entry', () => {
+      const component = stripComments(read('app/components/offline-search-result.tsx'));
+      assert.doesNotMatch(component, ENTRY_NAMES, `the offline result component names a dictionary entry.\n${RULE}`);
+      assert.equal(specifiersOf(read('app/components/offline-search-result.tsx')).some((s) => s.includes('local-dictionary')), false);
+    });
+  });
 
   // Check 8.
   it('leaves SERVED_LICENCES as exactly the three licences', () => {
