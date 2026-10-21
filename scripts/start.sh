@@ -56,11 +56,11 @@ term() {
 # runs the same code with none of the scaffolding. The two package.json scripts
 # stay as they are for local use, where the wrappers cost nothing that matters.
 echo "[start] Starting worker..."
-NODE_OPTIONS="--max-old-space-size=128" node --import tsx ./worker.ts &
+NODE_OPTIONS="$NODE_OPTIONS --max-old-space-size=128" node --import tsx ./worker.ts &
 worker_pid=$!
 
 echo "[start] Starting server..."
-NODE_ENV=production NODE_OPTIONS="--max-old-space-size=256" node --import tsx ./server.ts &
+NODE_ENV=production NODE_OPTIONS="$NODE_OPTIONS --max-old-space-size=256" node --import tsx ./server.ts &
 web_pid=$!
 
 trap 'term; exit 0' TERM INT
