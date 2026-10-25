@@ -10,6 +10,7 @@ import { detectLanguage } from '#app/lib/dictionary/detect-language';
 import { reconcilePairWithDirection, resolveLanguagePair } from '#app/lib/dictionary/language-pair';
 import { normalizeQuery } from '#app/lib/dictionary/normalize';
 import { resolveTriggeredExplainPanel, type ExplainPanel } from '#app/lib/translation/explain-panel.server';
+import { explainSourceLanguage } from '#app/lib/translation/explain-source-language';
 import { EXPLAIN_MAX_QUESTION_CHARS } from '#app/lib/translation/limits';
 import { recordExplanationAsk } from '#app/models/explanation-asks.server';
 import { getUserProfile } from '#app/models/user-profiles.server';
@@ -110,7 +111,12 @@ export async function loader({ request }: Route.LoaderArgs) {
     to: url.searchParams.get('to'),
     cookieHeader,
   });
-  const direction = await detectLanguage(db, { q, from: pair.source, to: pair.target, uiLanguage });
+  const direction = await detectLanguage(db, {
+    q,
+    from: explainSourceLanguage(pair.source, uiLanguage),
+    to: pair.target,
+    uiLanguage,
+  });
 
   if (q === '') {
     // NOT RECONCILED, AND THAT IS RIGHT. `direction` here is only what an empty
