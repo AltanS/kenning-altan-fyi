@@ -1,0 +1,19 @@
+# What kenning needs from pigeon, the SPRQVNTRS mail service. Needs only, no ids, URLs or secrets.
+# `pigeon manifest validate|plan|apply` (the admin CLI in the SPRQVNTRS workspace tools/) reads this file.
+# The tenant in pigeon is named `translate`, from before the app was renamed to kenning.
+schema = 1
+app = "translate"
+
+[env]
+api_key = "PIGEON_API_KEY"
+base_url = "PIGEON_BASE_URL"
+
+[[domains]]
+name = "kenning.altan.fyi"
+
+# Two plain text mails exist: the address confirmation and the password reset.
+# The address is also the code default in app/services/email.server.ts.
+[[senders]]
+address = "no-reply@kenning.altan.fyi"
+purpose = "address confirmation and password reset mail"
+env = "EMAIL_FROM"
