@@ -2,7 +2,7 @@ name = "translate"
 fleet = "sprqvntrs"
 port = 3000
 health = "/healthcheck"
-memory = "512m"
+memory = "768m"
 zero_downtime = true
 secrets = ["SESSION_SECRET", "PIGEON_API_KEY", "OPENROUTER_API_KEY"]
 
