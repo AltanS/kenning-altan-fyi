@@ -146,10 +146,19 @@ await initializeWorkflows();
 // handle SSR requests
 app.all('*', remixHandler);
 
+// The dev server must not be reachable from the network. Set HOST, e.g. HOST=$(tailscale ip -4), to open it to the tailnet on purpose.
+function resolveListenHost(env: NodeJS.ProcessEnv): string | undefined {
+  if (env.HOST) return env.HOST;
+  if (env.NODE_ENV === 'production') return undefined;
+  return '127.0.0.1';
+}
+
 const port = process.env.PORT || 3000;
-const server = app.listen(port, () => {
-  logServerStart(Number(port), { url: `http://localhost:${port}` });
-});
+const host = resolveListenHost(process.env);
+const onListening = (): void => {
+  logServerStart(Number(port), { url: `http://${host ?? 'localhost'}:${port}` });
+};
+const server = host ? app.listen(Number(port), host, onListening) : app.listen(port, onListening);
 
 // Graceful shutdown
 // Timeline: SIGTERM → app cleanup (0-8s) → force exit (8s) → Docker SIGKILL (10s)

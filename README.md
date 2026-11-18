@@ -81,7 +81,7 @@ pnpm drizzle:migrate   # create the schema
 pnpm dev               # dev server and worker together
 ```
 
-The app runs at `http://localhost:${PORT}`, which defaults to `3000`.
+The app runs at `http://localhost:${PORT}`, which defaults to `3000`. The dev server binds to `127.0.0.1` only. To open it from another device, such as a phone on the tailnet, set `HOST`, for example `HOST=$(tailscale ip -4) pnpm dev`.
 
 ### Create an account
 
