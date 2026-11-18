@@ -26,4 +26,11 @@ minimumReleaseAge: 10080
 # Exempt our own freshly-published internal packages, so a deploy that depends on
 # a @sprqvntrs release isn't blocked for a week after publishing it.
 minimumReleaseAgeExclude:
+  # 2026-11-18: React Router security release (7 advisories), taken inside the 7-day window on purpose.
+  # Exact versions: delete these lines once 8.5.2 is a week old.
+  - 'react-router@8.5.2'
+  - '@react-router/dev@8.5.2'
+  - '@react-router/express@8.5.2'
+  - '@react-router/node@8.5.2'
+  - '@react-router/serve@8.5.2'
   - '@sprqvntrs/*'
