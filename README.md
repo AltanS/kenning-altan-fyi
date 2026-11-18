@@ -52,9 +52,10 @@ exist on npmjs.com under the MIT licence. The `.npmrc` file routes this scope
 directly to `https://registry.npmjs.org/`. Installs work even if your global
 `~/.npmrc` file redirects the scope.
 
-These packages publish uncompiled TypeScript. Because of this, `vite.config.ts`
-includes them in `ssr.noExternal`. Vite compiles these dependencies instead of
-passing them directly to Node.
+These packages publish uncompiled TypeScript. `vite.config.ts` keeps them out
+of the server bundle, so the bundle and `server.ts` share one copy of each.
+Node loads them through tsx at run time. The comment in `vite.config.ts` gives
+the reason, which is the server's memory.
 
 ### Install and run
 

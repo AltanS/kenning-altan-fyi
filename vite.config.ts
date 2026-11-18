@@ -135,6 +135,40 @@ export default defineConfig(({ mode }) => {
     resolve: {
       tsconfigPaths: true,
     },
+    /**
+     * ── THE SERVER HEAP: ONE COPY OF EACH LIBRARY ────────────────────────────
+     *
+     * The web process ran out of heap in production (2026-11-13, 2026-11-18)
+     * with a 256 MB old-space cap. Measured after a forced GC, the idle server
+     * already held 219 MB, and most of it was paid twice:
+     *
+     *  - `@sprqvntrs/*` publish uncompiled TypeScript, so Vite inlined them,
+     *    and with them `@openrouter/sdk` (65 MB of heap once loaded) and
+     *    pg-boss, into the SSR bundle. `server.ts` runs outside Vite (ADR-0004)
+     *    and imports the same packages again from `node_modules` through tsx.
+     *    Two module instances, two copies of every schema object.
+     *  - `lucide-react` was external, so Node loaded the whole icon set (16 MB
+     *    of heap) for the few dozen icons the app renders.
+     *
+     * Externalizing `@sprqvntrs/*` makes the bundle import them from
+     * `node_modules`, the very files `server.ts` already loaded, so Node's
+     * module cache hands back the same instance. That only works because
+     * production runs under `node --import tsx` (scripts/start.sh), which can
+     * load a `.ts` entry from `node_modules`. Bundling `lucide-react` lets the
+     * build tree-shake it. Together: 219 MB down to 123 MB.
+     *
+     * `rollupOptions.external`, not `ssr.external`: Vite only honours
+     * `ssr.external` for a package whose entry is a `.js` file, and these
+     * entries are `index.ts`, so that list was silently ignored.
+     */
+    ssr: {
+      noExternal: ['lucide-react'],
+    },
+    environments: {
+      ssr: {
+        build: { rollupOptions: { external: [/^@sprqvntrs\//] } },
+      },
+    },
     server: {
       port: serverPort,
       hmr: { port: hmrPort },
