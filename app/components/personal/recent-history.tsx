@@ -6,7 +6,11 @@ import { formatRelativeTime } from '#app/lib/relative-time';
 /** How many recorded searches the overview shows. The whole log is at `/history`. */
 export const RECENT_HISTORY_COUNT = 5;
 
-/** One recorded search, as the overview needs it. The shape the history screen renders, minus nothing. */
+/**
+ * One recorded search, as the overview needs it. The shape the history screen
+ * renders, minus nothing. `at` is when the search was first translated, so a
+ * repeat does not move the row.
+ */
 export interface RecentSearch {
   id: string;
   query: string;

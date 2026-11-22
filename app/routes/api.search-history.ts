@@ -78,8 +78,8 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
 
   // OLDEST FIRST, so a batch that carries its own instants lands in the order it
   // happened. Two rows of one batch can share a search identity only if the
-  // device let them, and the upsert behind this leaves the newest instant
-  // standing either way.
+  // device let them, and the upsert behind this keeps the EARLIEST instant
+  // either way, because a row's `at` is when it was first translated.
   const entries = parsed.data.entries.toSorted((a, b) => (a.at ?? 0) - (b.at ?? 0));
   for (const entry of entries) {
     await recordSearch({

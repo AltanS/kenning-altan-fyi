@@ -104,8 +104,8 @@ export const navigationItems: NavigationItem[] = [
     requiresAccount: true,
   },
   // The kept explanations, beside Explain because that is where they are made.
-  // No `tab`: four tabs is the bar, and a saved-answer list is a place you go
-  // back to rather than one you work in.
+  // No `tab`: a saved-answer list is a place you go back to rather than one you
+  // work in, and the bar is full at five.
   { labelKey: 'nav.explanations', to: '/explanations', icon: Sparkles, group: 'primary', requiresAccount: true },
   { labelKey: 'nav.lists', to: '/lists', icon: BookMarked, group: 'primary', tab: { order: 3 }, requiresAccount: true },
   {
@@ -116,17 +116,22 @@ export const navigationItems: NavigationItem[] = [
     tab: { order: 4 },
     requiresAccount: true,
   },
-  // NO `tab` SINCE THE EXPLAIN TABS LANDED. The bar holds four, and the fifth
-  // had to be the one a reader consults rather than works in. History keeps its
-  // sidebar and drawer row, so nothing became unreachable.
-  { labelKey: 'nav.history', to: '/history', icon: History, group: 'primary', requiresAccount: true },
-  // No `tab`, for the same reason History has none: the bar stays four tabs,
-  // and a quiz is a place a reader visits deliberately rather than one they
-  // work in on every search (M203).
+  // The fifth and last tab: the bar holds five, and History closes it because a
+  // reader looks back over it after the work of the other four.
+  {
+    labelKey: 'nav.history',
+    to: '/history',
+    icon: History,
+    group: 'primary',
+    tab: { order: 5 },
+    requiresAccount: true,
+  },
+  // No `tab`: the bar holds five already, and a quiz is a place a reader visits
+  // deliberately rather than one they work in on every search (M203).
   { labelKey: 'nav.quiz', to: '/quiz', icon: GraduationCap, group: 'primary', requiresAccount: true },
   { labelKey: 'nav.settings', to: '/settings', icon: Settings, group: 'footer' },
   { labelKey: 'nav.account', to: '/account', icon: UserRound, group: 'footer' },
-  // No `tab`: the mobile bar stays four tabs. Sources is a licence
+  // No `tab`: the mobile bar is full at five. Sources is a licence
   // obligation the reader consults once, not a place they go every day.
   { labelKey: 'nav.attribution', to: '/attribution', icon: ScrollText, group: 'footer' },
   // The operator link, last in the catalog and last in the footer group.

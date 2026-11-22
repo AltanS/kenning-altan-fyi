@@ -224,8 +224,8 @@ and `app/lib/votes/optimistic.ts`.
 Three rules. A favourite is NOT a list entry: one tap on an answer cannot ask a
 reader to pick a sense first, so it is its own entity and lists stay curated
 study material. `recordSearch` is an UPSERT on the search identity and the row
-survives a repeat, so searching one word twice moves a row rather than adding
-one. A translation vote is recorded and nothing else: no re-run, no hiding, and
+survives a repeat, so searching one word twice neither adds a row nor moves it.
+A translation vote is recorded and nothing else: no re-run, no hiding, and
 the operator's list on `/super/llm` is the only thing built on the scores. The
 "no reordering" half of that rule was amended by M196 below, under a margin; the
 rest of it stands.

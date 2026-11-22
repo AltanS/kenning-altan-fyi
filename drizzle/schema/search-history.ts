@@ -23,7 +23,9 @@
  *
  * ONE ROW PER SEARCH, NOT ONE ROW PER LOOKUP. The unique index below is over
  * `(user_id, query, from_language, to_language)`, so searching one word five
- * times leaves one row carrying the latest instant. `headword_id` is
+ * times leaves one row carrying the instant of the FIRST one, which a repeat
+ * never moves, so the history reads in the order words were first translated.
+ * `headword_id` is
  * deliberately OUTSIDE that key: the same typed word can land on a different
  * top hit as the dictionary grows, and a reader who types the same thing twice
  * has run the same search either way. This is the identity the device store
@@ -68,7 +70,7 @@ export const searchHistory = pgTable(
      * person saw must keep saying what they saw.
      */
     translation: text('translation'),
-    /** When the search ran. This IS the ordering key, and a repeat moves it rather than adding a row. */
+    /** When the search was FIRST translated. This IS the ordering key, and a repeat neither adds a row nor moves it. */
     at: timestamp('at').defaultNow().notNull(),
   },
   (table) => [

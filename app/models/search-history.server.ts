@@ -14,6 +14,13 @@
  * The numbers are the ones the device store used, unchanged, so a reader's log
  * does not silently change size because it moved.
  *
+ * THE ORDER IS THE ORDER OF FIRST TRANSLATION. A row's `at` is the instant its
+ * search was first run, and nothing that happens afterwards moves it: searching
+ * the word again or reopening the entry leaves the row where it was. The age
+ * prune below therefore counts from that first translation too, so a word the
+ * reader keeps coming back to still ages out 90 days after they first looked it
+ * up, and can be recorded afresh by the next search.
+ *
  * NOTHING HERE LOGS A QUERY. This module holds a user id and a typed word in
  * one scope, which makes it one of the few places the product could leak a
  * search log into an operator's log file. It writes no log line at any level.
@@ -45,6 +52,10 @@ export interface RecordSearchInput {
    * It is passed only when a device hands over a log it recorded earlier.
    * Taking "now" for those rows would flatten a month of searching into one
    * instant and put the oldest row at the top of the screen.
+   *
+   * It is a candidate for the row's FIRST-translated instant, not an overwrite:
+   * the stored `at` only ever moves EARLIER, when a handed-over row proves the
+   * search was first run before the server heard of it.
    */
   at?: Date;
 }
@@ -53,10 +64,12 @@ export interface RecordSearchInput {
  * Records one search, then drops whatever falls outside the cap.
  *
  * AN UPSERT on `(user_id, query, from_language, to_language)`. A search already
- * in the log keeps its row and takes the new instant, headword and answer, so a
- * repeat MOVES a row instead of adding a second copy beside the first. The read
- * below orders on `at`, so moving the instant is moving the row, and no
- * ordering code has to know any of this.
+ * in the log keeps its row AND ITS PLACE: `at` is the instant the search was
+ * first translated and a repeat never moves it, so the same word typed again, or
+ * its entry reopened, adds no second copy and does not jump to the top. The read
+ * below orders on `at`, so leaving the instant alone is leaving the row alone,
+ * and no ordering code has to know any of this. The headword and the answer do
+ * take the newer values, subject to the `COALESCE` rule below.
  *
  * AN ANSWER IS NEVER UNWRITTEN BY A LATER `NULL`. The recorder calls this once
  * as soon as the search is on screen and again when the pane has words, and a
@@ -82,9 +95,11 @@ export async function recordSearch(input: RecordSearchInput): Promise<void> {
     .onConflictDoUpdate({
       target: [searchHistory.userId, searchHistory.query, searchHistory.fromLanguage, searchHistory.toLanguage],
       set: {
-        // NEVER BACKWARDS. A handed-over row must not drag a search the reader
-        // ran today back to the instant they first ran it a month ago.
-        at: sql`greatest(excluded.at, ${searchHistory.at})`,
+        // NEVER FORWARDS. The history is ordered by when a search was FIRST
+        // translated, so a repeat must not bump the row. A handed-over device
+        // row older than the stored instant may still pull it EARLIER, which is
+        // correct: the search really was first run then.
+        at: sql`least(excluded.at, ${searchHistory.at})`,
         headwordId: sql`coalesce(excluded.headword_id, ${searchHistory.headwordId})`,
         translation: sql`coalesce(excluded.translation, ${searchHistory.translation})`,
       },
@@ -124,7 +139,8 @@ export async function pruneHistory(userId: number, nowMs: number = Date.now()): 
 }
 
 /**
- * One reader's log, newest first.
+ * One reader's log, newest FIRST-TRANSLATED first. Looking at an entry again
+ * does not reorder it.
  *
  * @param limit - how many rows to return. The overview asks for a handful and
  *   the history screen asks for the cap, so the ceiling is the cap itself

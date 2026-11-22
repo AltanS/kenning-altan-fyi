@@ -35,8 +35,10 @@ export const meta: MetaFunction = ({ matches }) => {
  * phone, which is what anybody means by "my history" and what a device-only
  * store could never do.
  *
- * `listSearchHistory` already returns newest first and the cap is applied at
- * the WRITE, so what is here is exactly what the account kept.
+ * `listSearchHistory` already returns newest first, by the instant each search
+ * was FIRST translated: searching a word again or reopening it never moves its
+ * row. The cap is applied at the WRITE, so what is here is exactly what the
+ * account kept.
  *
  * One `now` for the whole page, taken here rather than during render, so every
  * row is measured against the same instant.
