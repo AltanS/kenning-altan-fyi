@@ -103,6 +103,7 @@
     "renameLabel": "New list name",
     "renameSubmit": "Save name",
     "renameTrigger": "Rename",
+    "renameCancel": "Cancel",
     "deleteTrigger": "Delete",
     "deleteTitle": "Delete list",
     "deleteBody": "The words in this list will be deleted with it. This cannot be undone.",

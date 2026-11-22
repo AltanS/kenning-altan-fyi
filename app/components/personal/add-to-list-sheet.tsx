@@ -162,7 +162,7 @@ export function AddToListSheet({ headwordId, lemma, senseId, translationSnapshot
   return (
     <Sheet open={isOpen} onOpenChange={handleOpenChange}>
       <SheetTrigger asChild>
-        <Button type="button" variant="outline" disabled={isBlocked} title={isBlocked ? t('entry.pickSense') : ''}>
+        <Button type="button" variant="outline" className="min-h-11" disabled={isBlocked} title={isBlocked ? t('entry.pickSense') : ''}>
           {t('addToList.trigger')}
         </Button>
       </SheetTrigger>
@@ -198,7 +198,7 @@ export function AddToListSheet({ headwordId, lemma, senseId, translationSnapshot
               </div>
               <Button
                 type="button"
-                className="mt-2 self-start"
+                className="mt-2 min-h-11 self-start"
                 disabled={selectedListId === null || isSaving}
                 onClick={handleSaveToExisting}
               >
@@ -219,7 +219,7 @@ export function AddToListSheet({ headwordId, lemma, senseId, translationSnapshot
             />
             <Button
               type="button"
-              className="mt-2 self-start"
+              className="mt-2 min-h-11 self-start"
               disabled={newListName.trim() === '' || isSaving}
               onClick={handleCreateAndSave}
             >

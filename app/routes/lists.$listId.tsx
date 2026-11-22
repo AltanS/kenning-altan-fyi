@@ -139,7 +139,7 @@ export default function ListDetailRoute({ loaderData }: Route.ComponentProps) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
         <p className="text-sm text-muted-foreground">{t('lists.detailNotFound')}</p>
-        <Link to="/lists" className="text-sm text-brand-ink underline underline-offset-4">
+        <Link to="/lists" className="inline-flex min-h-11 items-center text-sm text-brand-ink underline underline-offset-4">
           {t('lists.detailBack')}
         </Link>
       </div>
@@ -165,7 +165,7 @@ export default function ListDetailRoute({ loaderData }: Route.ComponentProps) {
       {items.length > 0 && (
         <Link
           to={`/lists/${list.id}/review`}
-          className="rounded-lg border bg-card px-3 py-2 text-center text-sm font-medium text-brand-ink hover:bg-primary/5"
+          className="inline-flex min-h-11 items-center justify-center rounded-lg border bg-card px-3 py-2 text-sm font-medium text-brand-ink hover:bg-primary/5"
         >
           {t('review.start')}
         </Link>
@@ -179,7 +179,7 @@ export default function ListDetailRoute({ loaderData }: Route.ComponentProps) {
         </ul>
       )}
 
-      <Link to="/lists" className="text-sm text-brand-ink underline underline-offset-4">
+      <Link to="/lists" className="inline-flex min-h-11 items-center text-sm text-brand-ink underline underline-offset-4">
         {t('lists.detailBack')}
       </Link>
     </div>

@@ -131,6 +131,7 @@ export function FavoriteToggle({ headwordId, senseId, lemma, translationSnapshot
       type="button"
       variant="ghost"
       size="icon-sm"
+      className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
       // BOTH DIRECTIONS ARE NAMED, the way `EnrichmentVotes` names its two
       // buttons. `aria-pressed` carries the state, and the label says what the
       // press will do, so a screen reader hears the action rather than being

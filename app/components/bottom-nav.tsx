@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next';
-import { NavLink } from '#app/components/link';
+import { useLocation } from 'react-router';
+import { Link } from '#app/components/link';
 import { useEffectiveUserId } from '#app/hooks/use-effective-user-id';
 import { cn } from '#app/lib/utils';
-import { tabNavigationItems, type NavigationItem } from './app-sidebar';
+import { activeTabHref, tabNavigationItems, type NavigationItem } from './app-sidebar';
 
 /**
  * The mobile tab bar. It carries the five places you move between, in this
@@ -31,31 +32,28 @@ import { tabNavigationItems, type NavigationItem } from './app-sidebar';
 const BOTTOM_NAV_TABS: readonly NavigationItem[] = tabNavigationItems;
 
 /**
- * One tab: icon over label. The active state carries the brand in three places,
- * a top rule, a faint wash and the text colour, so it never depends on hue
- * alone.
+ * One tab: icon over label. `activeTabHref` decides which tab is active, not
+ * the link, because `/explanations` belongs to the Explain tab. The active
+ * state carries the brand in three places, a top rule, a faint wash and the
+ * text colour, so it never depends on hue alone.
  */
-function FlatTab({ tab }: { tab: NavigationItem }) {
+function FlatTab({ tab, isActive }: { tab: NavigationItem; isActive: boolean }) {
   const { t } = useTranslation();
 
   return (
-    <NavLink
+    <Link
       to={tab.to}
-      // `end` so the Search tab, whose href is `/`, is active on the home page
-      // only. Without it react-router treats `/` as a prefix of every route.
-      end={tab.to === '/'}
-      className={({ isActive }) =>
-        cn(
-          'relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 text-xs font-medium outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
-          isActive ?
-            'bg-primary/5 text-brand-ink after:absolute after:inset-x-5 after:top-0 after:h-0.5 after:rounded-full after:bg-brand-ink after:content-[""]'
-          : 'text-muted-foreground hover:text-foreground',
-        )
-      }
+      aria-current={isActive ? 'page' : undefined}
+      className={cn(
+        'relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 text-xs font-medium outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
+        isActive ?
+          'bg-primary/5 text-brand-ink after:absolute after:inset-x-5 after:top-0 after:h-0.5 after:rounded-full after:bg-brand-ink after:content-[""]'
+        : 'text-muted-foreground hover:text-foreground',
+      )}
     >
       <tab.icon className="h-5 w-5" aria-hidden="true" />
       <span className="max-w-full truncate">{t(tab.labelKey)}</span>
-    </NavLink>
+    </Link>
   );
 }
 
@@ -72,7 +70,9 @@ export function BottomNav() {
   // the bottom of the screen where they cannot be ignored. `AppWrapper` drops
   // the bottom padding that reserves room for it in the same state.
   const userId = useEffectiveUserId();
+  const { pathname } = useLocation();
   if (userId === null) return null;
+  const activeHref = activeTabHref(pathname);
 
   return (
     <nav
@@ -81,7 +81,7 @@ export function BottomNav() {
     >
       <div className="flex h-14 items-stretch">
         {BOTTOM_NAV_TABS.map((tab) => (
-          <FlatTab key={tab.to} tab={tab} />
+          <FlatTab key={tab.to} tab={tab} isActive={tab.to === activeHref} />
         ))}
       </div>
     </nav>

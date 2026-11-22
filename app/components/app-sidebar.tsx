@@ -247,6 +247,28 @@ export function activeNavigationHref(
 }
 
 /**
+ * Which mobile tab, if any, the current URL belongs to.
+ *
+ * It differs from `activeNavigationHref` in one place on purpose:
+ * `/explanations` and `/explanations/:id` are the saved answers of Explain,
+ * and the bar has no tab of its own for them (it is full at five), so they
+ * light the Explain tab. The sidebar and the drawer keep the longest-match rule
+ * and show the Explanations row.
+ *
+ * Only tab destinations can win, so `/settings` and `/quiz` highlight nothing.
+ *
+ * Pure and exported so a unit test can pin it.
+ *
+ * @param pathname - the current `location.pathname`.
+ * @returns the winning tab's `to`, or `null` when no tab owns the URL.
+ */
+export function activeTabHref(pathname: string): string | null {
+  const isExplanations = pathname === '/explanations' || pathname.startsWith('/explanations/');
+  if (isExplanations) return '/explain';
+  return activeNavigationHref(pathname, tabNavigationItems);
+}
+
+/**
  * The brand mark, with the wordmark beside it while the rail is expanded.
  *
  * The mark itself is `KenningMark`, the same drawing the favicon and the

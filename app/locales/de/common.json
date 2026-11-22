@@ -103,6 +103,7 @@
     "renameLabel": "Neuer Listenname",
     "renameSubmit": "Namen speichern",
     "renameTrigger": "Umbenennen",
+    "renameCancel": "Abbrechen",
     "deleteTrigger": "Löschen",
     "deleteTitle": "Liste löschen",
     "deleteBody": "Die Wörter in dieser Liste werden mitgelöscht. Das kann nicht rückgängig gemacht werden.",

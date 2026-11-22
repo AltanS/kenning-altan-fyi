@@ -56,7 +56,7 @@ export function RecentHistory({ entries, nowMs }: { entries: readonly RecentSear
         <h2 id="recent-history-title" className="font-display text-base font-semibold">
           {t('history.recentTitle')}
         </h2>
-        <Link to="/history" className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
+        <Link to="/history" className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
           {t('history.recentAll')}
         </Link>
       </div>

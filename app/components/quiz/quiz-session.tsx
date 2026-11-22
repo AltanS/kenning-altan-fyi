@@ -96,7 +96,7 @@ export function QuizSessionView({ cards }: QuizSessionViewProps) {
         <Button type="button" onClick={onAgain}>
           {t('quiz.again')}
         </Button>
-        <Link to="/" className="text-sm text-brand-ink underline underline-offset-4">
+        <Link to="/" className="inline-flex min-h-11 items-center text-sm text-brand-ink underline underline-offset-4">
           {t('nudge.backToSearch')}
         </Link>
       </div>

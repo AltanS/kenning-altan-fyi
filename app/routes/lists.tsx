@@ -1,6 +1,6 @@
 import type { Route } from './+types/lists';
-import { useEffect, useRef } from 'react';
-import { ExternalLink, Loader2, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronRight, ExternalLink, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useFetcher, type MetaFunction } from 'react-router';
 import { toast } from 'sonner';
@@ -165,66 +165,122 @@ function CreateListForm() {
   );
 }
 
-function RenameListForm({ listId }: { listId: string }) {
+/**
+ * The rename form for ONE list, shown only after the reader chose "Rename" in
+ * the row's menu. It takes the row's place rather than sitting beneath it, so a
+ * page of lists carries no always-visible field per row.
+ *
+ * `onDone` closes the form: after a successful write, and on Cancel or Escape.
+ * The input is focused from a timer, because Radix returns focus to the menu
+ * trigger as the menu closes and would otherwise take it straight back.
+ */
+function RenameListForm({ list, onDone }: { list: ListSummary; onDone: () => void }) {
   const { t } = useTranslation();
   const fetcher = useFetcher<typeof clientAction>();
   const isSubmitting = fetcher.state !== 'idle';
-  const fieldId = `rename-${listId}`;
+  const fieldId = `rename-${list.id}`;
+  const inputRef = useRef<HTMLInputElement>(null);
   const submittedName = useRef('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => inputRef.current?.select(), 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const confirmed = useRef<object | null>(null);
   useEffect(() => {
     if (fetcher.data?.success !== true || confirmed.current === fetcher.data) return;
     confirmed.current = fetcher.data;
     toast.success(t('lists.renamedToast', { name: submittedName.current }));
-  }, [fetcher.data, t]);
+    onDone();
+  }, [fetcher.data, t, onDone]);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     submittedName.current = new FormData(event.currentTarget).get('name')?.toString().trim() ?? '';
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLFormElement>): void => {
+    if (event.key !== 'Escape') return;
+    onDone();
+  };
+
   return (
-    <fetcher.Form method="post" className="flex flex-col gap-2" onSubmit={handleSubmit}>
+    <fetcher.Form method="post" className="flex flex-col gap-2 px-3 py-3" onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
       <input type="hidden" name="intent" value={INTENT.RENAME} />
-      <input type="hidden" name="id" value={listId} />
-      <Label htmlFor={fieldId} className="sr-only">
-        {t('lists.renameLabel')}
-      </Label>
-      <div className="flex gap-2">
-        <Input id={fieldId} name="name" type="text" placeholder={t('lists.renameLabel')} autoComplete="off" required />
-        <Button type="submit" variant="outline" size="sm" disabled={isSubmitting}>
+      <input type="hidden" name="id" value={list.id} />
+      <Label htmlFor={fieldId}>{t('lists.renameLabel')}</Label>
+      <div className="flex flex-wrap gap-2">
+        <Input
+          ref={inputRef}
+          id={fieldId}
+          name="name"
+          type="text"
+          defaultValue={list.name}
+          autoComplete="off"
+          required
+          className="min-h-11 w-auto min-w-0 flex-1 basis-48 sm:min-h-9"
+        />
+        <Button type="submit" variant="outline" className="min-h-11 sm:min-h-9" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
           {isSubmitting ? t('lists.renamePending') : t('lists.renameSubmit')}
+        </Button>
+        <Button type="button" variant="ghost" className="min-h-11 sm:min-h-9" onClick={onDone}>
+          {t('lists.renameCancel')}
         </Button>
       </div>
     </fetcher.Form>
   );
 }
 
-function ListRow({ list }: { list: { id: string; name: string; itemCount: number } }) {
+type ListSummary = { id: string; name: string; itemCount: number };
+
+function ListRow({ list }: { list: ListSummary }) {
   const { t } = useTranslation();
+  const [isRenaming, setIsRenaming] = useState(false);
+  const stopRenaming = useCallback(() => setIsRenaming(false), []);
+
+  if (isRenaming) {
+    return (
+      <li className="border-b last:border-b-0">
+        <RenameListForm list={list} onDone={stopRenaming} />
+      </li>
+    );
+  }
 
   return (
     <li className="border-b last:border-b-0">
-      <div className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-primary/5">
+      <div className="flex items-center gap-1 rounded-lg px-3 hover:bg-primary/5">
+        {/* THE WHOLE ROW IS THE LINK, bar the menu. Name, count and chevron sit
+            inside one anchor with a 44px floor, so the target is the row and
+            not the words in it. */}
         <Link
           to={`/lists/${list.id}`}
           aria-label={t('lists.openList', { name: list.name })}
-          className="min-w-0 flex-1 hover:underline"
+          className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2"
         >
-          <span className="block text-sm font-medium">{list.name}</span>
-          <span className="block truncate text-sm text-muted-foreground">
-            {t('lists.itemCount', { count: list.itemCount })}
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium">{list.name}</span>
+            <span className="block truncate text-sm text-muted-foreground">
+              {t('lists.itemCount', { count: list.itemCount })}
+            </span>
           </span>
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         </Link>
         {/* THE TRIGGER NAMES THE LIST. The delete button it replaces said only
             "Delete", so a screen reader moving down a page of lists heard the
             same word over and over with nothing saying which list it would
-            take. */}
+            take. Rename lives here too, so no row carries a form until asked. */}
         <ItemActionsMenu
           label={t('lists.actionsLabel', { name: list.name })}
           actions={[
             { kind: 'link', key: 'open', label: t('lists.openTrigger'), to: `/lists/${list.id}`, icon: ExternalLink },
+            {
+              kind: 'button',
+              key: 'rename',
+              label: t('lists.renameTrigger'),
+              icon: Pencil,
+              onSelect: () => setIsRenaming(true),
+            },
             {
               kind: 'confirm',
               key: 'delete',
@@ -241,9 +297,6 @@ function ListRow({ list }: { list: { id: string; name: string; itemCount: number
             },
           ]}
         />
-      </div>
-      <div className="px-3 pb-3">
-        <RenameListForm listId={list.id} />
       </div>
     </li>
   );
