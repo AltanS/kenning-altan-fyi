@@ -83,7 +83,7 @@ export function ExplainLandingHint({ signedIn, source }: ExplainLandingHintProps
               type="button"
               lang={from}
               onClick={() => fillQuestion(example)}
-              className="inline-flex min-h-11 sm:min-h-9 items-center rounded-full border px-3 text-sm hover:border-brand-ink/40 hover:bg-primary/5 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="inline-flex min-h-11 sm:min-h-9 items-center rounded-full border px-3 text-left text-sm hover:border-brand-ink/40 hover:bg-primary/5 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               {example}
             </button>

@@ -85,11 +85,13 @@ export function SavedWordRow({ term, answer, from, to, href, ariaLabel, trailing
           aria-label={ariaLabel}
           className="min-w-0 flex-1 rounded-md outline-none hover:underline focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
-          {/* The word and the answer as ONE line, so the arrow between them is
+          {/* The word and the answer as ONE sentence, so the arrow between them is
               part of a translated sentence rather than a glyph this file
-              invented. The pair sits under it, quieter, because it answers a
-              question the reader only asks about rows they cannot place. */}
-          <span className="block truncate text-sm font-medium">
+              invented. It wraps to at most two lines instead of being cut at
+              one, so a long phrase still shows its answer. The pair sits under
+              it, quieter, because it answers a question the reader only asks
+              about rows they cannot place. */}
+          <span className="line-clamp-2 text-sm font-medium break-words">
             {answer === null ? term : t('favourites.rowSummary', { term, answer })}
           </span>
           <span className="block truncate text-xs text-muted-foreground">

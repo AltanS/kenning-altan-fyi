@@ -85,7 +85,9 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-wrap gap-x-2 text-sm">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd>{children}</dd>
+      {/* `anywhere` lets a long URL break at 360px; the dd must also be allowed
+          to shrink below its content or the wrap never triggers. */}
+      <dd className="min-w-0 [overflow-wrap:anywhere]">{children}</dd>
     </div>
   );
 }

@@ -105,7 +105,9 @@ export function QuizSessionView({ cards }: QuizSessionViewProps) {
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-4">
-      <h2 className="text-center font-display text-lg font-semibold">{t('quiz.heading')}</h2>
+      {/* The header already titles the screen "Quiz", so a visible heading
+          repeats it. It stays for screen readers, who navigate by heading. */}
+      <h2 className="sr-only">{t('quiz.heading')}</h2>
       <QuizFlipCard
         card={card}
         isFlipped={isFlipped}

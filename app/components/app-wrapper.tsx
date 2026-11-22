@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useLocation, useMatches, useNavigation, useRouteLoaderData } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Menu } from 'lucide-react';
 import { Link } from '#app/components/link';
 import { AvatarMenu } from '#app/components/avatar-menu';
 import { APP_NAME } from '#app/lib/app-name';
@@ -114,12 +114,13 @@ function InstallDrawerRow({ onNavigate }: { onNavigate: () => void }) {
  *
  * `md:hidden`, because at md and up the sidebar is already on screen.
  *
- * THE TRIGGER IS THE MARK, AND THAT IS WHY THE HEADER IS ONE LINE. It used to
- * be a hamburger with a separate mark-link home beside it, which spent two
- * controls and a whole line of a phone header on saying one thing. The drawing
- * carries the brand where the eyebrow used to, and the first tab of the bottom
- * nav is the way home, so the link it replaces had no job left. The button
- * keeps its accessible name, `nav.openMenu`: the mark is a drawing and stays
+ * THE TRIGGER IS THE MARK PLUS A MENU ICON, AND THAT IS WHY THE HEADER IS ONE
+ * LINE. It used to be a hamburger with a separate mark-link home beside it,
+ * which spent two controls and a whole line of a phone header on saying one
+ * thing. The mark carries the brand where the eyebrow used to, and the first tab
+ * of the bottom nav is the way home, so the link it replaces had no job left. The
+ * mark alone gave no hint that it opens anything, so the icon sits beside it.
+ * The button keeps its accessible name, `nav.openMenu`: both drawings stay
  * `aria-hidden`, so what a screen reader hears is still what the control does.
  */
 function NavDrawer() {
@@ -139,7 +140,7 @@ function NavDrawer() {
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="size-9 shrink-0 md:hidden" aria-label={t('nav.openMenu')}>
+        <Button variant="ghost" className="h-11 min-w-11 shrink-0 gap-1.5 px-2 md:hidden" aria-label={t('nav.openMenu')}>
           {/* THE `aria-hidden` SITS ON A WRAPPER, because `KenningMark` takes a
               class list and nothing else, and it names itself with an
               `aria-label` and a `<title>`. Hidden here, the button's own
@@ -149,6 +150,11 @@ function NavDrawer() {
           <span aria-hidden="true" className="contents">
             <KenningMark className="size-7" />
           </span>
+          {/* THE MENU ICON IS WHAT SAYS "THIS OPENS A MENU". The mark alone read
+              as a logo, so nobody tried tapping it. Hidden from assistive tech
+              for the same reason as the mark: the button's own label is the
+              name. */}
+          <Menu className="size-5" aria-hidden="true" />
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-72 gap-0 p-0 md:hidden">

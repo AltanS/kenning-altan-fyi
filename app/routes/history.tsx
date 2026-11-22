@@ -7,6 +7,7 @@ import { ConfirmAction } from '#app/components/confirm-action';
 import { repeatSearchHref, SavedWordRow } from '#app/components/personal/saved-word-row';
 import { Button } from '#app/components/ui/button';
 import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
+import { HISTORY_CAP } from '#app/lib/local-store/schema';
 import { formatRelativeTime } from '#app/lib/relative-time';
 import { clearSearchHistory, listSearchHistory } from '#app/models/search-history.server';
 import { resolveUser } from '#app/middleware/auth';
@@ -139,21 +140,15 @@ export default function HistoryRoute({ loaderData }: Route.ComponentProps) {
 
       {entries.length > 0 && (
         <div className="flex flex-col gap-3">
-          {/* History is chronological and repetitive, so it is set quieter than
-              a list: no card and no shadow, just rows separated by a hairline. */}
-          <ul>
-            {entries.map((entry) => (
-              <HistoryRow key={entry.id} entry={entry} nowMs={nowMs} />
-            ))}
-          </ul>
-          {/* THE CAP IS STATED, NOT HIDDEN. The log truncates itself on every
-              write, and a reader who is never told that is left to notice their
-              own searches going missing. */}
-          <p className="px-3 text-xs text-muted-foreground">{t('history.capNote')}</p>
-          <div className="px-3">
+          {/* THE CLEAR CONTROL SITS WITH THE INTRO, at the top, because a button
+              under 500 rows is a button nobody finds. It stacks under the line on
+              a phone and sits at its right end from `sm` up, and `min-h-11` keeps
+              the hit area at 44px either way. */}
+          <div className="flex flex-col gap-3 px-3 sm:flex-row sm:items-start sm:justify-between">
+            <p className="max-w-prose text-sm text-muted-foreground">{t('history.intro')}</p>
             <ConfirmAction
               trigger={
-                <Button type="button" variant="outline" size="sm">
+                <Button type="button" variant="outline" size="sm" className="min-h-11 shrink-0 self-start">
                   {t('history.clear')}
                 </Button>
               }
@@ -169,6 +164,20 @@ export default function HistoryRoute({ loaderData }: Route.ComponentProps) {
               onSuccess={() => toast.success(t('history.clearedToast'))}
             />
           </div>
+          {/* History is chronological and repetitive, so it is set quieter than
+              a list: no card and no shadow, just rows separated by a hairline. */}
+          <ul>
+            {entries.map((entry) => (
+              <HistoryRow key={entry.id} entry={entry} nowMs={nowMs} />
+            ))}
+          </ul>
+          {/* THE CAP IS STATED, NOT HIDDEN. The log truncates itself on every
+              write, and a reader who is never told that is left to notice their
+              own searches going missing. The numbers are the cap's own
+              constants, so the sentence cannot drift from the rule. */}
+          <p className="px-3 text-xs text-muted-foreground">
+            {t('history.capNote', { max: HISTORY_CAP.count, days: HISTORY_CAP.days })}
+          </p>
         </div>
       )}
     </div>

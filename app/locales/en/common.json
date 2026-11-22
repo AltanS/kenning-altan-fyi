@@ -95,7 +95,7 @@
     "metaTitle": "Lists",
     "metaDescription": "Words you save for study will collect here.",
     "emptyTitle": "No lists yet",
-    "emptyBody": "Lists are saved on this device and work offline.",
+    "emptyBody": "Lists are saved to your account and kept on this device, so they follow you to other devices and work offline.",
     "title": "Vocabulary lists",
     "createLabel": "List name",
     "createPlaceholder": "Travel phrases",
@@ -185,13 +185,14 @@
     "metaTitle": "History",
     "metaDescription": "A record of the words you look up.",
     "emptyTitle": "No search history",
-    "emptyBody": "Searches are recorded on this device only. They are never sent to the server.",
+    "intro": "Your searches, in the order you first translated them. Searching a word again does not move it.",
+    "emptyBody": "Your searches are saved to your account and show up on your other devices too.",
     "repeat": "Search for {{query}}",
     "clear": "Clear history",
     "clearTitle": "Clear search history",
-    "clearBody": "This removes every recorded search on this device. This cannot be undone.",
+    "clearBody": "This deletes your whole search history from your account. This cannot be undone.",
     "clearConfirm": "Clear history",
-    "capNote": "Only the 500 most recent searches, and nothing older than 90 days, are kept.",
+    "capNote": "Only your {{max}} most recent searches, and nothing older than {{days}} days, are kept.",
     "clearPending": "Clearing history...",
     "clearedToast": "Search history cleared.",
     "recentTitle": "Recent searches",
@@ -200,8 +201,6 @@
   "settings": {
     "metaTitle": "Settings",
     "metaDescription": "Change the app language and color theme.",
-    "appearanceTitle": "Languages and theme",
-    "appearanceBody": "The theme switch in the header works today. Controls for your translation languages will live here once they are built.",
     "languageTitle": "App language",
     "languageBody": "Choose the language for the buttons and labels in the app. This does not change the languages you translate.",
     "languageFieldLabel": "App language",
@@ -593,22 +592,22 @@
       "de": {
         "1": "Was ist der Unterschied zwischen kennen und wissen?",
         "2": "Wann sagt man Feierabend?",
-        "3": "Wie benutzt man doch in einem Satz?"
+        "3": "Wie benutzt man \"doch\" in einem Satz?"
       },
       "en": {
         "1": "What is the difference between make and do?",
         "2": "When do people say cheers?",
-        "3": "How is actually used in a sentence?"
+        "3": "How is \"actually\" used in a sentence?"
       },
       "tr": {
         "1": "Bilmek ile tanımak arasındaki fark nedir?",
         "2": "Kolay gelsin ne zaman söylenir?",
-        "3": "Bir cümlede yani nasıl kullanılır?"
+        "3": "Bir cümlede \"yani\" nasıl kullanılır?"
       },
       "es": {
         "1": "¿Cuál es la diferencia entre ser y estar?",
         "2": "¿Cuándo se dice vale?",
-        "3": "¿Cómo se usa pues en una frase?"
+        "3": "¿Cómo se usa \"pues\" en una frase?"
       }
     },
     "answerLabel": "Explanation",

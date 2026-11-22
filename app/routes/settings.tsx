@@ -128,13 +128,6 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <div className="rounded-xl border bg-card p-6">
-        <h2 className="font-display text-base font-semibold">{t('settings.appearanceTitle')}</h2>
-        <p className="mt-2 text-sm text-muted-foreground">{t('settings.appearanceBody')}</p>
-      </div>
-      {/* The app language is a real, working control, so it gets its own card
-          rather than a line inside the one above, which describes things that
-          are not built yet. */}
-      <div className="rounded-xl border bg-card p-6">
         <h2 className="font-display text-base font-semibold">{t('settings.languageTitle')}</h2>
         <p className="mt-2 text-sm text-muted-foreground">{t('settings.languageBody')}</p>
         <div className="mt-4">

@@ -95,7 +95,7 @@
     "metaTitle": "Listen",
     "metaDescription": "Wörter, die du zum Lernen speicherst, sammeln sich hier.",
     "emptyTitle": "Noch keine Listen",
-    "emptyBody": "Listen werden auf diesem Gerät gespeichert und funktionieren offline.",
+    "emptyBody": "Listen werden in deinem Konto gespeichert und auf diesem Gerät behalten, sodass sie auf deine anderen Geräte übertragen werden und offline funktionieren.",
     "title": "Vokabellisten",
     "createLabel": "Listenname",
     "createPlaceholder": "Reisewortschatz",
@@ -185,13 +185,14 @@
     "metaTitle": "Verlauf",
     "metaDescription": "Eine Übersicht der Wörter, die du nachschlägst.",
     "emptyTitle": "Kein Suchverlauf",
-    "emptyBody": "Suchanfragen werden ausschließlich auf diesem Gerät gespeichert. Sie werden niemals an den Server übertragen.",
+    "intro": "Deine Suchanfragen in der Reihenfolge, in der du sie zuerst übersetzt hast. Wenn du ein Wort erneut suchst, wird es nicht verschoben.",
+    "emptyBody": "Deine Suchanfragen werden in deinem Konto gespeichert und auch auf deinen anderen Geräten angezeigt.",
     "repeat": "Nach {{query}} suchen",
     "clear": "Verlauf löschen",
     "clearTitle": "Suchverlauf löschen",
-    "clearBody": "Dadurch werden alle auf diesem Gerät gespeicherten Suchanfragen gelöscht. Dies kann nicht rückgängig gemacht werden.",
+    "clearBody": "Dadurch wird dein gesamter Suchverlauf aus deinem Konto gelöscht. Das lässt sich nicht rückgängig machen.",
     "clearConfirm": "Verlauf löschen",
-    "capNote": "Es werden nur die letzten 500 Suchanfragen behalten und nichts, was älter als 90 Tage ist.",
+    "capNote": "Nur deine {{max}} neuesten Suchanfragen und keine Einträge, die älter als {{days}} Tage sind, werden gespeichert.",
     "clearPending": "Verlauf wird gelöscht...",
     "clearedToast": "Suchverlauf gelöscht.",
     "recentTitle": "Zuletzt gesucht",
@@ -200,8 +201,6 @@
   "settings": {
     "metaTitle": "Einstellungen",
     "metaDescription": "Passe die App-Sprache und das Farbschema an.",
-    "appearanceTitle": "Sprachen und Design",
-    "appearanceBody": "Das Farbschema kannst du oben im Kopfbereich bereits anpassen. Die Einstellungen für deine Übersetzungssprachen findest du hier, sobald sie fertig sind.",
     "languageTitle": "App-Sprache",
     "languageBody": "Wähle die Sprache für die Schaltflächen und Texte in der App. Das ändert nichts an den Sprachen, die du übersetzt.",
     "languageFieldLabel": "App-Sprache",
@@ -593,22 +592,22 @@
       "de": {
         "1": "Was ist der Unterschied zwischen kennen und wissen?",
         "2": "Wann sagt man Feierabend?",
-        "3": "Wie benutzt man doch in einem Satz?"
+        "3": "Wie benutzt man \"doch\" in einem Satz?"
       },
       "en": {
         "1": "What is the difference between make and do?",
         "2": "When do people say cheers?",
-        "3": "How is actually used in a sentence?"
+        "3": "How is \"actually\" used in a sentence?"
       },
       "tr": {
         "1": "Bilmek ile tanımak arasındaki fark nedir?",
         "2": "Kolay gelsin ne zaman söylenir?",
-        "3": "Bir cümlede yani nasıl kullanılır?"
+        "3": "Bir cümlede \"yani\" nasıl kullanılır?"
       },
       "es": {
         "1": "¿Cuál es la diferencia entre ser y estar?",
         "2": "¿Cuándo se dice vale?",
-        "3": "¿Cómo se usa pues en una frase?"
+        "3": "¿Cómo se usa \"pues\" en una frase?"
       }
     },
     "answerLabel": "Erklärung",
