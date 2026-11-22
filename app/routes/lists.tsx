@@ -133,10 +133,16 @@ function CreateListForm() {
   // a list that was never created. Each answer is confirmed once: a language
   // change hands back a new `t` and re-runs this over the same answer.
   const confirmed = useRef<object | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (fetcher.data?.success !== true || confirmed.current === fetcher.data) return;
     confirmed.current = fetcher.data;
     toast.success(t('lists.createdToast', { name: submittedName.current }));
+    // A saved name is no longer a draft. A failed write never reaches here, so
+    // its text stays. Focus stays in the field so the next list can be typed.
+    formRef.current?.reset();
+    inputRef.current?.focus();
   }, [fetcher.data, t]);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
@@ -144,11 +150,12 @@ function CreateListForm() {
   };
 
   return (
-    <fetcher.Form method="post" className="flex flex-col gap-2" onSubmit={handleSubmit}>
+    <fetcher.Form ref={formRef} method="post" className="flex flex-col gap-2" onSubmit={handleSubmit}>
       <input type="hidden" name="intent" value={INTENT.CREATE} />
       <Label htmlFor="new-list-name">{t('lists.createLabel')}</Label>
       <div className="flex gap-2">
         <Input
+          ref={inputRef}
           id="new-list-name"
           name="name"
           type="text"
@@ -238,17 +245,38 @@ function ListRow({ list }: { list: ListSummary }) {
   const { t } = useTranslation();
   const [isRenaming, setIsRenaming] = useState(false);
   const stopRenaming = useCallback(() => setIsRenaming(false), []);
+  const rowRef = useRef<HTMLLIElement>(null);
+  const wasRenaming = useRef(false);
+
+  // WHEN RENAMING ENDS, FOCUS GOES BACK TO THIS ROW'S MENU. The rename form
+  // unmounts with focus inside it, so focus would drop to <body> and a keyboard
+  // reader would lose their place. Only the renaming-to-not-renaming step acts,
+  // never first mount. A reader who clicked elsewhere keeps their focus.
+  useEffect(() => {
+    if (isRenaming) {
+      wasRenaming.current = true;
+      return;
+    }
+    if (!wasRenaming.current) return;
+    wasRenaming.current = false;
+    const timer = setTimeout(() => {
+      const active = document.activeElement;
+      if (active !== null && active !== document.body) return;
+      rowRef.current?.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')?.focus();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [isRenaming]);
 
   if (isRenaming) {
     return (
-      <li className="border-b last:border-b-0">
+      <li ref={rowRef} className="border-b last:border-b-0">
         <RenameListForm list={list} onDone={stopRenaming} />
       </li>
     );
   }
 
   return (
-    <li className="border-b last:border-b-0">
+    <li ref={rowRef} className="border-b last:border-b-0">
       <div className="flex items-center gap-1 rounded-lg px-3 hover:bg-primary/5">
         {/* THE WHOLE ROW IS THE LINK, bar the menu. Name, count and chevron sit
             inside one anchor with a 44px floor, so the target is the row and
