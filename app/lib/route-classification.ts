@@ -183,6 +183,14 @@ export const ROUTE_CLASSIFICATION = {
   'lists.$listId.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },
   'lists.$listId.review.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },
   'review.tsx': { access: 'gated-layout', reason: 'Under `_app.gated`.' },
+  'rooms.tsx': {
+    access: 'gated-layout',
+    reason: 'Under `_app.gated`. Its action can start a billed room build, and the rows belong to one account.',
+  },
+  'rooms.$id.tsx': {
+    access: 'gated-layout',
+    reason: 'Under `_app.gated`. One room, read by its owner only, and any other id answers 404.',
+  },
   'explanations.tsx': {
     access: 'gated-layout',
     reason:
@@ -298,6 +306,16 @@ export const ROUTE_CLASSIFICATION = {
     access: 'gated-inline',
     reason:
       'It exports `middleware = [authMiddleware]`. It starts a billed explain run, so it is the half of the explain pair that spends money.',
+  },
+  'api.rooms.$id.ts': {
+    access: 'gated-inline',
+    reason:
+      'It exports `middleware = [authMiddleware]`, which under `/api/` refuses with a 401 in JSON. It never enqueues, and it reads the owner\'s room only.',
+  },
+  'api.rooms.$id.retry.ts': {
+    access: 'gated-inline',
+    reason:
+      'It exports `middleware = [authMiddleware]`. It starts a billed room build for the owner of the room.',
   },
   'api.v1.transcribe.ts': {
     access: 'gated-inline',

@@ -182,6 +182,29 @@ export function exactHeadwordsQuery(db: DictionaryDb, params: BranchParams) {
 }
 
 /**
+ * Which of several folded word forms are headwords of one language,
+ * licence-filtered in SQL.
+ *
+ * ONE STATEMENT FOR ANY NUMBER OF FORMS, with the same three conditions as
+ * {@link exactHeadwordsQuery}. A form this returns is one a search for it is
+ * certain to find, which is what a screen needs before it links a word to the
+ * translator. The forms must already be through `normalizeQuery`.
+ */
+export function existingLemmasQuery(db: DictionaryDb, params: { normalizedForms: string[]; from: LanguageCode }) {
+  return db
+    .selectDistinct({ lemmaNormalized: headwords.lemmaNormalized })
+    .from(headwords)
+    .innerJoin(sources, eq(headwords.sourceId, sources.id))
+    .where(
+      and(
+        inArray(headwords.lemmaNormalized, params.normalizedForms),
+        eq(headwords.languageCode, params.from),
+        servedLicence(),
+      ),
+    );
+}
+
+/**
  * Fuzzy matches on `lemma_normalized`, licence-filtered in SQL.
  *
  * WHY THE PREDICATE IS WRITTEN TWICE.

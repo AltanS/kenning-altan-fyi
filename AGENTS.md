@@ -126,6 +126,104 @@ has no `t` and an English heading over German prose is worse than a blank line.
 There is deliberately no `/api/v1/explain` and no `pnpm cli explain` in this
 pass.
 
+### Rooms (topic rooms)
+
+A signed-in reader types a topic, picks the language of the words and the
+language of the explanations, and gets a room: grouped vocabulary, example
+sentences and usage rules. One model call writes it, two more review it, and
+code keeps what both accepted.
+
+The code: `drizzle/schema/rooms.ts` (`rooms`, `room_build_days`),
+`app/models/rooms.server.ts`, `app/lib/rooms/` (limits, request, llm-schema,
+content, decide, view, guards, spend, enqueue, service, job-payload,
+dictionary-links, language-names, practice-preference),
+`app/prompts/room/`, `app/workflows/operations/rooms/build-room.ts` with
+`app/workflows/templates/build-room.ts`, the routes `rooms.tsx`, `rooms.$id.tsx`,
+`api.rooms.$id.ts` and `api.rooms.$id.retry.ts`, and `app/components/rooms/`.
+Tests: `tests/unit/rooms-*.test.ts` and `tests/integration/rooms-*.test.ts`.
+
+Rules.
+
+**A room is private.** Every reader query is filtered by the owner, another
+reader's id answers 404, and no public page or listing shows one. Deleting the
+account removes the rooms and the day counts by cascade.
+
+**One room per `(user, topic_normalized, term, gloss)`.** Asking again opens the
+existing room and spends nothing, not even a rate limit counter. After that the
+order is: topic length and language pair, rate limit, the reader's daily cap,
+the daily budget. A topic outside 2 to 80 characters is refused, never cut. The
+two languages differ and come from the dictionary list.
+
+**Ten paid builds per reader per UTC day, retries included.** The count lives in
+`room_build_days`, so deleting a room gives nothing back. A build is returned
+only when its attempt never reached the provider.
+
+**One attempt is paid for at most once.** The row carries `attempt`, the payload
+is `{ roomId, attempt }`, and the job claims a `pending` row of that attempt with
+no stage. A redelivery or a superseded job calls nothing and writes nothing. A
+retry is one conditional update from `failed`, `budget` or a `pending` row older
+than ten minutes. The queue `build-room` has one worker and the `stately`
+policy, and the template is `maxAttempts: 1` with `retryLimit: 0`.
+
+**The time bounds are one chain** in `app/lib/rooms/limits.ts`: worst case run,
+then the operation timeout, then the job expiry, then the stale threshold.
+`tests/unit/rooms-limits.test.ts` pins it. Change them together.
+
+**Unanimity, and silence is a no.** The language reviewer and the subject
+reviewer run side by side and never see each other. An item is kept only when
+both answer `ok` for its id. Fewer than 10 terms or 5 sentences fails the run. A
+reviewer that fails both its attempts fails the run. Only the filtered document
+and the counts are stored.
+
+**Every provider call reserves and settles** against the shared daily budget
+(`app/lib/rooms/spend.server.ts`), with the job's own deadline per call. Never
+pass `reasoningEffort`. **No log line pairs a reader with a topic**, and the
+topic is untrusted text that the prompts delimit.
+
+**`llm-schema.ts` guards the write and `content.ts` reads the row.** Put a new
+ceiling in the first only, so a stored room never stops decoding. A new prompt
+wording is a new `*.vN.md` file and a bump of `ROOM_PROMPT_VERSION`.
+
+**A list ceiling is `atMost`, never `.max()` on an array.** `.max()` becomes
+`maxItems` in the provider's JSON schema, and Gemini answers 400 "too many states
+for serving" for the room schemas with it. OpenRouter shows only "Provider
+returned error"; the reason is in `error.metadata.raw`. `atMost` refuses the same
+answer in the parse. `tests/unit/rooms-llm-schema.test.ts` pins this.
+
+**A term links to the translator only when the dictionary holds it.**
+`loadRoomView` asks one statement (`existingLemmasQuery`, the exact search's own
+conditions) for all terms. A term of several words is never linked, because the
+translator reads it as a phrase.
+
+**The form starts on the newest room's pair.** With no room, the room is
+explained in the interface language and the words are in the first other
+language of the pair cookie. A topic and pair already held opens that room by
+navigating. The topic field stops at the server's length limit and counts near
+it.
+
+**The reader is told why a room failed from two columns, never from
+`rooms.error`** (`roomFailureReason`). The room's heading is the topic as typed,
+not the model's title. "Hide translations" covers rule example translations too,
+and what was revealed is kept per room in `sessionStorage` until the switch is
+flipped.
+
+**Rooms screens name languages in the interface language**
+(`localizedLanguageName`), unlike history and favourites, which name them
+natively. The list reads itself again every five seconds while a room is
+pending.
+
+**There is no `/api/v1` endpoint and no CLI command for rooms** in this pass.
+
+### The model
+
+`google/gemini-3.8-flash` is this app's model going forward. It is
+`DEFAULT_ACTIVE_MODEL` in `app/lib/llm/catalog.ts` and `MODELS.DEFAULT` in
+`app/config/llm.ts`. The stored `llm.active` setting wins over both. Migration
+`0006` seeded it with 3.7, and the data migration
+`2026-11-27-llm-active-gemini-3-8` moves that seed to 3.8. It touches the row
+only while `updated_by` is NULL, so a switch made on `/super/llm` stays as the
+operator set it.
+
 ### Public explanations, authorship, votes and a browse page (M199/M200)
 
 M199 and M200 here are the TRACKER milestone numbers for this feature, not the

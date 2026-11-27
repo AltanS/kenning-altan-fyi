@@ -107,6 +107,11 @@ export * from './schema/abuse';
 // data, for the reasons the file header gives. Reached through `getRawDb()`.
 export * from './schema/quiz';
 
+// Topic rooms: one reader's own room of vocabulary, sentences and usage rules,
+// plus the per-reader count of paid room builds per UTC day. Every reader-facing
+// query is filtered by the owner. Reached through `getRawDb()`.
+export * from './schema/rooms';
+
 // =============================================================================
 // API Keys (Global — the bearer credential for `/api/v1/*`)
 // =============================================================================

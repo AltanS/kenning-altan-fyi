@@ -6,6 +6,7 @@ import { useFetcher, type MetaFunction } from 'react-router';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { ItemActionsMenu } from '#app/components/item-actions-menu';
+import { RoomsLinkCard } from '#app/components/rooms/rooms-link-card';
 import { Link } from '#app/components/link';
 import { Button } from '#app/components/ui/button';
 import { Input } from '#app/components/ui/input';
@@ -342,6 +343,8 @@ export default function ListsRoute({ loaderData }: Route.ComponentProps) {
           <CreateListForm />
         </div>
       </section>
+
+      <RoomsLinkCard />
 
       {lists.length === 0 && (
         <div className="surface-brand-soft rounded-xl border border-dashed p-6">

@@ -347,6 +347,20 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/*
+ * Where a bottom toast stands. Below `md` the tab bar (`bottom-nav.tsx`, 3.5rem
+ * plus the safe area) owns the bottom edge, and a toast stands above it.
+ */
+:root {
+  --toast-offset-bottom: 1.5rem;
+}
+
+@media (width < 48rem) {
+  :root {
+    --toast-offset-bottom: calc(env(safe-area-inset-bottom) + 4.25rem);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

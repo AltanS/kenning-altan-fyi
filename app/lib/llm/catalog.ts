@@ -184,9 +184,10 @@ export function providerEntry(id: ProviderId): ProviderEntry {
 // WHY THIS TABLE EXISTS AT ALL
 //   @sprqvntrs/llm 3.13.1 keeps its own pricing table and reports a cost on
 //   `lastUsage.cost`. It does not carry the DEFAULT model,
-//   `google/gemini-3.7-flash`, so it returned `cost: null` for every enrichment
-//   this app has ever run, and the `cost_usd` column was uniformly null. A daily
-//   budget cap expressed in currency needs a column with numbers in it.
+//   `google/gemini-3.8-flash`, and did not carry the default before it, so it
+//   returned `cost: null` for every enrichment and the `cost_usd` column was
+//   uniformly null. A daily budget cap expressed in currency needs a column with
+//   numbers in it.
 //
 // PROVENANCE
 //   USD per MILLION tokens, read from https://openrouter.ai/api/v1/models on

@@ -13,9 +13,24 @@ import {
 import { Button } from '#app/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
-interface ConfirmActionProps {
-  /** The trigger element (usually a button) */
-  trigger: React.ReactNode;
+/** For a caller that opens the dialog itself, because its trigger does not outlive the dialog. */
+export interface ConfirmControl {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Where focus goes when the dialog closes, since there is no trigger to return it to. */
+  onCloseAutoFocus: (event: Event) => void;
+}
+
+/** Either the dialog has a trigger of its own, or the caller controls it. Never both. */
+type ConfirmOpener =
+  | {
+      /** The trigger element (usually a button) */
+      trigger: React.ReactNode;
+      control?: never;
+    }
+  | { trigger?: never; control: ConfirmControl };
+
+type ConfirmActionProps = ConfirmOpener & {
   /** Title shown in the confirmation dialog */
   title: string;
   /** Description shown in the confirmation dialog */
@@ -40,13 +55,14 @@ interface ConfirmActionProps {
   onSuccess?: () => void;
   /** Callback when action fails */
   onError?: (error: string) => void;
-}
+};
 
 /** Stable identity for the default, since an inline `{}` is a new object every render. */
 const EMPTY_FORM_DATA: Record<string, string | number> = {};
 
 export function ConfirmAction({
   trigger,
+  control,
   title,
   description,
   formData = EMPTY_FORM_DATA,
@@ -57,7 +73,9 @@ export function ConfirmAction({
   onSuccess,
   onError,
 }: ConfirmActionProps) {
-  const [open, setOpen] = useState(false);
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = control?.open ?? ownOpen;
+  const setOpen = control?.onOpenChange ?? setOwnOpen;
   const fetcher = useFetcher<{ success: boolean; error?: string }>();
   const isSubmitting = fetcher.state !== 'idle';
 
@@ -80,7 +98,7 @@ export function ConfirmAction({
       return;
     }
     if (data.error) onError?.(data.error);
-  }, [fetcher.data, fetcher.state, onSuccess, onError]);
+  }, [fetcher.data, fetcher.state, onSuccess, onError, setOpen]);
 
   const handleConfirm = () => {
     const form = new FormData();
@@ -92,8 +110,8 @@ export function ConfirmAction({
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
-      <AlertDialogContent>
+      {control === undefined && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
+      <AlertDialogContent onCloseAutoFocus={control?.onCloseAutoFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>

@@ -21,6 +21,7 @@ import { logStartHandler, processDataHandler, generateReportHandler } from './du
 import { enrichHeadwordHandler } from './enrichment';
 import { explainTermsHandler, translateHeadwordHandler, translatePhraseHandler } from './translation';
 import { scaffoldVocabHandler } from './quiz';
+import { buildRoomHandler } from './rooms';
 
 /**
  * Structured operation handlers organized by domain.
@@ -43,6 +44,9 @@ export const operationHandlers = {
   quiz: {
     scaffoldVocab: scaffoldVocabHandler,
   },
+  rooms: {
+    buildRoom: buildRoomHandler,
+  },
 } as const;
 
 // Re-export individual handlers for direct access if needed
@@ -50,3 +54,4 @@ export { logStartHandler, processDataHandler, generateReportHandler } from './du
 export { enrichHeadwordHandler } from './enrichment';
 export { explainTermsHandler, translateHeadwordHandler, translatePhraseHandler } from './translation';
 export { scaffoldVocabHandler } from './quiz';
+export { buildRoomHandler } from './rooms';

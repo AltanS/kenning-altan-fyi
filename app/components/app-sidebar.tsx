@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {
   BookMarked,
+  DoorOpen,
   Download,
   GraduationCap,
   History,
@@ -108,6 +109,9 @@ export const navigationItems: NavigationItem[] = [
   // work in, and the bar is full at five.
   { labelKey: 'nav.explanations', to: '/explanations', icon: Sparkles, group: 'primary', requiresAccount: true },
   { labelKey: 'nav.lists', to: '/lists', icon: BookMarked, group: 'primary', tab: { order: 3 }, requiresAccount: true },
+  // Topic rooms, beside Lists because both are collections of words a reader
+  // studies. No `tab`: the bar is full at five.
+  { labelKey: 'nav.rooms', to: '/rooms', icon: DoorOpen, group: 'primary', requiresAccount: true },
   {
     labelKey: 'nav.favourites',
     to: '/favourites',

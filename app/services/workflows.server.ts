@@ -12,6 +12,7 @@ import { createComponentLogger } from '#app/lib/logger';
 import { registerAllWorkflows } from '#app/workflows';
 import { ENRICHMENT_QUEUE } from '#app/lib/enrichment/limits';
 import { EXPLAIN_QUEUE, TRANSLATION_QUEUE } from '#app/lib/translation/limits';
+import { ROOM_QUEUE } from '#app/lib/rooms/limits';
 
 const log = createComponentLogger('WorkflowService');
 
@@ -65,6 +66,9 @@ export async function initializeWorkflows(): Promise<WorkflowOrchestrator> {
       // installation can make running at once, and the day's cap is half the
       // other two.
       { name: EXPLAIN_QUEUE, workers: 1, pollingIntervalMs: 1000 },
+      // Room builds, ONE worker. A build is one large call and then two reviews,
+      // so it is both the longest and the most expensive job here.
+      { name: ROOM_QUEUE, workers: 1, pollingIntervalMs: 1000 },
     ],
     defaultTimeout: 30000,
     defaultRetryLimit: 3,
@@ -116,6 +120,11 @@ export async function initializeWorkflows(): Promise<WorkflowOrchestrator> {
   // is silent: the singleton key is stored on the row and enforces nothing.
   await boss.createQueue(EXPLAIN_QUEUE, { name: EXPLAIN_QUEUE, policy: 'stately' });
   await boss.updateQueue(EXPLAIN_QUEUE, { name: EXPLAIN_QUEUE, policy: 'stately' });
+
+  // The room queue too: its singleton key (room and attempt) bites only under a
+  // deduping policy. Both calls again.
+  await boss.createQueue(ROOM_QUEUE, { name: ROOM_QUEUE, policy: 'stately' });
+  await boss.updateQueue(ROOM_QUEUE, { name: ROOM_QUEUE, policy: 'stately' });
 
   // Register all templates and operation handlers from app/workflows/
   registerAllWorkflows(orchestrator);

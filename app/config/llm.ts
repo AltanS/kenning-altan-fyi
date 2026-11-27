@@ -29,7 +29,7 @@ export const MODELS = {
    */
   DEFAULT: {
     provider: 'openrouter' satisfies LlmProvider,
-    model: 'openai/gpt-5.6-luna',
+    model: 'google/gemini-3.8-flash',
   },
 } as const;
 

@@ -6,6 +6,7 @@ import { PersistLanguagePair } from '#app/components/persist-language-pair';
 import { MigrateLocalHistory } from '#app/components/personal/migrate-local-history';
 import { RecentHistory, RECENT_HISTORY_COUNT, type RecentSearch } from '#app/components/personal/recent-history';
 import { RecordSearch } from '#app/components/personal/record-search';
+import { RoomsLinkCard } from '#app/components/rooms/rooms-link-card';
 import { SearchPanes } from '#app/components/search-panes';
 import { useTranslationPane } from '#app/components/translation-pane';
 import { documentTitle, metaLanguage, metaTitle } from '#app/i18n/meta-title';
@@ -755,6 +756,10 @@ export default function TranslateRoute({ loaderData }: Route.ComponentProps) {
           loader asks for no rows without a reader to own them, and the block
           renders nothing for an empty list. */}
       <RecentHistory entries={recentSearches} nowMs={nowMs} />
+
+      {/* The way to topic rooms, under everything the empty screen holds. Not
+          offline: a room lives on the server. */}
+      {q === '' && signedIn && offline === null && <RoomsLinkCard />}
 
       {/* The one-time handover of a log this device recorded before the server
           held one, and it renders nothing. It is HERE, on the screen every

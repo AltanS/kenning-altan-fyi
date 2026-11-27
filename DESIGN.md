@@ -300,6 +300,11 @@ container and shadow, and render simple rows on the page.
   place in a collection, and the mono face is reserved for the word being looked
   at right now. It also does not apply to a gloss, an explanation, a usage note
   or an example sentence, which are prose ABOUT a word rather than the word.
+- **Topic rooms: only the headword is monospaced.** The term in the learned
+  language, with its article, takes `font-mono`. Translations, notes, rule titles
+  and every other line the room writes in the explanation language stay in
+  `font-sans`. Sentences, examples and their translations are at least
+  `text-base`.
 - **Display face: Bricolage Grotesque (`font-display`)**, self-hosted in
   `public/fonts/`. Use it for the wordmark, page titles, and card titles. This
   adds brand character to views past the hero card. It is a grotesque, not a

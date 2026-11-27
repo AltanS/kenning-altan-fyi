@@ -12,6 +12,7 @@ import { translationJobPayloadSchema } from '#app/lib/translation/job-payload';
 import { explainJobPayloadSchema } from '#app/lib/translation/explain-job-payload';
 import { phraseJobPayloadSchema } from '#app/lib/translation/phrase-job-payload';
 import { quizScaffoldJobPayloadSchema } from '#app/lib/quiz/scaffold-job-payload';
+import { roomJobPayloadSchema } from '#app/lib/rooms/job-payload';
 
 // =============================================================================
 // WORKFLOW TYPES
@@ -24,6 +25,7 @@ export const WORKFLOW_TYPES = {
   TRANSLATE_PHRASE: 'translate-phrase',
   EXPLAIN_TERMS: 'explain-terms',
   SCAFFOLD_VOCAB: 'quiz.scaffold-vocab',
+  BUILD_ROOM: 'build-room',
 } as const;
 
 export type WorkflowType = (typeof WORKFLOW_TYPES)[keyof typeof WORKFLOW_TYPES];
@@ -139,3 +141,12 @@ export type ExplainTermsContext = z.infer<typeof explainTermsContextSchema>;
 export const scaffoldVocabContextSchema = quizScaffoldJobPayloadSchema;
 
 export type ScaffoldVocabContext = z.infer<typeof scaffoldVocabContextSchema>;
+
+/**
+ * The room job's context, which is the enqueue payload unchanged: a room id and
+ * an attempt number, in a `strictObject` carrying no reader and no topic. See
+ * `#app/lib/rooms/job-payload`.
+ */
+export const buildRoomContextSchema = roomJobPayloadSchema;
+
+export type BuildRoomContext = z.infer<typeof buildRoomContextSchema>;

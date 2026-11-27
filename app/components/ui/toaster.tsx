@@ -8,6 +8,10 @@ const Toaster = ({ theme, ...props }: ToasterProps) => {
     <Sonner
       theme={theme}
       className="toaster group"
+      // Both offsets, because sonner switches at 600px and the app's tab bar
+      // stays until `md`. The value is set in `app.css`.
+      offset={{ bottom: 'var(--toast-offset-bottom)' }}
+      mobileOffset={{ bottom: 'var(--toast-offset-bottom)' }}
       icons={{
         error: <SirenIcon className="text-destructive w-6 h-6" />,
         success: <CheckIcon className="text-success w-6 h-6" />,

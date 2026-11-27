@@ -11,6 +11,7 @@ import { translateHeadwordTemplate } from './translate-headword';
 import { translatePhraseTemplate } from './translate-phrase';
 import { explainTermsTemplate } from './explain-terms';
 import { scaffoldVocabTemplate } from './scaffold-vocab';
+import { buildRoomTemplate } from './build-room';
 
 /**
  * All workflow templates with their handler references.
@@ -22,6 +23,7 @@ export const workflowTemplates: WorkflowTemplateWithHandlers[] = [
   translatePhraseTemplate,
   explainTermsTemplate,
   scaffoldVocabTemplate,
+  buildRoomTemplate,
 ];
 
 // Re-export individual templates for direct access
@@ -31,3 +33,4 @@ export { translateHeadwordTemplate } from './translate-headword';
 export { translatePhraseTemplate } from './translate-phrase';
 export { explainTermsTemplate } from './explain-terms';
 export { scaffoldVocabTemplate } from './scaffold-vocab';
+export { buildRoomTemplate } from './build-room';

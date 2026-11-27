@@ -148,6 +148,13 @@ export default [
   // obvious they share a gate and a shape.
   route('/api/explanation-vote', 'routes/api.explanation-vote.ts'),
 
+  // One topic room's two halves, the same shape as the explain pair. Both carry
+  // `authMiddleware` in the file and both are filtered by the owner. The GET is
+  // what the room page polls and it never enqueues; the retry POST is, with the
+  // create form on `/rooms`, the only place a room build starts.
+  route('/api/rooms/:id', 'routes/api.rooms.$id.ts'),
+  route('/api/rooms/:id/retry', 'routes/api.rooms.$id.retry.ts'),
+
   // =============================================================================
   // App Shell (sidebar, mobile drawer, bottom tab bar)
   // =============================================================================
@@ -265,6 +272,11 @@ export default [
       // The flashcard loop over one list. Client only for the same reasons, and
       // for one more: a review session must not stall on a fetch between cards.
       route('/lists/:listId/review', 'routes/lists.$listId.review.tsx'),
+      // Topic rooms: a model writes the vocabulary, sentences and usage rules
+      // for a topic, two more model calls review it, and the reader keeps what
+      // survived. The rows are per reader and live on the server.
+      route('/rooms', 'routes/rooms.tsx'),
+      route('/rooms/:id', 'routes/rooms.$id.tsx'),
       // The daily nudge's session. The three words it picks come from ANY list,
       // so there is no list id to hang them off: the entry ids travel in
       // `?entries=`, and the screen resolves them against the device's own store.

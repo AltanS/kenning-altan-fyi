@@ -29,6 +29,7 @@
  * dialog. Non-modal has no body lock to leave behind, and the menu still
  * closes on outside press and on Escape.
  */
+import { useRef, useState } from 'react';
 import { MoreHorizontal, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmAction } from '#app/components/confirm-action';
@@ -199,45 +200,26 @@ function CopyRow({ action }: { action: ItemActionCopy }) {
 }
 
 /**
- * A destructive row and the dialog it opens.
- *
- * `onSelect` IS PREVENTED, AND THAT IS THE WHOLE TRICK. Radix unmounts a closed
- * dropdown's content, and a dialog trigger nested in a row that closes the menu
- * is torn down in the same frame it opened: the confirmation flickers and
- * vanishes. Preventing the default select keeps the menu open, so the dialog
- * lives until the reader answers it. The same line is in `avatar-menu.tsx`'s
- * theme row for the same mechanical reason.
+ * The row that asks for a confirmation. It only says which one was chosen: the
+ * menu closes as for any other row, and the dialog is drawn outside it.
  */
-function ConfirmRow({ action }: { action: ItemActionConfirm }) {
+function ConfirmRow({ action, onConfirm }: { action: ItemActionConfirm; onConfirm: (key: string) => void }) {
   return (
-    <ConfirmAction
-      trigger={
-        <DropdownMenuItem
-          className={cn(MENU_ROW, action.destructive === true && DESTRUCTIVE_ROW)}
-          onSelect={(event) => event.preventDefault()}
-        >
-          <RowIcon icon={action.icon} />
-          <span>{action.label}</span>
-        </DropdownMenuItem>
-      }
-      title={action.title}
-      description={action.description}
-      confirmText={action.confirmText}
-      confirmPendingText={action.confirmPendingText}
-      cancelText={action.cancelText}
-      confirmVariant={action.destructive === true ? 'destructive' : 'default'}
-      formData={action.formData}
-      onSuccess={action.onSuccess}
-      onError={action.onError}
-    />
+    <DropdownMenuItem
+      className={cn(MENU_ROW, action.destructive === true && DESTRUCTIVE_ROW)}
+      onSelect={() => onConfirm(action.key)}
+    >
+      <RowIcon icon={action.icon} />
+      <span>{action.label}</span>
+    </DropdownMenuItem>
   );
 }
 
-function ActionRow({ action }: { action: ItemAction }) {
+function ActionRow({ action, onConfirm }: { action: ItemAction; onConfirm: (key: string) => void }) {
   if (action.kind === 'link') return <LinkRow action={action} />;
   if (action.kind === 'button') return <ButtonRow action={action} />;
   if (action.kind === 'copy') return <CopyRow action={action} />;
-  return <ConfirmRow action={action} />;
+  return <ConfirmRow action={action} onConfirm={onConfirm} />;
 }
 
 export interface ItemActionsMenuProps {
@@ -253,31 +235,74 @@ export interface ItemActionsMenuProps {
   className?: string;
 }
 
-/** Every per-item action on a screen, behind one control. */
+/**
+ * Every per-item action on a screen, behind one control.
+ *
+ * THE CONFIRMATION DIALOGS ARE SIBLINGS OF THE MENU, NOT CHILDREN OF IT. Radix
+ * unmounts a closed menu's content, so a dialog inside a row either dies with
+ * the menu or forces the menu to stay open behind it. Outside, the menu closes
+ * and the dialog lives. Focus then needs two lines: the closing menu must not
+ * pull it back from the dialog, and the closing dialog returns it to the menu's
+ * button.
+ */
 export function ItemActionsMenu({ label, actions, className }: ItemActionsMenuProps) {
+  const [confirmingKey, setConfirmingKey] = useState<string | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const rows = resolveItemActions(actions);
   if (rows.length === 0) return null;
+  const confirmRows = rows.filter((row) => row.kind === 'confirm');
 
   return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
-        {/* 44px square below `sm` for a thumb, compact from `sm` up. The house
-            pattern for a secondary control, see `copy-text-button.tsx`. */}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className={cn('min-h-11 min-w-11 sm:min-h-8 sm:min-w-8', className)}
-          aria-label={label}
+    <>
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          {/* 44px square below `sm` for a thumb, compact from `sm` up. The house
+              pattern for a secondary control, see `copy-text-button.tsx`. */}
+          <Button
+            ref={triggerRef}
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className={cn('min-h-11 min-w-11 sm:min-h-8 sm:min-w-8', className)}
+            aria-label={label}
+          >
+            <MoreHorizontal className="size-4" aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="w-56"
+          onCloseAutoFocus={(event) => {
+            if (confirmingKey !== null) event.preventDefault();
+          }}
         >
-          <MoreHorizontal className="size-4" aria-hidden="true" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        {rows.map((action) => (
-          <ActionRow key={action.key} action={action} />
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {rows.map((action) => (
+            <ActionRow key={action.key} action={action} onConfirm={setConfirmingKey} />
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {confirmRows.map((action) => (
+        <ConfirmAction
+          key={action.key}
+          control={{
+            open: confirmingKey === action.key,
+            onOpenChange: (open) => setConfirmingKey(open ? action.key : null),
+            onCloseAutoFocus: (event) => {
+              event.preventDefault();
+              triggerRef.current?.focus();
+            },
+          }}
+          title={action.title}
+          description={action.description}
+          confirmText={action.confirmText}
+          confirmPendingText={action.confirmPendingText}
+          cancelText={action.cancelText}
+          confirmVariant={action.destructive === true ? 'destructive' : 'default'}
+          formData={action.formData}
+          onSuccess={action.onSuccess}
+          onError={action.onError}
+        />
+      ))}
+    </>
   );
 }

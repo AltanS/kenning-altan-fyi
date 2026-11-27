@@ -57,6 +57,11 @@ import { OPERATOR } from './operator';
  *     `app/lib/translation/explain-job-payload.ts`, a `z.strictObject` holding
  *     a folded question, two language codes, a prompt version and a row id, and
  *     no reader.
+ *   - a reader's rooms, the topic included, and the room builds counted per
+ *     day: `drizzle/schema/rooms.ts`. Both cascade off `users`.
+ *   - what the model receives for a room: `app/prompts/room/`, the topic, the
+ *     two languages and the draft under review. The queued job holds a room id
+ *     and an attempt: `app/lib/rooms/job-payload.ts`.
  *   - deletion in one statement: `deleteAccount` in
  *     `app/services/auth.server.ts`. The ask log, the authorship link, the
  *     votes, the reports and the profile row all cascade off `users`.
@@ -113,6 +118,7 @@ export function PrivacyContent() {
           <li>{t('privacy.s1Item4')}</li>
           <li>{t('privacy.s1Item5')}</li>
           <li>{t('privacy.s1Item6')}</li>
+          <li>{t('privacy.s1Item7')}</li>
         </ul>
       </section>
 
@@ -142,6 +148,7 @@ export function PrivacyContent() {
         <P className="mt-4">{t('privacy.s5Body5')}</P>
         <P className="mt-4">{t('privacy.s5Body6')}</P>
         <P className="mt-4">{t('privacy.s5Body7')}</P>
+        <P className="mt-4">{t('privacy.s5Body8')}</P>
       </section>
 
       <section className="mb-8">
